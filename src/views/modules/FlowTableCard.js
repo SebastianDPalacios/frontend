@@ -2,6 +2,7 @@ import {
   Alert,
   CircularProgress,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -11,12 +12,26 @@ import {
   Typography,
 } from "@mui/material";
 
-const FlowTableCard = ({ title, loading, error, columns = [], rows = [], emptyMessage = "No hay datos" }) => {
+const FlowTableCard = ({
+  title,
+  loading,
+  error,
+  columns = [],
+  rows = [],
+  emptyMessage = "No hay datos",
+  actions = null,
+  onRowClick = null,
+  getRowSx = null,
+  sx = null,
+}) => {
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
-      <Typography variant="h6" sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5, fontSize: { xs: 16, sm: 20 } }}>
-        {title}
-      </Typography>
+    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden", ...sx }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between" }}>
+        <Typography variant="h6" sx={{ fontSize: { xs: 16, sm: 20 } }}>
+          {title}
+        </Typography>
+        {actions}
+      </Stack>
       {loading ? (
         <Typography sx={{ px: { xs: 1.5, sm: 2 }, pb: 2 }}>
           <CircularProgress size={24} />
@@ -37,7 +52,15 @@ const FlowTableCard = ({ title, loading, error, columns = [], rows = [], emptyMe
             </TableHead>
             <TableBody>
               {rows.map((row, index) => (
-                <TableRow key={row.id ?? row.code ?? index}>
+                <TableRow
+                  key={row.id ?? row.code ?? index}
+                  hover={Boolean(onRowClick)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  sx={{
+                    cursor: onRowClick ? "pointer" : "default",
+                    ...(getRowSx ? getRowSx(row) : {}),
+                  }}
+                >
                   {columns.map((column) => (
                     <TableCell key={`${column.key}-${index}`} sx={{ whiteSpace: "nowrap" }}>
                       {column.render ? column.render(row) : row[column.key] || "-"}

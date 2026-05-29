@@ -1,15 +1,29 @@
-import { useMemo, useState } from "react";
-import { Alert, Grid, TextField } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import toast from "react-hot-toast";
 import usersService from "services/users/users-service";
-import FlowPageLayout from "views/modules/FlowPageLayout";
+import rbacService from "services/users/rbac-service";
+import useForm from "hooks/useForm";
+import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
+import FlowPageLayout from "views/modules/FlowPageLayout";
+import { FIELD_VALIDATORS } from "constants/validation";
+
+const normalizeList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  return [];
+};
+
+const getErrorMessage = (error, fallback) => {
+  return error?.response?.data?.message || error?.message || fallback;
+};
 
 const UsersNewPage = () => {
-  const [form, setForm] = useState({ full_name: "", username: "", email: "", password: "", role_code: "ADMIN" });
-  const [error, setError] = useState(null);
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState(null);
 
   const flowLinks = useMemo(
     () => [
@@ -19,145 +33,226 @@ const UsersNewPage = () => {
     []
   );
 
-  const onChange = (field) => (event) => {
-    setFieldErrors((prev) => ({ ...prev, [field]: null }));
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-  };
+  useEffect(() => {
+    const loadRoles = async () => {
+      setRolesLoading(true);
+      setRolesError(null);
 
-  const validateForm = () => {
-    const nextErrors = {};
+      try {
+        const response = await rbacService.getRoles();
+        if (response?.code !== 1) {
+          setRolesError(response?.message || "No se pudieron cargar los roles");
+          return;
+        }
 
-    if (!form.full_name.trim()) {
-      nextErrors.full_name = "El nombre completo es obligatorio";
-    }
-
-    if (!form.username.trim()) {
-      nextErrors.username = "El usuario es obligatorio";
-    } else if (!/^[a-zA-Z0-9._-]{4,32}$/.test(form.username.trim())) {
-      nextErrors.username = "Usa 4-32 caracteres (letras, numeros, punto, guion o guion bajo)";
-    }
-
-    if (!form.email.trim()) {
-      nextErrors.email = "El correo es obligatorio";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      nextErrors.email = "Ingresa un correo valido";
-    }
-
-    if (!form.password) {
-      nextErrors.password = "La contrasena es obligatoria";
-    } else if (form.password.length < 8) {
-      nextErrors.password = "La contrasena debe tener al menos 8 caracteres";
-    }
-
-    if (!form.role_code.trim()) {
-      nextErrors.role_code = "El rol es obligatorio";
-    } else if (!/^[A-Z_]{2,30}$/.test(form.role_code.trim())) {
-      nextErrors.role_code = "Usa solo mayusculas y guion bajo (ej: ADMIN)";
-    }
-
-    setFieldErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const onSubmit = async (event) => {
-    event.preventDefault();
-    if (saving) {
-      return;
-    }
-
-    setError(null);
-
-    if (!validateForm()) {
-      setError("Corrige los campos marcados");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const result = await usersService.createUser({
-        p_username: form.username.trim(),
-        p_email: form.email.trim(),
-        p_password_hash: form.password,
-        p_password_algo: "bcrypt",
-        p_full_name: form.full_name.trim(),
-        p_phone: null,
-        p_role_code: form.role_code.trim().toUpperCase(),
-        p_must_change_password: 1,
-      });
-
-      if (result?.code !== 1) {
-        setError(result?.message || "No se pudo crear el usuario");
-        return;
+        setRoles(normalizeList(response.data));
+      } catch (requestError) {
+        setRolesError(getErrorMessage(requestError, "Error al cargar roles"));
+      } finally {
+        setRolesLoading(false);
       }
+    };
 
-      toast.success(result?.message || "Usuario creado correctamente");
-      setForm({ full_name: "", username: "", email: "", password: "", role_code: "ADMIN" });
-    } catch (requestError) {
-      setError("Error de red al crear usuario");
-    } finally {
-      setSaving(false);
-    }
-  };
+    loadRoles();
+  }, []);
+
+  const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit } =
+    useForm(
+      {
+        full_name: "",
+        username: "",
+        email: "",
+        password: "",
+        role_code: "ADMIN",
+      },
+      async (formValues, helpers) => {
+        try {
+          const result = await usersService.createUser({
+            p_username: formValues.username.trim(),
+            p_email: formValues.email.trim(),
+            p_password_hash: formValues.password,
+            p_password_algo: "bcrypt",
+            p_full_name: formValues.full_name.trim(),
+            p_phone: null,
+            p_role_code: formValues.role_code.trim().toUpperCase(),
+            p_must_change_password: 1,
+          });
+
+          if (result?.code !== 1) {
+            toast.error(result?.message || "No se pudo crear el usuario");
+
+            if (result.data && Array.isArray(result.data.errors)) {
+              const list = (
+                <ul style={{ margin: 0, paddingLeft: "1.2em" }}>
+                  {result.data.errors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              );
+
+              if (typeof helpers.setFieldError === "function") {
+                helpers.setFieldError("password", list);
+              }
+              if (typeof helpers.setFieldTouched === "function") {
+                helpers.setFieldTouched("password", true);
+              }
+
+              try {
+                document.querySelector('input[name="password"]')?.focus();
+              } catch (e) {
+                // ignore focus errors
+              }
+            } else {
+              helpers.setSubmitError(result?.message || "No se pudo crear el usuario");
+            }
+
+            return;
+          }
+
+          toast.success(result?.message || "Usuario creado correctamente");
+          helpers.resetForm();
+        } catch (requestError) {
+          helpers.setSubmitError(getErrorMessage(requestError, "Error de red al crear usuario. Verifica tu conexion."));
+        }
+      },
+      {
+        full_name: FIELD_VALIDATORS.fullName,
+        username: FIELD_VALIDATORS.username,
+        email: FIELD_VALIDATORS.email,
+        password: FIELD_VALIDATORS.password,
+        role_code: FIELD_VALIDATORS.roleCode,
+      }
+    );
 
   return (
-    <FlowPageLayout title="Usuarios - Nuevo" subtitle="Formulario de alta conectado al backend" links={flowLinks}>
-      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      <Grid container spacing={2} component="form" onSubmit={onSubmit}>
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Nombre completo"
-            value={form.full_name}
-            onChange={onChange("full_name")}
-            error={Boolean(fieldErrors.full_name)}
-            helperText={fieldErrors.full_name || " "}
-          />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Usuario"
-            value={form.username}
-            onChange={onChange("username")}
-            error={Boolean(fieldErrors.username)}
-            helperText={fieldErrors.username || " "}
-          />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Correo"
-            value={form.email}
-            onChange={onChange("email")}
-            error={Boolean(fieldErrors.email)}
-            helperText={fieldErrors.email || " "}
-          />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            type="password"
-            label="Contrasena"
-            value={form.password}
-            onChange={onChange("password")}
-            error={Boolean(fieldErrors.password)}
-            helperText={fieldErrors.password || " "}
-          />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Rol"
-            value={form.role_code}
-            onChange={onChange("role_code")}
-            error={Boolean(fieldErrors.role_code)}
-            helperText={fieldErrors.role_code || " "}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <AppButton type="submit" color="secondary" disabled={saving}>{saving ? "Guardando..." : "Crear usuario"}</AppButton>
-        </Grid>
-      </Grid>
+    <FlowPageLayout title="Usuarios - Nuevo" subtitle="Alta de usuario y rol inicial" links={flowLinks}>
+      {submitError ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {submitError}
+        </Alert>
+      ) : null}
+      {rolesError ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {rolesError}
+        </Alert>
+      ) : null}
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }} component="form" onSubmit={handleSubmit}>
+        <Stack spacing={3}>
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              Datos del usuario
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Crea la cuenta, asigna el rol inicial y obliga cambio de clave en el primer ingreso.
+            </Typography>
+          </Stack>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <FormField
+                name="full_name"
+                label="Nombre completo"
+                value={values.full_name}
+                error={errors.full_name}
+                touched={touched.full_name}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="Juan Perez Garcia"
+                disabled={isSubmitting}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <FormField
+                name="username"
+                label="Usuario"
+                value={values.username}
+                error={errors.username}
+                touched={touched.username}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="juan.perez"
+                disabled={isSubmitting}
+                required
+                helperText="4-32 caracteres"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <FormField
+                name="email"
+                label="Correo electronico"
+                type="email"
+                value={values.email}
+                error={errors.email}
+                touched={touched.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="juan@example.com"
+                disabled={isSubmitting}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <FormField
+                name="password"
+                label="Contrasena"
+                type="password"
+                value={values.password}
+                error={errors.password}
+                touched={touched.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="**********"
+                disabled={isSubmitting}
+                required
+                helperText="Min. 10 caracteres"
+                showPasswordToggle
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <TextField
+                select
+                fullWidth
+                name="role_code"
+                label="Rol"
+                value={values.role_code}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={Boolean(errors.role_code && touched.role_code)}
+                helperText={errors.role_code && touched.role_code ? errors.role_code : "Selecciona el rol inicial"}
+                disabled={isSubmitting || rolesLoading}
+                required
+              >
+                {roles.map((role) => (
+                  <MenuItem key={role.code} value={role.code}>
+                    {role.name || role.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
+            <AppButton
+              type="submit"
+              color="secondary"
+              loading={isSubmitting}
+              loadingLabel="Creando usuario..."
+              disabled={isSubmitting || rolesLoading || Object.values(errors).some((v) => Boolean(v))}
+            >
+              Crear usuario
+            </AppButton>
+            <Typography variant="body2" color="text.secondary">
+              El usuario quedara activo y con cambio de clave pendiente.
+            </Typography>
+          </Stack>
+        </Stack>
+      </Paper>
     </FlowPageLayout>
   );
 };

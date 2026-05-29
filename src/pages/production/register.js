@@ -1,12 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Grid, MenuItem, TextField, Typography } from "@mui/material";
+import { Alert, Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import toast from "react-hot-toast";
 import productionService from "services/production/production-service";
-import inventoryService from "services/inventory/inventory-service";
-import FlowPageLayout from "views/modules/FlowPageLayout";
-import FlowTableCard from "views/modules/FlowTableCard";
-import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import catalogService from "services/catalog/catalog-service";
+import recipesService from "services/recipes/recipes-service";
 import AppButton from "@core/components/ui/AppButton";
+import AppCard from "@core/components/ui/AppCard";
+import FlowPageLayout from "views/modules/FlowPageLayout";
+import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+
+const getErrorMessage = (error, fallback) => {
+  return error?.response?.data?.message || error?.message || fallback;
+};
+
+const numberFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 3,
+});
+
+const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+
+const getRecipeParts = (recipe) => {
+  const rawNotes = String(recipe?.notes || "").trim();
+  const [name, ...descriptionParts] = rawNotes.split(/\s+[—-]\s+/);
+  const fallbackName = recipe?.version_no ? `Receta V${recipe.version_no}` : "Receta";
+
+  return {
+    name: name || fallbackName,
+    description: descriptionParts.join(" - ").trim(),
+  };
+};
 
 const ProductionRegisterPage = () => {
   const [loading, setLoading] = useState(true);
@@ -15,6 +37,8 @@ const ProductionRegisterPage = () => {
   const [batches, setBatches] = useState({});
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [recipes, setRecipes] = useState([]);
+  const [selectedRecipes, setSelectedRecipes] = useState({});
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -24,9 +48,10 @@ const ProductionRegisterPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const [productionResponse, inventoryResponse] = await Promise.all([
+        const [productionResponse, branchesResponse, recipesResponse] = await Promise.all([
           productionService.getBaseData({ onlyActive: 1, page: 1, pageSize: 40 }),
-          inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 40 }),
+          catalogService.getBranches({ onlyActive: 1 }),
+          recipesService.getList({ onlyActive: 1 }),
         ]);
 
         if (productionResponse?.code !== 1) {
@@ -34,17 +59,35 @@ const ProductionRegisterPage = () => {
           return;
         }
 
-        if (inventoryResponse?.code !== 1) {
-          setError(inventoryResponse?.message || "No se pudieron cargar sucursales");
+        if (branchesResponse?.code !== 1) {
+          setError(branchesResponse?.message || "No se pudieron cargar sucursales");
           return;
         }
 
-        const branchRows = normalizeRows(inventoryResponse.data?.branches);
+        if (recipesResponse?.code !== 1) {
+          setError(recipesResponse?.message || "No se pudieron cargar recetas");
+          return;
+        }
+
+        const branchRows = normalizeRows(branchesResponse.data);
+        const productRows = normalizeRows(productionResponse.data?.products);
+        const recipeRows = Array.isArray(recipesResponse?.data) ? recipesResponse.data : [];
+        const defaultRecipeSelection = {};
+
+        productRows.forEach((product) => {
+          const availableRecipes = recipeRows.filter((recipe) => Number(recipe.product_id) === Number(product.id));
+          if (availableRecipes.length) {
+            defaultRecipeSelection[product.id] = String(availableRecipes[0].id);
+          }
+        });
+
         setBranches(branchRows);
         setSelectedBranch(branchRows[0]?.id ? String(branchRows[0].id) : "");
-        setProducts(normalizeRows(productionResponse.data?.products));
+        setProducts(productRows);
+        setRecipes(recipeRows);
+        setSelectedRecipes(defaultRecipeSelection);
       } catch (requestError) {
-        setError("Error de red al cargar registro de produccion");
+        setError(getErrorMessage(requestError, "Error de red al cargar registro de produccion"));
       } finally {
         setLoading(false);
       }
@@ -53,16 +96,26 @@ const ProductionRegisterPage = () => {
     run();
   }, []);
 
-  const flowLinks = useMemo(
-    () => [
-      { label: "Dia", href: "/production/day" },
-      { label: "Registrar", href: "/production/register", active: true },
-      { label: "Ordenes", href: "/production/orders" },
-    ],
-    []
+  const productsWithRecipes = useMemo(
+    () =>
+      products.map((product) => ({
+        product,
+        recipes: recipes.filter((recipe) => Number(recipe.product_id) === Number(product.id)),
+      })),
+    [products, recipes]
   );
 
-  const totalBatches = Object.values(batches).reduce((acc, value) => acc + Number(value || 0), 0);
+  const selectedEntries = productsWithRecipes
+    .map(({ product, recipes: productRecipes }) => ({
+      product,
+      hasRecipe: productRecipes.length > 0,
+      quantity: Number(batches[product.id] || 0),
+    }))
+    .filter((entry) => entry.quantity > 0);
+
+  const totalBatches = selectedEntries.reduce((acc, entry) => acc + entry.quantity, 0);
+  const selectedCount = selectedEntries.length;
+  const withoutRecipeCount = productsWithRecipes.filter(({ recipes: productRecipes }) => productRecipes.length === 0).length;
 
   const onSubmitProduction = async () => {
     if (saving) {
@@ -71,11 +124,21 @@ const ProductionRegisterPage = () => {
 
     setError(null);
     setFieldErrors({});
-    const entries = products
-      .map((product) => ({
-        productId: Number(product.id),
-        quantity: Number(batches[product.id] || 0),
-      }))
+
+    const entries = productsWithRecipes
+      .map(({ product, recipes: productRecipes }) => {
+        const recipeId = selectedRecipes[product.id]
+          ? Number(selectedRecipes[product.id])
+          : productRecipes[0]
+          ? Number(productRecipes[0].id)
+          : null;
+
+        return {
+          productId: Number(product.id),
+          recipeId,
+          quantity: Number(batches[product.id] || 0),
+        };
+      })
       .filter((item) => item.productId > 0 && item.quantity > 0);
 
     const nextErrors = {};
@@ -101,6 +164,11 @@ const ProductionRegisterPage = () => {
       nextErrors.batches = "No se permiten lotes negativos";
     }
 
+    const invalidRecipeSelection = entries.some((entry) => !entry.recipeId);
+    if (invalidRecipeSelection) {
+      nextErrors.recipes = "Selecciona una receta para cada producto con lote";
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       setError("Corrige los campos marcados antes de registrar");
@@ -119,7 +187,7 @@ const ProductionRegisterPage = () => {
           productionService.registerResult({
             p_branch_id: Number(selectedBranch),
             p_product_id: item.productId,
-            p_recipe_id: null,
+            p_recipe_id: item.recipeId,
             p_produced_qty: item.quantity,
             p_reference_type: "manual",
             p_reference_id: null,
@@ -138,78 +206,213 @@ const ProductionRegisterPage = () => {
       setBatches({});
       setNotes("");
     } catch (requestError) {
-      setError("Error de red al registrar produccion");
+      setError(getErrorMessage(requestError, "Error de red al registrar produccion"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <FlowPageLayout title="Produccion - Registrar" subtitle="Carga de lotes diarios de produccion" links={flowLinks}>
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={3}>
-          <TextField select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)}>
-            {branches.map((branch) => (
-              <MenuItem key={branch.id} value={String(branch.id)}>
-                {getDisplayName(branch)}
-              </MenuItem>
-            ))}
-          </TextField>
-          {fieldErrors.selectedBranch ? <Typography variant="caption" color="error">{fieldErrors.selectedBranch}</Typography> : null}
+    <FlowPageLayout title="Produccion - Registrar" subtitle="Carga de lotes diarios de produccion">
+      {error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      ) : null}
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 3 }}>
+        <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
+          <Grid item xs={12} md={4}>
+            <TextField
+              select
+              fullWidth
+              label="Sucursal"
+              value={selectedBranch}
+              onChange={(event) => {
+                setFieldErrors((prev) => ({ ...prev, selectedBranch: null }));
+                setSelectedBranch(event.target.value);
+              }}
+              error={Boolean(fieldErrors.selectedBranch)}
+              helperText={fieldErrors.selectedBranch || " "}
+            >
+              {branches.map((branch) => (
+                <MenuItem key={branch.id} value={String(branch.id)}>
+                  {getDisplayName(branch)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Alert severity="info">
+              {selectedCount} productos seleccionados - {formatNumber(totalBatches)} lotes
+            </Alert>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              label="Notas"
+              value={notes}
+              onChange={(event) => {
+                setFieldErrors((prev) => ({ ...prev, notes: null }));
+                setNotes(event.target.value);
+              }}
+              error={Boolean(fieldErrors.notes)}
+              helperText={fieldErrors.notes || " "}
+            />
+          </Grid>
         </Grid>
-        <Grid item xs={12} md={3}>
-          <Alert severity="info">Total lotes: {totalBatches}</Alert>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Notas"
-            value={notes}
-            onChange={(event) => {
-              setFieldErrors((prev) => ({ ...prev, notes: null }));
-              setNotes(event.target.value);
-            }}
-            error={Boolean(fieldErrors.notes)}
-            helperText={fieldErrors.notes || " "}
+      </Paper>
+
+      {withoutRecipeCount > 0 ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {withoutRecipeCount} producto(s) no tienen receta activa. Puedes verlos, pero no se registraran hasta crear una receta.
+        </Alert>
+      ) : null}
+      {fieldErrors.batches ? <Alert severity="warning" sx={{ mb: 2 }}>{fieldErrors.batches}</Alert> : null}
+      {fieldErrors.recipes ? <Alert severity="warning" sx={{ mb: 2 }}>{fieldErrors.recipes}</Alert> : null}
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          sx={{ alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between", mb: 2 }}
+        >
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+              Productos a producir
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Selecciona la receta y captura solo los lotes que vas a registrar.
+            </Typography>
+          </Box>
+          <Chip
+            label={`${productsWithRecipes.length} productos`}
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 700 }}
           />
-        </Grid>
-      </Grid>
+        </Stack>
 
-      <FlowTableCard
-        title="Productos a producir"
-        loading={loading}
-        error={error}
-        columns={[
-          { key: "name", label: "Producto", render: (row) => getDisplayName(row) },
-          {
-            key: "batch",
-            label: "Lotes",
-            render: (row) => (
-              <TextField
-                type="number"
-                size="small"
-                value={batches[row.id] || ""}
-                onChange={(event) => setBatches((prev) => ({ ...prev, [row.id]: event.target.value }))}
-                inputProps={{ min: 0 }}
-                error={Boolean(fieldErrors.batches)}
-              />
-            ),
-          },
-        ]}
-        rows={products}
-      />
-      {fieldErrors.batches ? <Typography variant="caption" color="error" sx={{ mt: 1 }}>{fieldErrors.batches}</Typography> : null}
+        {loading ? (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Cargando productos y recetas...
+          </Alert>
+        ) : null}
 
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-        El registro usa endpoint real de produccion y crea movimientos de salida de receta cuando aplique.
-      </Typography>
-      <Grid container sx={{ mt: 2 }}>
-        <Grid item xs={12}>
-          <AppButton color="secondary" onClick={onSubmitProduction} disabled={saving || loading}>
-            {saving ? "Registrando..." : "Registrar produccion"}
-          </AppButton>
-        </Grid>
+      <Grid container spacing={2}>
+          {productsWithRecipes.map(({ product, recipes: productRecipes }) => {
+            const productName = getDisplayName(product);
+            const selectedRecipeId = selectedRecipes[product.id] || (productRecipes[0]?.id ? String(productRecipes[0].id) : "");
+            const selectedRecipe = productRecipes.find((recipe) => String(recipe.id) === String(selectedRecipeId));
+            const selectedRecipeParts = getRecipeParts(selectedRecipe);
+            const hasRecipe = productRecipes.length > 0;
+            const quantity = batches[product.id] || "";
+
+          return (
+            <Grid item xs={12} md={6} xl={4} key={product.id}>
+              <AppCard
+                variant="outlined"
+                sx={{
+                  height: "100%",
+                  borderRadius: 2,
+                  borderColor: Number(quantity || 0) > 0 ? "primary.main" : "divider",
+                  boxShadow: Number(quantity || 0) > 0 ? "0 10px 24px rgba(13, 21, 37, 0.08)" : "none",
+                }}
+                contentSx={{ height: "100%" }}
+              >
+                <Stack spacing={2} sx={{ height: "100%" }}>
+                  <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }} noWrap>
+                        {productName}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {product.sku || "Sin SKU"}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={hasRecipe ? "Con receta" : "Sin receta"}
+                      color={hasRecipe ? "success" : "warning"}
+                      size="small"
+                      variant={hasRecipe ? "outlined" : "filled"}
+                    />
+                  </Stack>
+
+                  {hasRecipe ? (
+                    <TextField
+                      select
+                      fullWidth
+                      label="Receta"
+                      value={selectedRecipeId}
+                      onChange={(event) =>
+                        setSelectedRecipes((prev) => ({
+                          ...prev,
+                          [product.id]: event.target.value,
+                        }))
+                      }
+                        error={Boolean(fieldErrors.recipes) && Boolean(quantity)}
+                      >
+                        {productRecipes.map((recipe) => (
+                          <MenuItem key={recipe.id} value={String(recipe.id)}>
+                            {getRecipeParts(recipe).name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                  ) : (
+                    <Alert severity="info">Crea una receta activa para poder registrar este producto.</Alert>
+                  )}
+
+                    {selectedRecipe ? (
+                      <Stack spacing={1}>
+                        <TextField
+                          fullWidth
+                          label="Descripcion de la receta"
+                          value={selectedRecipeParts.description || "Sin descripcion registrada"}
+                          InputProps={{ readOnly: true }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          Produce {formatNumber(selectedRecipe.output_quantity)} unidades por lote.
+                        </Typography>
+                      </Stack>
+                    ) : null}
+
+                  <Box sx={{ flex: 1 }} />
+
+                  <TextField
+                    type="number"
+                    label="Lotes producidos"
+                    value={quantity}
+                    onChange={(event) => {
+                      setFieldErrors((prev) => ({ ...prev, batches: null, recipes: null }));
+                      setBatches((prev) => ({ ...prev, [product.id]: event.target.value }));
+                    }}
+                    inputProps={{ min: 0, step: 0.001 }}
+                    error={Boolean(fieldErrors.batches)}
+                    disabled={!hasRecipe}
+                    fullWidth
+                  />
+                </Stack>
+              </AppCard>
+            </Grid>
+          );
+        })}
       </Grid>
+      </Paper>
+
+      {!loading && productsWithRecipes.length === 0 ? (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          No hay productos activos para registrar produccion.
+        </Alert>
+      ) : null}
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: { xs: "stretch", sm: "center" } }}>
+        <AppButton color="secondary" onClick={onSubmitProduction} disabled={saving || loading}>
+          {saving ? "Registrando..." : "Registrar produccion"}
+        </AppButton>
+        <Typography variant="body2" color="text.secondary">
+          El registro descuenta materias primas segun la receta seleccionada.
+        </Typography>
+      </Stack>
     </FlowPageLayout>
   );
 };

@@ -7,7 +7,11 @@ const setSessionData = (data) => {
   Cookies.set(authConfig.storageTokenKeyName, data.access_token || "", { sameSite: "Lax" });
   Cookies.set(authConfig.storageRefreshTokenKeyName, data.refresh_token || "", { sameSite: "Lax" });
   Cookies.set(authConfig.storageSessionIdKeyName, String(data.session_id || ""), { sameSite: "Lax" });
-  localStorage.setItem(authConfig.storageUserKeyName, JSON.stringify(data.user || null));
+  localStorage.setItem(authConfig.storageUserKeyName, JSON.stringify({
+    ...(data.user || {}),
+    roles: data.roles || [],
+    permissions: data.permissions || [],
+  }));
 };
 
 const clearSessionData = () => {
@@ -73,12 +77,16 @@ class AuthService {
   }
 
   isAuthenticated() {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
     const token = Cookies.get(authConfig.storageTokenKeyName);
     if (!token) {
       return false;
     }
 
-    if (typeof window !== "undefined" && isTokenExpired(token)) {
+    if (isTokenExpired(token)) {
       clearSessionData();
       return false;
     }

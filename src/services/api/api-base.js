@@ -60,4 +60,14 @@ export const PostEndpoint = async (path, data, config = {}) => {
   return result.data;
 };
 
+export const PutEndpoint = async (path, data, config = {}) => {
+  const result = await apiClient.put(path, data, config);
+  return result.data;
+};
+
+export const PatchEndpoint = async (path, data, config = {}) => {
+  const result = await apiClient.patch(path, data, config);
+  return result.data;
+};
+
 export default apiClient;

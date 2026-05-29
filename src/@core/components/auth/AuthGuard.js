@@ -1,17 +1,22 @@
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import authService from "services/auth/auth-service";
 
 const AuthGuard = ({ children }) => {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
+    const isAuth = authService.isAuthenticated();
+    if (!isAuth) {
       router.replace("/login");
     }
+    setAuthorized(isAuth);
+    setChecked(true);
   }, [router]);
 
-  if (!authService.isAuthenticated()) {
+  if (!checked || !authorized) {
     return null;
   }
 

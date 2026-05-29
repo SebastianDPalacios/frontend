@@ -40,3 +40,20 @@ export const formatDate = (value) => {
 
   return parsed.toLocaleDateString("es-CO");
 };
+
+export const isIntegerUnit = (unit) => {
+  return ["unit", "unidad", "unidades", "ud", "uds", "caja", "cajas", "paquete", "paquetes"].includes(
+    String(unit || "").trim().toLowerCase()
+  );
+};
+
+export const hasDecimals = (value) => Math.abs(Number(value || 0) % 1) > 0;
+
+export const formatInventoryQuantity = (value, unit) => {
+  const number = Number(value || 0);
+  const maximumFractionDigits = isIntegerUnit(unit) ? 0 : hasDecimals(number) ? 3 : 0;
+
+  return new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits,
+  }).format(number);
+};

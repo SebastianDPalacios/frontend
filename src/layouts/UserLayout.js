@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AppBar,
-  Chip,
+  Avatar,
   Box,
   Collapse,
   Container,
@@ -12,7 +12,11 @@ import {
   ListItemIcon,
   ListItemButton,
   ListItemText,
+  Menu,
+  MenuItem,
+  Stack,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
@@ -30,18 +34,57 @@ import PrecisionManufacturingRoundedIcon from "@mui/icons-material/PrecisionManu
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import CircleRoundedIcon from "@mui/icons-material/CircleRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
-import ordersService from "services/orders/orders-service";
-import productionService from "services/production/production-service";
-import inventoryService from "services/inventory/inventory-service";
-import usersService from "services/users/users-service";
-import AppButton from "@core/components/ui/AppButton";
 import navigationItems from "configs/navigation";
-import { getTotal } from "views/modules/flow-utils";
 
 const drawerWidth = 280;
 const mobileDrawerWidth = "84vw";
+
+const getUserDisplayName = (user) => {
+  return user?.full_name || user?.fullName || user?.name || user?.username || "Usuario";
+};
+
+const getUserInitials = (user) => {
+  const displayName = getUserDisplayName(user);
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return displayName.slice(0, 2).toUpperCase();
+};
+
+const hasPermission = (user, permission) => {
+  if (!permission) {
+    return true;
+  }
+
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return roles.includes("ADMIN") || roles.includes("SUPER_ADMIN") || permissions.includes(permission);
+};
+
+const filterNavigationByUser = (items, user) => {
+  return items
+    .map((section) => {
+      const filteredItems = section.items
+        .map((item) => {
+          if (item.children?.length) {
+            const children = item.children.filter((child) => hasPermission(user, child.permission));
+            return children.length ? { ...item, children } : null;
+          }
+
+          return hasPermission(user, item.permission) ? item : null;
+        })
+        .filter(Boolean);
+
+      return filteredItems.length ? { ...section, items: filteredItems } : null;
+    })
+    .filter(Boolean);
+};
 
 const iconMap = {
   dashboard: DashboardRoundedIcon,
@@ -54,20 +97,29 @@ const iconMap = {
   production: PrecisionManufacturingRoundedIcon,
   inventory: WarehouseRoundedIcon,
   users: PeopleRoundedIcon,
+  tax: CategoryRoundedIcon,
+  category: CategoryRoundedIcon,
+  suppliers: GroupRoundedIcon,
+  recipes: ScienceRoundedIcon,
 };
 
 const UserLayout = ({ children }) => {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [desktopOpen, setDesktopOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
-  const [menuBadges, setMenuBadges] = useState({ groups: {}, paths: {} });
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [accountAnchor, setAccountAnchor] = useState(null);
 
   const isPathSelected = (path) => router.pathname === path || router.pathname.startsWith(`${path}/`);
+  const visibleNavigationItems = useMemo(
+    () => filterNavigationByUser(navigationItems, currentUser),
+    [currentUser]
+  );
 
   const activeGroups = useMemo(() => {
     const groups = {};
-    navigationItems.forEach((section) => {
+    visibleNavigationItems.forEach((section) => {
       section.items.forEach((item) => {
         if (!item.children?.length) {
           return;
@@ -78,7 +130,7 @@ const UserLayout = ({ children }) => {
       });
     });
     return groups;
-  }, [router.pathname]);
+  }, [router.pathname, visibleNavigationItems]);
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -93,54 +145,16 @@ const UserLayout = ({ children }) => {
   }, [activeGroups]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const run = async () => {
-      const [ordersResult, productionResult, inventoryResult, usersResult] = await Promise.allSettled([
-        ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 1 }),
-        productionService.getBaseData({ onlyActive: 1, page: 1, pageSize: 1 }),
-        inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 1 }),
-        usersService.getUsers({ page: 1, pageSize: 1 }),
-      ]);
-
-      if (!mounted) {
-        return;
-      }
-
-      const ordersData = ordersResult.status === "fulfilled" && ordersResult.value?.code === 1 ? ordersResult.value.data : null;
-      const productionData = productionResult.status === "fulfilled" && productionResult.value?.code === 1 ? productionResult.value.data : null;
-      const inventoryData = inventoryResult.status === "fulfilled" && inventoryResult.value?.code === 1 ? inventoryResult.value.data : null;
-      const usersData = usersResult.status === "fulfilled" && usersResult.value?.code === 1 ? usersResult.value.data : null;
-
-      const ordersPending = getTotal(ordersData?.customers);
-      const productionCount = getTotal(productionData?.products);
-      const inventoryCount = getTotal(inventoryData?.products) + getTotal(inventoryData?.raw_materials);
-      const usersCount = Number(usersData?.total || 0);
-
-      setMenuBadges({
-        groups: {
-          "Operacion-Pedidos": ordersPending,
-          "Operacion-Produccion": productionCount,
-          "Operacion-Inventario": inventoryCount,
-          "Operacion-Usuarios": usersCount,
-        },
-        paths: {
-          "/orders/day": ordersPending,
-        },
-      });
-    };
-
-    run();
-
-    return () => {
-      mounted = false;
-    };
+    setCurrentUser(authService.getCurrentUser());
   }, []);
 
   const onLogout = async () => {
+    setAccountAnchor(null);
     await authService.logout();
     router.replace("/login");
   };
+
+  const accountOpen = Boolean(accountAnchor);
 
   const onNavigate = (path) => () => {
     setMobileOpen(false);
@@ -164,60 +178,101 @@ const UserLayout = ({ children }) => {
     return <IconComponent fontSize={size} />;
   };
 
-  const formatBadgeValue = (value) => {
-    if (!value || value < 1) {
-      return null;
-    }
-
-    return value > 99 ? "99+" : String(value);
-  };
-
   const drawer = (
-    <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Panaderia
-      </Typography>
-      {navigationItems.map((section) => (
-        <Box key={section.section} sx={{ mb: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ px: 1, textTransform: "uppercase" }}>
+    <Box
+      sx={{
+        height: "100%",
+        bgcolor: "#fbfafc",
+        px: { xs: 1.5, sm: 2 },
+        py: 2,
+        overflowY: "auto",
+        "&::-webkit-scrollbar": { width: 8 },
+        "&::-webkit-scrollbar-thumb": {
+          bgcolor: "rgba(17, 24, 39, 0.22)",
+          borderRadius: 99,
+        },
+      }}
+    >
+      <Box sx={{ px: 1, mb: 2.25 }}>
+        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0, fontWeight: 800 }}>
+          Navegacion
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+          Panaderia
+        </Typography>
+      </Box>
+      {visibleNavigationItems.map((section) => (
+        <Box key={section.section} sx={{ mb: 2.25 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", px: 1.25, mb: 0.75, textTransform: "uppercase", fontWeight: 800 }}
+          >
             {section.section}
           </Typography>
-          <List sx={{ py: 0.5 }}>
+          <List sx={{ py: 0 }}>
             {section.items.map((item) => {
               if (item.children?.length) {
                 const groupKey = `${section.section}-${item.title}`;
                 const groupOpen = Boolean(openGroups[groupKey]);
                 const groupSelected = item.children.some((child) => isPathSelected(child.path));
-                const groupBadge = formatBadgeValue(menuBadges.groups[groupKey]);
 
                 return (
                   <Box key={groupKey}>
                     <ListItemButton
                       selected={groupSelected}
                       onClick={onToggleGroup(groupKey)}
-                      sx={{ borderRadius: 1, mb: 0.5 }}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 0.5,
+                        minHeight: 46,
+                        px: 1.5,
+                        color: groupSelected ? "primary.main" : "text.primary",
+                        "&.Mui-selected": {
+                          bgcolor: "rgba(219, 91, 39, 0.12)",
+                        },
+                        "&.Mui-selected:hover": {
+                          bgcolor: "rgba(219, 91, 39, 0.16)",
+                        },
+                      }}
                     >
-                      <ListItemIcon sx={{ minWidth: 32, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
-                      <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2, fontWeight: 600 }} />
-                      {groupBadge ? <Chip size="small" color="secondary" label={groupBadge} sx={{ mr: 0.75, height: 20 }} /> : null}
+                      <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
+                      <ListItemText
+                        primary={item.title}
+                        primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2, fontWeight: 800 }}
+                      />
                       {groupOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                     </ListItemButton>
                     <Collapse in={groupOpen} timeout="auto" unmountOnExit>
-                      <List disablePadding>
+                      <List disablePadding sx={{ pl: 1.25, mb: 0.75 }}>
                         {item.children.map((child) => {
                           const childSelected = isPathSelected(child.path);
-                          const childBadge = formatBadgeValue(menuBadges.paths[child.path]);
 
                           return (
                             <ListItemButton
                               key={child.path}
                               selected={childSelected}
                               onClick={onNavigate(child.path)}
-                              sx={{ borderRadius: 1, ml: 1.5, pl: 1.5, mb: 0.25 }}
+                              sx={{
+                                borderRadius: 2,
+                                minHeight: 38,
+                                pl: 1.5,
+                                mb: 0.25,
+                                borderLeft: "2px solid",
+                                borderLeftColor: childSelected ? "primary.main" : "rgba(17, 24, 39, 0.12)",
+                                color: childSelected ? "primary.main" : "text.secondary",
+                                "&.Mui-selected": {
+                                  bgcolor: "transparent",
+                                },
+                                "&.Mui-selected:hover": {
+                                  bgcolor: "rgba(219, 91, 39, 0.08)",
+                                },
+                              }}
                             >
-                              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>{renderIcon(child.icon, "small")}</ListItemIcon>
-                              <ListItemText primary={child.title} primaryTypographyProps={{ fontSize: 13, lineHeight: 1.2 }} />
-                              {childBadge ? <Chip size="small" color="secondary" label={childBadge} sx={{ height: 18 }} /> : null}
+                              <ListItemText
+                                primary={child.title}
+                                primaryTypographyProps={{ fontSize: 13, lineHeight: 1.2, fontWeight: childSelected ? 800 : 600 }}
+                              />
                             </ListItemButton>
                           );
                         })}
@@ -230,14 +285,30 @@ const UserLayout = ({ children }) => {
               const selected = isPathSelected(item.path);
 
               return (
-                <ListItemButton key={item.path} selected={selected} onClick={onNavigate(item.path)} sx={{ borderRadius: 1 }}>
-                  <ListItemIcon sx={{ minWidth: 32, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
-                  <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2 }} />
+                <ListItemButton
+                  key={item.path}
+                  selected={selected}
+                  onClick={onNavigate(item.path)}
+                  sx={{
+                    borderRadius: 2,
+                    minHeight: 46,
+                    px: 1.5,
+                    color: selected ? "primary.main" : "text.primary",
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(219, 91, 39, 0.12)",
+                    },
+                    "&.Mui-selected:hover": {
+                      bgcolor: "rgba(219, 91, 39, 0.16)",
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
+                  <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2, fontWeight: 800 }} />
                 </ListItemButton>
               );
             })}
           </List>
-          <Divider />
+          <Divider sx={{ mt: 1.5 }} />
         </Box>
       ))}
     </Box>
@@ -256,14 +327,86 @@ const UserLayout = ({ children }) => {
           <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: 18, sm: 20 } }}>
             Panaderia
           </Typography>
-          <AppButton color="secondary" onClick={onLogout} size="small" sx={{ px: { xs: 1.5, sm: 2.5 } }}>
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-              Cerrar sesion
+          <Tooltip title="Cuenta">
+            <IconButton
+              color="inherit"
+              onClick={(event) => setAccountAnchor(event.currentTarget)}
+              sx={{
+                borderRadius: 2,
+                p: 0.75,
+                gap: 1,
+                color: "inherit",
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 34,
+                  height: 34,
+                  bgcolor: "secondary.main",
+                  color: "secondary.contrastText",
+                  fontSize: 13,
+                  fontWeight: 800,
+                }}
+              >
+                {getUserInitials(currentUser)}
+              </Avatar>
+              <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "left", maxWidth: 220 }}>
+                <Typography variant="body2" sx={{ color: "inherit", fontWeight: 800, lineHeight: 1.1 }} noWrap>
+                  {getUserDisplayName(currentUser)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.72)", lineHeight: 1.1 }} noWrap>
+                  {currentUser?.email || currentUser?.username || "Sesion activa"}
+                </Typography>
+              </Box>
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={accountAnchor}
+            open={accountOpen}
+            onClose={() => setAccountAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                minWidth: 300,
+                borderRadius: 2,
+                overflow: "hidden",
+              },
+            }}
+          >
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar
+                  sx={{
+                    width: 46,
+                    height: 46,
+                    bgcolor: "secondary.main",
+                    color: "secondary.contrastText",
+                    fontSize: 15,
+                    fontWeight: 800,
+                  }}
+                >
+                  {getUserInitials(currentUser)}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 800 }} noWrap>
+                    {getUserDisplayName(currentUser)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" noWrap>
+                    {currentUser?.email || currentUser?.username || "Sesion activa"}
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
-            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-              Salir
-            </Box>
-          </AppButton>
+            <Divider />
+            <MenuItem onClick={onLogout}>
+              <ListItemIcon>
+                <LogoutRoundedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Cerrar sesion" />
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Box sx={{ display: "flex" }}>
@@ -282,18 +425,28 @@ const UserLayout = ({ children }) => {
         </Drawer>
 
         <Drawer
-          variant="permanent"
-          open
+          variant="temporary"
+          open={desktopOpen}
+          onClose={() => setDesktopOpen(false)}
+          ModalProps={{ keepMounted: true }}
           sx={{
-            display: { xs: "none", md: desktopOpen ? "block" : "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
+            display: { xs: "none", md: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              borderRight: "1px solid rgba(17, 24, 39, 0.08)",
+              boxShadow: "12px 0 34px rgba(17, 24, 39, 0.16)",
+            },
+            "& .MuiBackdrop-root": {
+              bgcolor: "rgba(17, 24, 39, 0.24)",
+            },
           }}
         >
           <Toolbar />
           {drawer}
         </Drawer>
 
-        <Box component="main" sx={{ flexGrow: 1, width: { md: desktopOpen ? `calc(100% - ${drawerWidth}px)` : "100%" }, minWidth: 0 }}>
+        <Box component="main" sx={{ flexGrow: 1, width: "100%", minWidth: 0 }}>
           <Toolbar />
           <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 1.5, sm: 2, md: 3 } }}>
             {children}
