@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Alert, Grid, MenuItem } from "@mui/material";
+import { Alert, Box, Grid, Paper, Stack, Typography } from "@mui/material";
+import AltRouteOutlinedIcon from "@mui/icons-material/AltRouteOutlined";
 import toast from "react-hot-toast";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
@@ -17,7 +18,7 @@ const NuevaRutaPage = () => {
     []
   );
 
-  const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit } =
+  const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit, resetForm } =
     useForm(
       {
         code: "",
@@ -68,70 +69,114 @@ const NuevaRutaPage = () => {
         </Alert>
       )}
 
-      <Grid container spacing={2} component="form" onSubmit={handleSubmit}>
-        <Grid item xs={12} md={3}>
-          <FormField
-            name="code"
-            label="Codigo"
-            value={values.code}
-            error={errors.code}
-            touched={touched.code}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="R01"
-            required
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="name"
-            label="Nombre"
-            value={values.name}
-            error={errors.name}
-            touched={touched.name}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Ruta centro"
-            required
-          />
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <FormField
-            name="description"
-            label="Descripcion"
-            value={values.description}
-            error={errors.description}
-            touched={touched.description}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Zona centro"
-          />
-        </Grid>
-
-        <Grid item xs={12} md={2}>
-          <FormField
-            select
-            name="is_active"
-            label="Estado"
-            value={values.is_active}
-            error={errors.is_active}
-            touched={touched.is_active}
-            onChange={handleChange}
-            onBlur={handleBlur}
+      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 980, mx: "auto" }}>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Box
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2.5,
+            }}
           >
-            <MenuItem value="1">Activa</MenuItem>
-            <MenuItem value="0">Inactiva</MenuItem>
-          </FormField>
-        </Grid>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  bgcolor: "secondary.main",
+                  color: "secondary.contrastText",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <AltRouteOutlinedIcon />
+              </Box>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                  Informacion de la ruta
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Crea una ruta activa para organizar entregas y repartidores.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
 
-        <Grid item xs={12}>
-          <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando ruta...">
-            Crear ruta
-          </AppButton>
-        </Grid>
-      </Grid>
+          <Box sx={{ p: { xs: 2, md: 3 } }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+              Datos de ruta
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <FormField
+                  name="code"
+                  label="Codigo"
+                  value={values.code}
+                  error={errors.code}
+                  touched={touched.code}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="R01"
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12} md={5}>
+                <FormField
+                  name="name"
+                  label="Nombre"
+                  value={values.name}
+                  error={errors.name}
+                  touched={touched.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Ruta centro"
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <FormField
+                  name="description"
+                  label="Descripcion"
+                  value={values.description}
+                  error={errors.description}
+                  touched={touched.description}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Zona centro"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Box
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2,
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ justifyContent: "flex-end", alignItems: { xs: "stretch", sm: "center" } }}
+            >
+              <AppButton type="button" variant="outlined" color="secondary" onClick={resetForm}>
+                Limpiar formulario
+              </AppButton>
+              <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando ruta...">
+                Crear ruta
+              </AppButton>
+            </Stack>
+          </Box>
+        </Paper>
+      </Box>
     </FlowPageLayout>
   );
 };

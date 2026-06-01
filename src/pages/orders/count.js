@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { Alert, Box, Button, Chip, Grid, InputAdornment, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import toast from "react-hot-toast";
 import ordersService from "services/orders/orders-service";
@@ -6,6 +7,8 @@ import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
+import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -14,12 +17,14 @@ const currencyFormatter = new Intl.NumberFormat("es-CO", {
 });
 
 const formatMoney = (value) => currencyFormatter.format(Number(value || 0));
+const todayValue = toDateInputValue();
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
 
 const OrdersCountPage = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [products, setProducts] = useState([]);
@@ -30,8 +35,8 @@ const OrdersCountPage = () => {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [selectedRoute, setSelectedRoute] = useState("");
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
-  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(todayValue);
+  const [deliveryDate, setDeliveryDate] = useState(todayValue);
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -113,6 +118,14 @@ const OrdersCountPage = () => {
       nextErrors.deliveryDate = "La fecha de entrega es obligatoria";
     }
 
+    if (orderDate && orderDate < todayValue) {
+      nextErrors.orderDate = "La fecha del pedido no puede ser anterior a hoy";
+    }
+
+    if (deliveryDate && deliveryDate < todayValue) {
+      nextErrors.deliveryDate = "La fecha de entrega no puede ser anterior a hoy";
+    }
+
     if (orderDate && deliveryDate && new Date(deliveryDate) < new Date(orderDate)) {
       nextErrors.deliveryDate = "La entrega no puede ser menor a la fecha del pedido";
     }
@@ -167,6 +180,7 @@ const OrdersCountPage = () => {
         toast.success(orderResult?.message || "Pedido creado");
         setCounts({});
         setNotes("");
+        router.push("/orders/history");
         return;
       }
 
@@ -188,6 +202,7 @@ const OrdersCountPage = () => {
       toast.success(`Pedido ${orderId} guardado con ${items.length} items`);
       setCounts({});
       setNotes("");
+      router.push("/orders/history");
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al guardar pedido"));
     } finally {
@@ -261,31 +276,32 @@ const OrdersCountPage = () => {
                 )}
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField
+                <BalanceDatePicker
                   fullWidth
-                  type="date"
                   label="Fecha pedido"
                   value={orderDate}
-                  onChange={(event) => {
+                  minDate={todayValue}
+                  onChange={(nextDate) => {
                     setFieldErrors((prev) => ({ ...prev, orderDate: null }));
-                    setOrderDate(event.target.value);
+                    setOrderDate(nextDate);
+                    if (deliveryDate < nextDate) {
+                      setDeliveryDate(nextDate);
+                    }
                   }}
-                  InputLabelProps={{ shrink: true }}
                   error={Boolean(fieldErrors.orderDate)}
                   helperText={fieldErrors.orderDate || " "}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField
+                <BalanceDatePicker
                   fullWidth
-                  type="date"
                   label="Fecha entrega"
                   value={deliveryDate}
-                  onChange={(event) => {
+                  minDate={orderDate > todayValue ? orderDate : todayValue}
+                  onChange={(nextDate) => {
                     setFieldErrors((prev) => ({ ...prev, deliveryDate: null }));
-                    setDeliveryDate(event.target.value);
+                    setDeliveryDate(nextDate);
                   }}
-                  InputLabelProps={{ shrink: true }}
                   error={Boolean(fieldErrors.deliveryDate)}
                   helperText={fieldErrors.deliveryDate || " "}
                 />

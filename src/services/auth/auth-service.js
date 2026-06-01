@@ -1,5 +1,5 @@
 import Cookies from "js-cookie";
-import { PostEndpoint } from "services/api/api-base";
+import { GetEndpoint, PostEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 import authConfig from "configs/auth";
 
@@ -64,8 +64,26 @@ class AuthService {
     clearSessionData();
   }
 
+  async changePassword(newPassword) {
+    return PostEndpoint(endpoints.adminAuth.changePassword, {
+      p_expected_current_hash: null,
+      p_new_password_hash: newPassword,
+      p_new_password_algo: "bcrypt",
+      p_revoke_all_sessions: 0,
+    });
+  }
+
+  async checkSession() {
+    return GetEndpoint(endpoints.auth.session);
+  }
+
   clearSession() {
     clearSessionData();
+  }
+
+  updateCurrentUser(values = {}) {
+    const currentUser = this.getCurrentUser() || {};
+    localStorage.setItem(authConfig.storageUserKeyName, JSON.stringify({ ...currentUser, ...values }));
   }
 
   getCurrentUser() {

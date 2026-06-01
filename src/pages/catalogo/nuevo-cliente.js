@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Alert, Grid, MenuItem } from "@mui/material";
+import { Alert, Box, Divider, Grid, Paper, Stack, Typography } from "@mui/material";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import toast from "react-hot-toast";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
@@ -17,7 +18,7 @@ const NuevoClientePage = () => {
     []
   );
 
-  const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit } =
+  const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit, resetForm } =
     useForm(
       {
         tax_id: "",
@@ -79,110 +80,180 @@ const NuevoClientePage = () => {
         </Alert>
       )}
 
-      <Grid container spacing={2} component="form" onSubmit={handleSubmit}>
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="tax_id"
-            label="Identificacion"
-            value={values.tax_id}
-            error={errors.tax_id}
-            touched={touched.tax_id}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="CC/NIT"
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="name"
-            label="Nombre"
-            value={values.name}
-            error={errors.name}
-            touched={touched.name}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Cliente principal"
-            required
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="email"
-            label="Correo"
-            type="email"
-            value={values.email}
-            error={errors.email}
-            touched={touched.email}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="cliente@example.com"
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="phone"
-            label="Telefono"
-            value={values.phone}
-            error={errors.phone}
-            touched={touched.phone}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="3000000000"
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormField
-            name="address"
-            label="Direccion"
-            value={values.address}
-            error={errors.address}
-            touched={touched.address}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Calle 123"
-          />
-        </Grid>
-
-        <Grid item xs={12} md={2}>
-          <FormField
-            select
-            name="status"
-            label="Estado"
-            value={values.status}
-            error={errors.status}
-            touched={touched.status}
-            onChange={handleChange}
-            onBlur={handleBlur}
+      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Box
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2.5,
+            }}
           >
-            <MenuItem value="active">Activo</MenuItem>
-            <MenuItem value="inactive">Inactivo</MenuItem>
-          </FormField>
-        </Grid>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{ alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between" }}
+            >
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 2,
+                    bgcolor: "secondary.main",
+                    color: "secondary.contrastText",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <PersonAddAlt1OutlinedIcon />
+                </Box>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                    Informacion del cliente
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Registra los datos comerciales para ventas, pedidos y cartera.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+          </Box>
 
-        <Grid item xs={12} md={2}>
-          <FormField
-            name="credit_limit"
-            label="Credito"
-            type="number"
-            value={values.credit_limit}
-            error={errors.credit_limit}
-            touched={touched.credit_limit}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            inputProps={{ min: 0, step: 0.01 }}
-          />
-        </Grid>
+          <Stack spacing={3} sx={{ p: { xs: 2, md: 3 } }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Datos basicos
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="tax_id"
+                    label="Identificacion"
+                    value={values.tax_id}
+                    error={errors.tax_id}
+                    touched={touched.tax_id}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="CC/NIT"
+                  />
+                </Grid>
 
-        <Grid item xs={12}>
-          <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando cliente...">
-            Crear cliente
-          </AppButton>
-        </Grid>
-      </Grid>
+                <Grid item xs={12} md={8}>
+                  <FormField
+                    name="name"
+                    label="Nombre"
+                    value={values.name}
+                    error={errors.name}
+                    touched={touched.name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="Cliente principal"
+                    required
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Contacto
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="email"
+                    label="Correo"
+                    type="email"
+                    value={values.email}
+                    error={errors.email}
+                    touched={touched.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="cliente@example.com"
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="phone"
+                    label="Telefono"
+                    value={values.phone}
+                    error={errors.phone}
+                    touched={touched.phone}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="3000000000"
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="address"
+                    label="Direccion"
+                    value={values.address}
+                    error={errors.address}
+                    touched={touched.address}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="Calle 123"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Condiciones comerciales
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="credit_limit"
+                    label="Credito"
+                    type="number"
+                    value={values.credit_limit}
+                    error={errors.credit_limit}
+                    touched={touched.credit_limit}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    inputProps={{ min: 0, step: 0.01 }}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </Stack>
+
+          <Box
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2,
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ justifyContent: "flex-end", alignItems: { xs: "stretch", sm: "center" } }}
+            >
+              <AppButton type="button" variant="outlined" color="secondary" onClick={resetForm}>
+                Limpiar formulario
+              </AppButton>
+              <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando cliente...">
+                Crear cliente
+              </AppButton>
+            </Stack>
+          </Box>
+        </Paper>
+      </Box>
     </FlowPageLayout>
   );
 };

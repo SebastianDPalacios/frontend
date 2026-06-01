@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Divider, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import toast from "react-hot-toast";
 import usersService from "services/users/users-service";
 import rbacService from "services/users/rbac-service";
@@ -75,7 +76,7 @@ const UsersNewPage = () => {
             p_full_name: formValues.full_name.trim(),
             p_phone: null,
             p_role_code: formValues.role_code.trim().toUpperCase(),
-            p_must_change_password: 1,
+            p_must_change_password: 0,
           });
 
           if (result?.code !== 1) {
@@ -137,122 +138,184 @@ const UsersNewPage = () => {
         </Alert>
       ) : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }} component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
-          <Stack spacing={0.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              Datos del usuario
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Crea la cuenta, asigna el rol inicial y obliga cambio de clave en el primer ingreso.
-            </Typography>
-          </Stack>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <FormField
-                name="full_name"
-                label="Nombre completo"
-                value={values.full_name}
-                error={errors.full_name}
-                touched={touched.full_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="Juan Perez Garcia"
-                disabled={isSubmitting}
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <FormField
-                name="username"
-                label="Usuario"
-                value={values.username}
-                error={errors.username}
-                touched={touched.username}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="juan.perez"
-                disabled={isSubmitting}
-                required
-                helperText="4-32 caracteres"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <FormField
-                name="email"
-                label="Correo electronico"
-                type="email"
-                value={values.email}
-                error={errors.email}
-                touched={touched.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="juan@example.com"
-                disabled={isSubmitting}
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <FormField
-                name="password"
-                label="Contrasena"
-                type="password"
-                value={values.password}
-                error={errors.password}
-                touched={touched.password}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="**********"
-                disabled={isSubmitting}
-                required
-                helperText="Min. 10 caracteres"
-                showPasswordToggle
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <TextField
-                select
-                fullWidth
-                name="role_code"
-                label="Rol"
-                value={values.role_code}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={Boolean(errors.role_code && touched.role_code)}
-                helperText={errors.role_code && touched.role_code ? errors.role_code : "Selecciona el rol inicial"}
-                disabled={isSubmitting || rolesLoading}
-                required
+      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Box
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2.5,
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  bgcolor: "secondary.main",
+                  color: "secondary.contrastText",
+                  display: "grid",
+                  placeItems: "center",
+                }}
               >
-                {roles.map((role) => (
-                  <MenuItem key={role.code} value={role.code}>
-                    {role.name || role.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-          </Grid>
+                <PersonAddAlt1OutlinedIcon />
+              </Box>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                  Datos del usuario
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Crea la cuenta con su clave inicial y asigna el rol correspondiente.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
-            <AppButton
-              type="submit"
-              color="secondary"
-              loading={isSubmitting}
-              loadingLabel="Creando usuario..."
-              disabled={isSubmitting || rolesLoading || Object.values(errors).some((v) => Boolean(v))}
-            >
-              Crear usuario
-            </AppButton>
-            <Typography variant="body2" color="text.secondary">
-              El usuario quedara activo y con cambio de clave pendiente.
-            </Typography>
+          <Stack spacing={3} sx={{ p: { xs: 2, md: 3 } }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Identidad
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <FormField
+                    name="full_name"
+                    label="Nombre completo"
+                    value={values.full_name}
+                    error={errors.full_name}
+                    touched={touched.full_name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="Juan Perez Garcia"
+                    disabled={isSubmitting}
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <FormField
+                    name="email"
+                    label="Correo electronico"
+                    type="email"
+                    value={values.email}
+                    error={errors.email}
+                    touched={touched.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="juan@example.com"
+                    disabled={isSubmitting}
+                    required
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Acceso
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <FormField
+                    name="username"
+                    label="Usuario"
+                    value={values.username}
+                    error={errors.username}
+                    touched={touched.username}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="juan.perez"
+                    disabled={isSubmitting}
+                    required
+                    helperText="4-32 caracteres"
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <FormField
+                    name="password"
+                    label="Contrasena"
+                    type="password"
+                    value={values.password}
+                    error={errors.password}
+                    touched={touched.password}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="**********"
+                    disabled={isSubmitting}
+                    required
+                    helperText="Min. 10 caracteres"
+                    showPasswordToggle
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Rol inicial
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    name="role_code"
+                    label="Rol"
+                    value={values.role_code}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={Boolean(errors.role_code && touched.role_code)}
+                    helperText={errors.role_code && touched.role_code ? errors.role_code : "Selecciona el rol inicial"}
+                    disabled={isSubmitting || rolesLoading}
+                    required
+                  >
+                    {roles.map((role) => (
+                      <MenuItem key={role.code} value={role.code}>
+                        {role.name || role.code}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Alert severity="info" sx={{ height: "100%", alignItems: "center" }}>
+                    El usuario quedara activo y podra ingresar con la clave definida.
+                  </Alert>
+                </Grid>
+              </Grid>
+            </Box>
           </Stack>
-        </Stack>
-      </Paper>
+
+          <Box
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2,
+            }}
+          >
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "flex-end", alignItems: { xs: "stretch", sm: "center" } }}>
+              <AppButton
+                type="submit"
+                color="secondary"
+                loading={isSubmitting}
+                loadingLabel="Creando usuario..."
+                disabled={isSubmitting || rolesLoading || Object.values(errors).some((v) => Boolean(v))}
+              >
+                Crear usuario
+              </AppButton>
+            </Stack>
+          </Box>
+        </Paper>
+      </Box>
     </FlowPageLayout>
   );
 };

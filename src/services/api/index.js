@@ -3,6 +3,7 @@ const endpoints = {
     login: "/auth/login",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
+    session: "/auth/session",
   },
   users: {
     list: "/users",

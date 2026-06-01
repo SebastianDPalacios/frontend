@@ -363,16 +363,33 @@ const ProductionRegisterPage = () => {
                   )}
 
                     {selectedRecipe ? (
-                      <Stack spacing={1}>
-                        <TextField
-                          fullWidth
-                          label="Descripcion de la receta"
-                          value={selectedRecipeParts.description || "Sin descripcion registrada"}
-                          InputProps={{ readOnly: true }}
+                      <Stack spacing={1.25}>
+                        <Box
+                          sx={{
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 2,
+                            bgcolor: "background.default",
+                            p: 1.5,
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", fontWeight: 800, mb: 0.75 }}
+                          >
+                            Indicaciones de la receta
+                          </Typography>
+                          <Typography variant="body2" sx={{ lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                            {selectedRecipeParts.description || "Sin indicaciones registradas"}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={`Produce ${formatNumber(selectedRecipe.output_quantity)} unidades por lote`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ alignSelf: "flex-start", fontWeight: 700 }}
                         />
-                        <Typography variant="body2" color="text.secondary">
-                          Produce {formatNumber(selectedRecipe.output_quantity)} unidades por lote.
-                        </Typography>
                       </Stack>
                     ) : null}
 

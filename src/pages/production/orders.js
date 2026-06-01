@@ -24,8 +24,10 @@ import recipesService from "services/recipes/recipes-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
+import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 
-const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
+const getTodayInputValue = () => toDateInputValue();
 
 const formatDate = (value) => {
   if (!value) {
@@ -404,6 +406,9 @@ const ProductionOrdersPage = () => {
     if (!newOrder.plannedDate) {
       nextErrors.plannedDate = "La fecha planificada es obligatoria";
     }
+    if (newOrder.plannedDate && newOrder.plannedDate < getTodayInputValue()) {
+      nextErrors.plannedDate = "La fecha planificada no puede ser anterior a hoy";
+    }
     if (newOrder.notes.length > 250) {
       nextErrors.notes = "Maximo 250 caracteres";
     }
@@ -718,17 +723,15 @@ const ProductionOrdersPage = () => {
             </TextField>
           </Grid>
           <Grid item xs={12} md={3}>
-            <TextField
+            <BalanceDatePicker
               fullWidth
-              type="date"
               label="Fecha planificada"
               value={newOrder.plannedDate}
-              onChange={(event) => {
+              minDate={getTodayInputValue()}
+              onChange={(nextDate) => {
                 setFieldErrors((prev) => ({ ...prev, plannedDate: null }));
-                setNewOrder((current) => ({ ...current, plannedDate: event.target.value }));
+                setNewOrder((current) => ({ ...current, plannedDate: nextDate }));
               }}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ min: getTodayInputValue() }}
               error={Boolean(fieldErrors.plannedDate)}
               helperText={fieldErrors.plannedDate || " "}
             />

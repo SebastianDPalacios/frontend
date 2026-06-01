@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Grid, IconButton, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import recipesService from "services/recipes/recipes-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
@@ -51,6 +52,10 @@ const unitFactors = {
 };
 
 const roundQuantity = (value) => Number(Number(value).toFixed(6));
+
+const getProductDisplayName = (product) => {
+  return product?.name || product?.product_name || product?.description || "Sin nombre";
+};
 
 const convertQuantity = (quantity, fromUnit, toUnit) => {
   const sourceUnit = fromUnit || toUnit;
@@ -259,7 +264,7 @@ const RecipeCreatePage = () => {
               >
                 {products.map((product) => (
                   <MenuItem key={product.id} value={String(product.id)}>
-                    {getDisplayName(product)}
+                    {getProductDisplayName(product)}
                   </MenuItem>
                 ))}
               </TextField>
@@ -300,6 +305,27 @@ const RecipeCreatePage = () => {
               />
             </Grid>
           </Grid>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, bgcolor: "background.default" }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
+            <Stack spacing={0.5}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Necesitas un producto final?
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Crea el producto en la vista de catalogo y luego vuelve para seleccionarlo en esta receta.
+              </Typography>
+            </Stack>
+            <AppButton
+              component={Link}
+              href="/catalogo/nuevo-producto"
+              color="secondary"
+              variant="outlined"
+            >
+              Ir a crear producto
+            </AppButton>
+          </Stack>
         </Paper>
 
         <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>

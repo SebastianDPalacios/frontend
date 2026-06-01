@@ -4,7 +4,6 @@ import Link from "next/link";
 import productionService from "services/production/production-service";
 import AppCard from "@core/components/ui/AppCard";
 import FlowPageLayout from "views/modules/FlowPageLayout";
-import FlowTableCard from "views/modules/FlowTableCard";
 import { getTotal, normalizeRows } from "views/modules/flow-utils";
 
 const getErrorMessage = (error, fallback) => {
@@ -65,6 +64,109 @@ const MetricCard = ({ label, value, helper, color = "primary" }) => (
     ) : null}
   </AppCard>
 );
+
+const getProgressPercent = (producedQty, plannedQty) => {
+  const planned = Number(plannedQty || 0);
+  if (planned <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.round((Number(producedQty || 0) / planned) * 100), 100);
+};
+
+const OrderStat = ({ label, value }) => (
+  <Box>
+    <Typography variant="caption" color="text.secondary">
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: 900 }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
+const ProductionOrderCard = ({ order }) => {
+  const progress = getProgressPercent(order.produced_qty, order.planned_qty);
+  const pendingItems = Number(order.pending_items || 0);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 3,
+        p: 2,
+        height: "100%",
+        borderColor: pendingItems > 0 ? "warning.main" : "success.main",
+        bgcolor: "background.paper",
+        transition: "box-shadow 160ms ease, transform 160ms ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: "0 14px 30px rgba(15, 23, 42, 0.08)",
+        },
+      }}
+    >
+      <Stack spacing={2} sx={{ height: "100%" }}>
+        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
+              Orden #{order.id}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
+              {order.branch_name || "Sucursal"} - {formatDate(order.planned_date)}
+            </Typography>
+          </Box>
+          <StatusChip status={order.status} />
+        </Stack>
+
+        <Box>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
+            <Typography variant="body2" color="text.secondary">
+              Avance
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 900 }}>
+              {progress}%
+            </Typography>
+          </Stack>
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{
+              height: 9,
+              borderRadius: 999,
+              bgcolor: "action.hover",
+              "& .MuiLinearProgress-bar": { borderRadius: 999 },
+            }}
+          />
+        </Box>
+
+        <Grid container spacing={1}>
+          <Grid item xs={3}>
+            <OrderStat label="Items" value={formatNumber(order.items_count)} />
+          </Grid>
+          <Grid item xs={3}>
+            <OrderStat label="Plan" value={formatNumber(order.planned_qty)} />
+          </Grid>
+          <Grid item xs={3}>
+            <OrderStat label="Hecho" value={formatNumber(order.produced_qty)} />
+          </Grid>
+          <Grid item xs={3}>
+            <OrderStat label="Pend." value={formatNumber(order.pending_items)} />
+          </Grid>
+        </Grid>
+
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mt: "auto" }}>
+          <Chip
+            size="small"
+            color={pendingItems > 0 ? "warning" : "success"}
+            label={pendingItems > 0 ? `${pendingItems} pendientes` : "Sin pendientes"}
+            variant={pendingItems > 0 ? "outlined" : "filled"}
+          />
+          {progress >= 100 ? <Chip size="small" color="success" label="Produccion completa" variant="outlined" /> : null}
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+};
 
 const ProductionDayPage = () => {
   const [loading, setLoading] = useState(true);
@@ -192,24 +294,30 @@ const ProductionDayPage = () => {
         </Stack>
       </AppCard>
 
-      <Box sx={{ mt: 3 }}>
-        <FlowTableCard
-          title="Ordenes planificadas para hoy"
-          loading={loading}
-          error={null}
-          emptyMessage="No hay ordenes planificadas para hoy."
-          columns={[
-            { key: "id", label: "Orden", render: (row) => `#${row.id}` },
-            { key: "branch_name", label: "Sucursal" },
-            { key: "status", label: "Estado", render: (row) => <StatusChip status={row.status} /> },
-            { key: "items_count", label: "Items", render: (row) => formatNumber(row.items_count) },
-            { key: "planned_qty", label: "Planificado", render: (row) => formatNumber(row.planned_qty) },
-            { key: "produced_qty", label: "Producido", render: (row) => formatNumber(row.produced_qty) },
-            { key: "pending_items", label: "Pendientes", render: (row) => formatNumber(row.pending_items) },
-          ]}
-          rows={ordersToday}
-        />
-      </Box>
+      <Paper variant="outlined" sx={{ mt: 3, borderRadius: 3, p: { xs: 2, md: 3 } }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Ordenes planificadas para hoy
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Avance individual por orden, cantidades y pendientes.
+            </Typography>
+          </Box>
+          <Chip label={`${ordersToday.length} ordenes`} variant="outlined" />
+        </Stack>
+
+        {loading ? <Alert severity="info">Cargando ordenes planificadas...</Alert> : null}
+        {!loading && ordersToday.length === 0 ? <Alert severity="info">No hay ordenes planificadas para hoy.</Alert> : null}
+
+        <Grid container spacing={2}>
+          {ordersToday.map((order) => (
+            <Grid item xs={12} md={6} xl={4} key={order.id}>
+              <ProductionOrderCard order={order} />
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
     </FlowPageLayout>
   );
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Grid, MenuItem, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, Divider, Grid, MenuItem, Paper, Stack, Typography } from "@mui/material";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import toast from "react-hot-toast";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
@@ -91,18 +92,67 @@ const NuevoProductoPage = () => {
         </Alert>
       ) : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
-        <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 900 }}>
-              Informacion del producto
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Define nombre, clasificacion, precio y estado operativo.
-            </Typography>
+      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            borderRadius: 3,
+            overflow: "hidden",
+            bgcolor: "background.paper",
+          }}
+        >
+          <Box
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
+              px: { xs: 2, md: 3 },
+              py: 2.5,
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{ alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between" }}
+            >
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 2,
+                    bgcolor: "secondary.main",
+                    color: "secondary.contrastText",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <Inventory2OutlinedIcon />
+                </Box>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                    Informacion del producto
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Completa los datos principales para habilitarlo en ventas, pedidos y produccion.
+                  </Typography>
+                </Box>
+              </Stack>
+              <Chip
+                label={values.is_active === "1" ? "Activo" : "Inactivo"}
+                color={values.is_active === "1" ? "success" : "default"}
+                variant="outlined"
+                sx={{ fontWeight: 800 }}
+              />
+            </Stack>
           </Box>
 
-          <Grid container spacing={2}>
+          <Stack spacing={3} sx={{ p: { xs: 2, md: 3 } }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Datos basicos
+              </Typography>
+              <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
               <FormField
                 name="sku"
@@ -117,7 +167,7 @@ const NuevoProductoPage = () => {
                 helperText="Identificador unico del producto"
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 name="name"
                 label="Nombre"
@@ -130,7 +180,7 @@ const NuevoProductoPage = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 name="description"
                 label="Descripcion"
@@ -142,7 +192,17 @@ const NuevoProductoPage = () => {
                 placeholder="Pan de molde integral"
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Clasificacion
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
               <FormField
                 select
                 name="category_id"
@@ -163,7 +223,7 @@ const NuevoProductoPage = () => {
                 ))}
               </FormField>
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 select
                 name="tax_rate_id"
@@ -184,7 +244,7 @@ const NuevoProductoPage = () => {
                 ))}
               </FormField>
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 select
                 name="unit"
@@ -201,7 +261,17 @@ const NuevoProductoPage = () => {
                 <MenuItem value="lb">Libra</MenuItem>
               </FormField>
             </Grid>
-            <Grid item xs={12} md={4}>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>
+                Operacion
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
               <FormField
                 name="base_price"
                 label="Precio base"
@@ -215,7 +285,7 @@ const NuevoProductoPage = () => {
                 inputProps={{ min: 0, step: 1 }}
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 name="min_stock"
                 label="Stock minimo"
@@ -229,7 +299,7 @@ const NuevoProductoPage = () => {
                 inputProps={{ min: 0 }}
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}>
               <FormField
                 select
                 name="is_active"
@@ -244,18 +314,34 @@ const NuevoProductoPage = () => {
                 <MenuItem value="0">Inactivo</MenuItem>
               </FormField>
             </Grid>
-          </Grid>
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando producto...">
-              Crear producto
-            </AppButton>
-            <AppButton type="button" variant="outlined" color="secondary" onClick={resetForm}>
-              Limpiar formulario
-            </AppButton>
+              </Grid>
+            </Box>
           </Stack>
-        </Stack>
-      </Paper>
+
+          <Box
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              px: { xs: 2, md: 3 },
+              py: 2,
+              bgcolor: "background.default",
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ justifyContent: "flex-end", alignItems: { xs: "stretch", sm: "center" } }}
+            >
+              <AppButton type="button" variant="outlined" color="secondary" onClick={resetForm}>
+                Limpiar formulario
+              </AppButton>
+              <AppButton type="submit" color="secondary" loading={isSubmitting} loadingLabel="Creando producto...">
+                Crear producto
+              </AppButton>
+            </Stack>
+          </Box>
+        </Paper>
+      </Box>
     </FlowPageLayout>
   );
 };

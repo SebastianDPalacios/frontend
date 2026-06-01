@@ -57,6 +57,41 @@ const getStatusColor = (status) => {
   return "warning";
 };
 
+const normalizeRoleCodes = (value) => {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : item?.code || item?.role_code))
+      .filter(Boolean)
+      .map(String);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      return normalizeRoleCodes(JSON.parse(trimmed));
+    } catch (error) {
+      return trimmed
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (typeof value === "object") {
+    return normalizeRoleCodes(value.roles || value.items || value.data);
+  }
+
+  return [];
+};
+
 const UsersListPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,7 +181,7 @@ const UsersListPage = () => {
       }
 
       setSelectedUser({ ...user, ...response.data });
-      setRolesForm(Array.isArray(response.data?.roles) ? response.data.roles : []);
+      setRolesForm(normalizeRoleCodes(response.data?.roles));
       setDialog("roles");
     } catch (requestError) {
       toast.error(getErrorMessage(requestError, "No se pudo cargar el detalle del usuario"));
@@ -485,7 +520,7 @@ const UsersListPage = () => {
           <Button onClick={closeDialog} disabled={saving}>
             Cancelar
           </Button>
-          <Button variant="contained" color="secondary" onClick={saveRoles} disabled={saving || rolesForm.length === 0}>
+          <Button variant="contained" color="secondary" onClick={saveRoles} disabled={saving}>
             Guardar roles
           </Button>
         </DialogActions>

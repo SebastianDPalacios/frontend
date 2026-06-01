@@ -3,7 +3,7 @@ const navigationItems = [
     section: "General",
     items: [
       { title: "Dashboard", path: "/dashboards/analytics", icon: "dashboard", permission: "reports.view" },
-      { title: "Auditoria", path: "/reports/audit", icon: "dashboard", permission: "reports.view" },
+      { title: "Auditoria", path: "/reports/audit", icon: "dashboard", permission: "roles.manage" },
     ],
   },
   {
