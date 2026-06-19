@@ -6,6 +6,10 @@ class InventoryService {
     return GetEndpoint(endpoints.inventory.baseData, { params });
   }
 
+  async getMovements(params = {}) {
+    return GetEndpoint(endpoints.inventory.movements, { params });
+  }
+
   async applyMovement(payload) {
     return PostEndpoint(endpoints.inventory.movements, payload);
   }

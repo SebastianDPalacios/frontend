@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppBar,
   Avatar,
+  Badge,
   Box,
   Collapse,
   Container,
@@ -28,15 +29,16 @@ import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import ScienceRoundedIcon from "@mui/icons-material/ScienceRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
-import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import PrecisionManufacturingRoundedIcon from "@mui/icons-material/PrecisionManufacturingRounded";
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import CircleRoundedIcon from "@mui/icons-material/CircleRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
+import productionService from "services/production/production-service";
 import navigationItems from "configs/navigation";
 
 const drawerWidth = 280;
@@ -92,7 +94,6 @@ const iconMap = {
   products: Inventory2RoundedIcon,
   materials: ScienceRoundedIcon,
   customers: GroupRoundedIcon,
-  routes: LocalShippingRoundedIcon,
   orders: ReceiptLongRoundedIcon,
   production: PrecisionManufacturingRoundedIcon,
   inventory: WarehouseRoundedIcon,
@@ -110,6 +111,19 @@ const UserLayout = ({ children }) => {
   const [openGroups, setOpenGroups] = useState({});
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
   const [accountAnchor, setAccountAnchor] = useState(null);
+  const [notificationAnchor, setNotificationAnchor] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const response = await productionService.getNotifications();
+      if (response?.code === 1) {
+        setNotifications(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      setNotifications([]);
+    }
+  }, []);
 
   const isPathSelected = (path) => router.pathname === path || router.pathname.startsWith(`${path}/`);
   const visibleNavigationItems = useMemo(
@@ -148,6 +162,19 @@ const UserLayout = ({ children }) => {
     setCurrentUser(authService.getCurrentUser());
   }, []);
 
+  useEffect(() => {
+    loadNotifications();
+
+    const refreshOnFocus = () => loadNotifications();
+    const refreshInterval = window.setInterval(loadNotifications, 30000);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [currentUser?.id, currentUser?.user_id, loadNotifications]);
+
   const onLogout = async () => {
     setAccountAnchor(null);
     await authService.logout();
@@ -155,6 +182,26 @@ const UserLayout = ({ children }) => {
   };
 
   const accountOpen = Boolean(accountAnchor);
+  const notificationOpen = Boolean(notificationAnchor);
+  const unreadCount = notifications.filter((notification) => !notification.viewed_at).length;
+
+  const openNotification = async (notification) => {
+    try {
+      if (!notification.viewed_at) {
+        await productionService.markNotificationViewed(notification.id);
+        setNotifications((current) => current.map((item) => (
+          item.id === notification.id ? { ...item, viewed_at: new Date().toISOString() } : item
+        )));
+      }
+    } finally {
+      setNotificationAnchor(null);
+      if (notification.reference_type === "order" && notification.reference_id) {
+        router.push(`/orders/history?search=${encodeURIComponent(notification.reference_id)}`);
+      } else {
+        router.push("/production/planning");
+      }
+    }
+  };
 
   const onNavigate = (path) => () => {
     setMobileOpen(false);
@@ -327,6 +374,52 @@ const UserLayout = ({ children }) => {
           <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: 18, sm: 20 } }}>
             Panaderia
           </Typography>
+          <Tooltip title="Notificaciones">
+            <IconButton
+              color="inherit"
+              onClick={(event) => {
+                setNotificationAnchor(event.currentTarget);
+                loadNotifications();
+              }}
+              sx={{ mr: 0.5 }}
+            >
+              <Badge badgeContent={unreadCount} color="secondary">
+                <NotificationsRoundedIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={notificationAnchor}
+            open={notificationOpen}
+            onClose={() => setNotificationAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            PaperProps={{ sx: { mt: 1, width: 360, maxWidth: "92vw", borderRadius: 2 } }}
+          >
+            <Box sx={{ px: 2, py: 1.25 }}>
+              <Typography sx={{ fontWeight: 900 }}>Notificaciones</Typography>
+              <Typography variant="caption" color="text.secondary">{unreadCount} sin ver</Typography>
+            </Box>
+            <Divider />
+            {notifications.length === 0 ? (
+              <Box sx={{ px: 2, py: 2 }}>
+                <Typography variant="body2" color="text.secondary">No tienes notificaciones nuevas.</Typography>
+              </Box>
+            ) : notifications.map((notification) => (
+              <MenuItem
+                key={notification.id}
+                onClick={() => openNotification(notification)}
+                sx={{ alignItems: "flex-start", whiteSpace: "normal", py: 1.25, bgcolor: notification.viewed_at ? "transparent" : "action.hover" }}
+              >
+                <ListItemText
+                  primary={notification.title}
+                  secondary={notification.message}
+                  primaryTypographyProps={{ fontWeight: notification.viewed_at ? 700 : 900 }}
+                  secondaryTypographyProps={{ sx: { mt: 0.25 } }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
           <Tooltip title="Cuenta">
             <IconButton
               color="inherit"

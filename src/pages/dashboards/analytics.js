@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, CircularProgress, Typography } from "@mui/material";
+import { Alert, Box, CircularProgress } from "@mui/material";
 import usersService from "services/users/users-service";
 import catalogService from "services/catalog/catalog-service";
 import authService from "services/auth/auth-service";
@@ -7,6 +7,7 @@ import ordersService from "services/orders/orders-service";
 import productionService from "services/production/production-service";
 import inventoryService from "services/inventory/inventory-service";
 import DashboardView from "views/dashboard/DashboardView";
+import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const hasPermission = (user, permission) => {
@@ -15,13 +16,26 @@ const hasPermission = (user, permission) => {
   return roles.includes("ADMIN") || roles.includes("SUPER_ADMIN") || permissions.includes(permission);
 };
 
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return {
+    dateFrom: `${year}-${month}-01`,
+    dateTo: `${year}-${month}-${day}`,
+  };
+};
+
 const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ users: 0, customers: 0, routes: 0, products: 0 });
+  const [stats, setStats] = useState({ users: 0, customers: 0, products: 0 });
   const [insights, setInsights] = useState({
     orders: null,
     production: null,
+    shortages: null,
     inventory: null,
   });
   const [currentUser, setCurrentUser] = useState(null);
@@ -41,9 +55,6 @@ const AnalyticsPage = () => {
           customers: hasPermission(user, "customers.manage")
             ? catalogService.getCustomers({ page: 1, pageSize: 1 })
             : Promise.resolve(null),
-          routes: hasPermission(user, "routes.manage")
-            ? catalogService.getRoutes({ page: 1, pageSize: 1 })
-            : Promise.resolve(null),
           products: hasPermission(user, "products.manage")
             ? catalogService.getProducts({ page: 1, pageSize: 1 })
             : Promise.resolve(null),
@@ -51,20 +62,23 @@ const AnalyticsPage = () => {
             ? ordersService.getOrders({ page: 1, pageSize: 80 })
             : Promise.resolve(null),
           production: hasPermission(user, "production.manage")
-            ? productionService.getOrders({ page: 1, pageSize: 80 })
+            ? productionService.getPendingPackaging({})
+            : Promise.resolve(null),
+          shortages: hasPermission(user, "production.manage")
+            ? productionService.getJustifiedShortages({ ...getCurrentMonthRange(), page: 1, pageSize: 1 })
             : Promise.resolve(null),
           inventory: hasPermission(user, "inventory.manage")
             ? inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 80 })
             : Promise.resolve(null),
         };
 
-        const [users, customers, routes, products, orders, production, inventory] = await Promise.allSettled([
+        const [users, customers, products, orders, production, shortages, inventory] = await Promise.allSettled([
           requests.users,
           requests.customers,
-          requests.routes,
           requests.products,
           requests.orders,
           requests.production,
+          requests.shortages,
           requests.inventory,
         ]);
 
@@ -79,12 +93,11 @@ const AnalyticsPage = () => {
         setStats({
           users: getTotal(users),
           customers: getTotal(customers),
-          routes: getTotal(routes),
           products: getTotal(products),
         });
 
         const orderRows = orders.status === "fulfilled" && orders.value ? normalizeRows(orders.value.data?.items) : [];
-        const productionRows = production.status === "fulfilled" && production.value ? normalizeRows(production.value.data?.items) : [];
+        const productionRows = production.status === "fulfilled" && production.value ? normalizeRows(production.value.data?.items || production.value.data) : [];
         const inventoryData = inventory.status === "fulfilled" && inventory.value ? inventory.value.data : null;
         const productStockRows = normalizeRows(inventoryData?.products);
         const materialStockRows = normalizeRows(inventoryData?.raw_materials);
@@ -100,24 +113,26 @@ const AnalyticsPage = () => {
                 total: orderRows.length,
                 draft: orderRows.filter((order) => order.status === "draft").length,
                 confirmed: orderRows.filter((order) => order.status === "confirmed").length,
-                inProduction: orderRows.filter((order) => order.status === "in_production" || order.status === "ready").length,
-                dispatchable: orderRows.filter(
-                  (order) =>
-                    order.status === "ready" ||
-                    (order.status === "in_production" &&
-                      order.production_order_id &&
-                      order.production_status === "completed" &&
-                      Number(order.production_pending_items || 0) === 0)
-                ).length,
+                dispatchable: orderRows.filter((order) => ["confirmed", "ready"].includes(order.status)).length,
+                dispatched: orderRows.filter((order) => order.status === "dispatched").length,
+                delivered: orderRows.filter((order) => order.status === "delivered").length,
+                cancelled: orderRows.filter((order) => order.status === "cancelled").length,
               }
             : null,
           production: requests.production
             ? {
                 total: productionRows.length,
-                open: productionRows.filter((order) => !["completed", "cancelled"].includes(order.status)).length,
-                pending: productionRows.filter((order) => Number(order.pending_items || 0) > 0).length,
-                completed: productionRows.filter((order) => order.status === "completed").length,
+                open: productionRows.length,
+                pending: productionRows.reduce((total, batch) => {
+                  return total + normalizeRows(batch.items).reduce((itemsTotal, item) => {
+                    return itemsTotal + Number(item.pending_quantity || 0);
+                  }, 0);
+                }, 0),
+                completed: productionRows.filter((batch) => batch.status === "partially_packed").length,
               }
+            : null,
+          shortages: requests.shortages && shortages.status === "fulfilled" && shortages.value
+            ? shortages.value.data?.summary || null
             : null,
           inventory: requests.inventory
             ? {
@@ -154,13 +169,14 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" sx={{ mb: 3, fontSize: { xs: 24, sm: 30 } }}>
-        Dashboard operativo
-      </Typography>
+    <FlowPageLayout
+      title="Panel principal"
+      subtitle="Ventas, entregas, producción e inventario en un solo lugar."
+      breadcrumbs={[]}
+    >
       {error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert> : null}
       <DashboardView stats={stats} insights={insights} currentUser={currentUser} />
-    </Box>
+    </FlowPageLayout>
   );
 };
 

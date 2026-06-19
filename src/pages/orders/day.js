@@ -103,13 +103,6 @@ const StatusChip = ({ status }) => (
   />
 );
 
-const isReadyToDispatch = (order) =>
-  order?.status === "ready" ||
-  (order?.status === "in_production" &&
-    order?.production_order_id &&
-    order?.production_status === "completed" &&
-    Number(order?.production_pending_items || 0) === 0);
-
 const getTraceSteps = (order) => {
   if (order?.status === "cancelled") {
     return [
@@ -118,21 +111,16 @@ const getTraceSteps = (order) => {
     ];
   }
 
-  const isConfirmed = ["confirmed", "in_production", "ready", "dispatched", "delivered"].includes(order?.status);
-  const hasProduction = Boolean(order?.production_order_id);
-  const productionDone =
-    hasProduction &&
-    order?.production_status === "completed" &&
-    Number(order?.production_pending_items || 0) === 0;
-  const isReady = order?.status === "ready" || ["dispatched", "delivered"].includes(order?.status) || isReadyToDispatch(order);
+  const isConfirmed = ["confirmed", "ready", "dispatched", "delivered"].includes(order?.status);
   const isDispatched = ["dispatched", "delivered"].includes(order?.status);
+  const isDelivered = order?.status === "delivered";
 
   return [
     { label: "Pedido", state: "done" },
     { label: "Confirmado", state: isConfirmed ? "done" : order?.status === "draft" ? "active" : "pending" },
-    { label: "Produccion", state: productionDone ? "done" : hasProduction ? "active" : "pending" },
-    { label: "Listo", state: isReady ? "done" : "pending" },
+    { label: "Inventario", state: isDispatched ? "done" : isConfirmed ? "active" : "pending" },
     { label: "Despachado", state: isDispatched ? "done" : "pending" },
+    { label: "Entregado", state: isDelivered ? "done" : isDispatched ? "active" : "pending" },
   ];
 };
 
@@ -196,7 +184,6 @@ const OrdersDayPage = () => {
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState({
     customers: 0,
-    routes: 0,
     products: 0,
   });
   const [orders, setOrders] = useState([]);
@@ -244,7 +231,6 @@ const OrdersDayPage = () => {
 
         setSummary({
           customers: getTotal(baseResponse.data?.customers),
-          routes: getTotal(baseResponse.data?.routes),
           products: getTotal(baseResponse.data?.products),
         });
         setOrders(normalizeRows(ordersResponse.data?.items));
@@ -286,10 +272,10 @@ const OrdersDayPage = () => {
       .slice(0, 5);
   }, [periodOrders]);
 
-  const routeBalances = useMemo(() => {
+  const sellerBalances = useMemo(() => {
     const totals = new Map();
     periodOrders.forEach((order) => {
-      const key = order.route_name || "Sin ruta";
+      const key = order.sales_agent_name || "Sin vendedor";
       const current = totals.get(key) || { name: key, orders: 0, amount: 0 };
       current.orders += 1;
       current.amount += Number(order.grand_total || 0);
@@ -436,11 +422,11 @@ const OrdersDayPage = () => {
         <Grid item xs={12} md={6}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
             <Typography variant="h6" sx={{ fontWeight: 900, mb: 1.5 }}>
-              Rutas con mayor balance
+              Vendedores con mayor balance
             </Typography>
             <Stack spacing={1.25}>
-              {routeBalances.length === 0 ? <Alert severity="info">Sin rutas en este periodo.</Alert> : null}
-              {routeBalances.map((item) => (
+              {sellerBalances.length === 0 ? <Alert severity="info">Sin vendedores en este periodo.</Alert> : null}
+              {sellerBalances.map((item) => (
                 <Stack key={item.name} direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 800 }} noWrap>
@@ -460,13 +446,13 @@ const OrdersDayPage = () => {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
-          <ActionCard title="Crear pedido" description="Selecciona cliente, ruta y productos para registrar un pedido nuevo." href="/orders/count" primary />
+          <ActionCard title="Crear pedido" description="Selecciona un cliente asignado y los productos del pedido." href="/orders/count" primary />
         </Grid>
         <Grid item xs={12} md={4}>
-          <ActionCard title="Gestion de pedidos" description="Confirma, crea produccion, despacha o cancela pedidos recientes." href="/orders/history" />
+          <ActionCard title="Gestion de pedidos" description="Confirma, valida inventario, despacha o cancela pedidos recientes." href="/orders/history" />
         </Grid>
         <Grid item xs={12} md={4}>
-          <ActionCard title="Clientes y rutas" description="Manten actualizada la base comercial antes de capturar pedidos." href="/catalogo/clientes" />
+          <ActionCard title="Clientes y vendedores" description="Administra la asignacion comercial de cada cliente." href="/orders/customer-assignments" />
         </Grid>
       </Grid>
 
@@ -480,7 +466,7 @@ const OrdersDayPage = () => {
               Ultimos movimientos entre {dateRange.from} y {dateRange.to}.
             </Typography>
           </Box>
-          <Chip label={`${summary.customers} clientes - ${summary.routes} rutas - ${summary.products} productos`} variant="outlined" />
+          <Chip label={`${summary.customers} clientes - ${summary.products} productos`} variant="outlined" />
         </Stack>
 
         {loading ? <Alert severity="info">Cargando balance de pedidos...</Alert> : null}
@@ -497,7 +483,7 @@ const OrdersDayPage = () => {
                         Pedido #{order.id}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap>
-                        {order.customer_name || "Cliente"} - {order.route_name || "Sin ruta"}
+                        {order.customer_name || "Cliente"} - {order.sales_agent_name || "Sin vendedor"}
                       </Typography>
                     </Box>
                     <StatusChip status={order.status} />

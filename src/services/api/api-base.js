@@ -70,4 +70,9 @@ export const PatchEndpoint = async (path, data, config = {}) => {
   return result.data;
 };
 
+export const DeleteEndpoint = async (path, config = {}) => {
+  const result = await apiClient.delete(path, config);
+  return result.data;
+};
+
 export default apiClient;

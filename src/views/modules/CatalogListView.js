@@ -1,7 +1,23 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Box, Button, Chip, CircularProgress, Grid, Paper, Stack, TextField, Typography } from "@mui/material";
-import AppCard from "@core/components/ui/AppCard";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Grid,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 const formatCurrency = (value) => {
   const numericValue = Number(value);
@@ -17,6 +33,19 @@ const formatCurrency = (value) => {
 };
 
 const getDisplayName = (item, nameField) => item[nameField] || item.name || item.description || "Sin nombre";
+
+const formatUnit = (unit) => {
+  const labels = {
+    unit: "Unidad",
+    g: "Gramo",
+    ml: "Mililitro",
+    kg: "Kilo",
+    l: "Litro",
+    tray: "Bandeja",
+  };
+
+  return labels[unit] || unit || "Sin unidad";
+};
 
 const CatalogListView = ({
   title,
@@ -93,78 +122,77 @@ const CatalogListView = ({
         </Grid>
       </Paper>
 
-      <Grid container spacing={{ xs: 2, md: 2.5 }}>
-        {filteredItems.map((item, index) => {
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflowX: "auto" }}>
+        <Table sx={{ minWidth: 840 }}>
+          <TableHead>
+            <TableRow
+              sx={{
+                "& th": {
+                  bgcolor: "background.default",
+                  color: "text.secondary",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: 0,
+                  textTransform: "uppercase",
+                },
+              }}
+            >
+              <TableCell>Producto</TableCell>
+              <TableCell>SKU</TableCell>
+              <TableCell>Unidad</TableCell>
+              <TableCell align="right">Valor</TableCell>
+              <TableCell align="right">Stock minimo</TableCell>
+              <TableCell>Estado</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredItems.map((item, index) => {
           const displayName = getDisplayName(item, nameField);
           const statusLabel = Number(item.is_active ?? item.active ?? 1) === 1 ? "Activo" : "Inactivo";
           const price = formatCurrency(item.base_price ?? item.unit_cost);
 
           return (
-          <Grid item xs={12} sm={6} lg={4} key={item[itemKey] ?? `${nameField}-${index}`}>
-            <AppCard sx={{ height: "100%" }} contentSx={{ height: "100%" }}>
-              <Stack spacing={2} sx={{ height: "100%" }}>
-                <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 900, wordBreak: "break-word" }}>
-                      {displayName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {typeLabel} #{item.id || item[itemKey] || "N/A"}
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={statusLabel}
-                    size="small"
-                    color={statusLabel === "Activo" ? "success" : "default"}
-                    variant={statusLabel === "Activo" ? "filled" : "outlined"}
-                  />
+            <TableRow key={item[itemKey] ?? `${nameField}-${index}`} sx={{ "&:last-child td": { borderBottom: 0 }, "&:hover": { bgcolor: "action.hover" } }}>
+              <TableCell>
+                <Stack spacing={0.25}>
+                  <Typography sx={{ fontWeight: 900 }}>{displayName}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {typeLabel} #{item.id || item[itemKey] || "N/A"}
+                  </Typography>
                 </Stack>
-
-                <Grid container spacing={1.5}>
-                  {item.sku ? (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        SKU
-                      </Typography>
-                      <Typography sx={{ fontWeight: 800 }}>{item.sku}</Typography>
-                    </Grid>
-                  ) : null}
-                  {item.unit ? (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Unidad
-                      </Typography>
-                      <Typography sx={{ fontWeight: 800 }}>{item.unit}</Typography>
-                    </Grid>
-                  ) : null}
-                  {price ? (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Valor
-                      </Typography>
-                      <Typography sx={{ fontWeight: 800 }}>{price}</Typography>
-                    </Grid>
-                  ) : null}
-                  {item.min_stock !== undefined && item.min_stock !== null ? (
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Stock minimo
-                      </Typography>
-                      <Typography sx={{ fontWeight: 800 }}>{item.min_stock}</Typography>
-                    </Grid>
-                  ) : null}
-                </Grid>
-              </Stack>
-            </AppCard>
-          </Grid>
+              </TableCell>
+              <TableCell>
+                <Typography sx={{ fontWeight: 800 }}>{item.sku || "Sin SKU"}</Typography>
+              </TableCell>
+              <TableCell>{formatUnit(item.unit)}</TableCell>
+              <TableCell align="right">
+                <Typography sx={{ fontWeight: 800 }}>{price || "$ 0"}</Typography>
+              </TableCell>
+              <TableCell align="right">
+                <Typography sx={{ fontWeight: 800 }}>{Number(item.min_stock || 0).toLocaleString("es-CO")}</Typography>
+              </TableCell>
+              <TableCell>
+                <Chip
+                  label={statusLabel}
+                  size="small"
+                  color={statusLabel === "Activo" ? "success" : "default"}
+                  variant={statusLabel === "Activo" ? "filled" : "outlined"}
+                  sx={{ minWidth: 82, fontWeight: 800 }}
+                />
+              </TableCell>
+            </TableRow>
           );
-        })}
-      </Grid>
-      {!loading && filteredItems.length === 0 ? (
-        <Alert severity="info" sx={{ mt: 3 }}>
-          {emptyMessage}
-        </Alert>
-      ) : null}
+            })}
+            {filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <Typography color="text.secondary">{emptyMessage}</Typography>
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </>
   );
 };

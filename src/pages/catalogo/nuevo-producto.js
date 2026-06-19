@@ -7,6 +7,7 @@ import { getApiErrorMessage } from "utils/api-error";
 import useForm from "hooks/useForm";
 import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
+import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 
 const normalizeList = (payload) => {
@@ -272,17 +273,15 @@ const NuevoProductoPage = () => {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-              <FormField
+              <ColombianCurrencyField
                 name="base_price"
                 label="Precio base"
-                type="number"
                 value={values.base_price}
                 error={errors.base_price}
                 touched={touched.base_price}
                 onChange={handleChange}
                 onBlur={handleBlur}
                 placeholder="0"
-                inputProps={{ min: 0, step: 1 }}
               />
             </Grid>
                 <Grid item xs={12} md={4}>

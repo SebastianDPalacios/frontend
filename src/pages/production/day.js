@@ -1,168 +1,188 @@
-import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, Grid, LinearProgress, Paper, Stack, Typography } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Box, Button, Chip, Grid, LinearProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import Link from "next/link";
+import AppButton from "@core/components/ui/AppButton";
+import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
+import catalogService from "services/catalog/catalog-service";
 import productionService from "services/production/production-service";
-import AppCard from "@core/components/ui/AppCard";
 import FlowPageLayout from "views/modules/FlowPageLayout";
-import { getTotal, normalizeRows } from "views/modules/flow-utils";
+import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+
+const numberFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 3,
+});
+
+const moneyFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 0,
+  style: "currency",
+  currency: "COP",
+});
+
+const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+
+const formatUnits = (value) => {
+  const numberValue = Number(value || 0);
+  const rounded = Math.round(numberValue);
+
+  if (Math.abs(numberValue - rounded) < 0.01) {
+    return numberFormatter.format(rounded);
+  }
+
+  return numberFormatter.format(numberValue);
+};
+
+const getMaterialUnit = (unit) => (unit === "ml" ? "ml" : "g");
+
+const formatMaterialQty = (value, unit) => {
+  const baseUnit = getMaterialUnit(unit);
+  return `${formatUnits(value)} ${baseUnit}`;
+};
+
+const pluralize = (value, singular, plural) => {
+  return `${formatUnits(value)} ${Number(value) === 1 ? singular : plural}`;
+};
+
+const formatMaterialEquivalent = (value, unit) => {
+  const numberValue = Number(value || 0);
+
+  if (numberValue <= 0) {
+    return unit === "ml" ? "0 litros + 0 ml" : "0 bultos de 50 kg + 0 g";
+  }
+
+  if (unit === "ml") {
+    const fullLiters = Math.floor(numberValue / 1000);
+    const remainingMl = numberValue - fullLiters * 1000;
+
+    return `${pluralize(fullLiters, "litro", "litros")} + ${formatUnits(remainingMl)} ml`;
+  }
+
+  const bagSizeGrams = 50000;
+  const fullBags = Math.floor(numberValue / bagSizeGrams);
+  const remainingGrams = numberValue - fullBags * bagSizeGrams;
+  const formatWeightRemainder = (grams) => {
+    if (grams >= 1000) {
+      return `${formatUnits(grams / 1000)} kg`;
+    }
+
+    return `${formatUnits(grams)} g`;
+  };
+
+  return `${pluralize(fullBags, "bulto de 50 kg", "bultos de 50 kg")} + ${formatWeightRemainder(remainingGrams)}`;
+};
+
+const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
 
-const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
-
-const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 2,
-});
-
-const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-
-const formatDate = (value) => {
-  if (!value) return "-";
-  return String(value).slice(0, 10);
-};
-
 const statusLabels = {
-  draft: "Borrador",
-  planned: "Planificada",
-  in_progress: "En proceso",
-  completed: "Completada",
-  cancelled: "Cancelada",
+  pending_packaging: "Pendiente",
+  partially_packed: "Parcial",
+  packed: "Empacado",
+  cancelled: "Cancelado",
 };
 
 const statusColors = {
-  draft: "default",
-  planned: "info",
-  in_progress: "warning",
-  completed: "success",
+  pending_packaging: "warning",
+  partially_packed: "secondary",
+  packed: "success",
   cancelled: "error",
 };
 
-const StatusChip = ({ status }) => (
-  <Chip
-    size="small"
-    label={statusLabels[status] || status || "-"}
-    color={statusColors[status] || "default"}
-    variant={status === "draft" ? "outlined" : "filled"}
-    sx={{ minWidth: 104 }}
-  />
-);
+const getReportRange = (filters) => {
+  return {
+    from: filters.date,
+    to: filters.date,
+  };
+};
 
 const MetricCard = ({ label, value, helper, color = "primary" }) => (
-  <AppCard>
+  <Paper variant="outlined" sx={{ borderRadius: 2, p: 2, height: "100%" }}>
     <Typography variant="body2" color="text.secondary">
       {label}
     </Typography>
-    <Typography variant="h4" sx={{ mt: 1, fontWeight: 800, color: `${color}.main` }}>
+    <Typography variant="h4" sx={{ mt: 1, fontWeight: 900, color: `${color}.main` }}>
       {value}
     </Typography>
     {helper ? (
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
         {helper}
       </Typography>
     ) : null}
-  </AppCard>
+  </Paper>
 );
 
-const getProgressPercent = (producedQty, plannedQty) => {
-  const planned = Number(plannedQty || 0);
-  if (planned <= 0) {
-    return 0;
-  }
-
-  return Math.min(Math.round((Number(producedQty || 0) / planned) * 100), 100);
-};
-
-const OrderStat = ({ label, value }) => (
+const SmallStat = ({ label, value }) => (
   <Box>
     <Typography variant="caption" color="text.secondary">
       {label}
     </Typography>
-    <Typography variant="body2" sx={{ fontWeight: 900 }}>
-      {value}
-    </Typography>
+    <Typography sx={{ fontWeight: 900 }}>{value}</Typography>
   </Box>
 );
 
-const ProductionOrderCard = ({ order }) => {
-  const progress = getProgressPercent(order.produced_qty, order.planned_qty);
-  const pendingItems = Number(order.pending_items || 0);
+const BatchCard = ({ batch }) => {
+  const produced = Number(batch.produced_quantity || 0);
+  const packed = Number(batch.packed_quantity || 0);
+  const damaged = Number(batch.damaged_quantity || 0);
+  const missing = Number(batch.missing_quantity || 0);
+  const progress = produced > 0 ? Math.min(Math.round(((packed + damaged + missing) / produced) * 100), 100) : 0;
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 3,
-        p: 2,
-        height: "100%",
-        borderColor: pendingItems > 0 ? "warning.main" : "success.main",
-        bgcolor: "background.paper",
-        transition: "box-shadow 160ms ease, transform 160ms ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "0 14px 30px rgba(15, 23, 42, 0.08)",
-        },
-      }}
-    >
-      <Stack spacing={2} sx={{ height: "100%" }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, p: 1.5, height: "100%" }}>
+      <Stack spacing={1.5}>
         <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
-              Orden #{order.id}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
-              {order.branch_name || "Sucursal"} - {formatDate(order.planned_date)}
+            <Typography sx={{ fontWeight: 900 }}>Lote #{batch.production_batch_id}</Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {batch.recipe_name || "Receta"} - {batch.branch_name || "Sucursal"}
             </Typography>
           </Box>
-          <StatusChip status={order.status} />
+          <Chip
+            size="small"
+            label={statusLabels[batch.status] || batch.status || "Pendiente"}
+            color={statusColors[batch.status] || "default"}
+            variant={batch.status === "pending_packaging" ? "outlined" : "filled"}
+            sx={{ fontWeight: 800 }}
+          />
         </Stack>
 
         <Box>
-          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-            <Typography variant="body2" color="text.secondary">
-              Avance
+          <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              Avance de empaque
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 900 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900 }}>
               {progress}%
             </Typography>
           </Stack>
           <LinearProgress
             variant="determinate"
             value={progress}
-            sx={{
-              height: 9,
-              borderRadius: 999,
-              bgcolor: "action.hover",
-              "& .MuiLinearProgress-bar": { borderRadius: 999 },
-            }}
+            sx={{ height: 8, borderRadius: 999, "& .MuiLinearProgress-bar": { borderRadius: 999 } }}
           />
         </Box>
 
         <Grid container spacing={1}>
           <Grid item xs={3}>
-            <OrderStat label="Items" value={formatNumber(order.items_count)} />
+            <SmallStat label="Mojes" value={formatUnits(batch.batch_quantity)} />
           </Grid>
           <Grid item xs={3}>
-            <OrderStat label="Plan" value={formatNumber(order.planned_qty)} />
+            <SmallStat label="Productos" value={formatUnits(batch.products_count)} />
           </Grid>
           <Grid item xs={3}>
-            <OrderStat label="Hecho" value={formatNumber(order.produced_qty)} />
+            <SmallStat label="Empacados" value={formatUnits(batch.packed_quantity)} />
           </Grid>
           <Grid item xs={3}>
-            <OrderStat label="Pend." value={formatNumber(order.pending_items)} />
+            <SmallStat label="Pendientes" value={formatUnits(batch.pending_quantity)} />
           </Grid>
         </Grid>
 
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mt: "auto" }}>
-          <Chip
-            size="small"
-            color={pendingItems > 0 ? "warning" : "success"}
-            label={pendingItems > 0 ? `${pendingItems} pendientes` : "Sin pendientes"}
-            variant={pendingItems > 0 ? "outlined" : "filled"}
-          />
-          {progress >= 100 ? <Chip size="small" color="success" label="Produccion completa" variant="outlined" /> : null}
-        </Stack>
+        <Typography variant="caption" color="text.secondary">
+          Panadero: {batch.baker_name || "-"}
+        </Typography>
       </Stack>
     </Paper>
   );
@@ -170,154 +190,382 @@ const ProductionOrderCard = ({ order }) => {
 
 const ProductionDayPage = () => {
   const [loading, setLoading] = useState(true);
+  const [branchesLoading, setBranchesLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [summary, setSummary] = useState({
-    products: 0,
-    rawMaterials: 0,
-    ordersToday: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    plannedQty: 0,
-    producedQty: 0,
+  const [branches, setBranches] = useState([]);
+  const [filters, setFilters] = useState({
+    date: toDateInputValue(),
+    branchId: "",
   });
-  const [ordersToday, setOrdersToday] = useState([]);
+  const [report, setReport] = useState({
+    summary: {},
+    batches: [],
+    products: [],
+    raw_materials_usage: [],
+    posterior_materials: [],
+    packers: [],
+  });
+  const reportRange = useMemo(() => getReportRange(filters), [filters]);
 
   useEffect(() => {
     const run = async () => {
-      setLoading(true);
-      setError(null);
-
+      setBranchesLoading(true);
       try {
-        const today = getTodayInputValue();
-        const [baseResponse, ordersResponse] = await Promise.all([
-          productionService.getBaseData({ onlyActive: 1, page: 1, pageSize: 50 }),
-          productionService.getOrders({ page: 1, pageSize: 80 }),
-        ]);
-
-        if (baseResponse?.code !== 1) {
-          setError(baseResponse?.message || "No se pudo cargar base de produccion");
+        const response = await catalogService.getBranches({ onlyActive: 1 });
+        if (response?.code !== 1) {
+          setError(response?.message || "No se pudieron cargar sucursales");
           return;
         }
-
-        if (ordersResponse?.code !== 1) {
-          setError(ordersResponse?.message || "No se pudieron cargar ordenes de produccion");
-          return;
-        }
-
-        const orders = normalizeRows(ordersResponse.data?.items);
-        const todayOrders = orders.filter((order) => formatDate(order.planned_date) === today);
-        const activeTodayOrders = todayOrders.filter((order) => !["completed", "cancelled"].includes(order.status));
-        const completedTodayOrders = todayOrders.filter((order) => order.status === "completed");
-        const plannedQty = todayOrders.reduce((acc, order) => acc + Number(order.planned_qty || 0), 0);
-        const producedQty = todayOrders.reduce((acc, order) => acc + Number(order.produced_qty || 0), 0);
-
-        setSummary({
-          products: getTotal(baseResponse.data?.products),
-          rawMaterials: getTotal(baseResponse.data?.raw_materials),
-          ordersToday: todayOrders.length,
-          pendingOrders: activeTodayOrders.length,
-          completedOrders: completedTodayOrders.length,
-          plannedQty,
-          producedQty,
-        });
-        setOrdersToday(todayOrders);
+        setBranches(normalizeRows(response.data));
       } catch (requestError) {
-        setError(getErrorMessage(requestError, "Error de red al cargar produccion"));
+        setError(getErrorMessage(requestError, "Error de red al cargar sucursales"));
       } finally {
-        setLoading(false);
+        setBranchesLoading(false);
       }
     };
 
     run();
   }, []);
 
-  const progress = summary.plannedQty > 0 ? Math.min((summary.producedQty / summary.plannedQty) * 100, 100) : 0;
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await productionService.getDayReport({
+          dateFrom: reportRange.from,
+          dateTo: reportRange.to,
+          branchId: filters.branchId || undefined,
+        });
+
+        if (response?.code !== 1) {
+          setError(response?.message || "No se pudo cargar el reporte de produccion");
+          return;
+        }
+
+        setReport({
+          summary: response.data?.summary || {},
+          batches: normalizeRows(response.data?.batches),
+          products: normalizeRows(response.data?.products),
+          raw_materials_usage: normalizeRows(response.data?.raw_materials_usage),
+          posterior_materials: normalizeRows(response.data?.posterior_materials),
+          packers: normalizeRows(response.data?.packers),
+        });
+      } catch (requestError) {
+        setError(getErrorMessage(requestError, "Error de red al cargar el reporte"));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [filters.branchId, reportRange.from, reportRange.to]);
+
+  const summary = report.summary || {};
+  const produced = Number(summary.produced_quantity || 0);
+  const packed = Number(summary.packed_quantity || 0);
+  const damaged = Number(summary.damaged_quantity || 0);
+  const missing = Number(summary.missing_quantity || 0);
+  const pending = Number(summary.pending_quantity || 0);
+  const progress = produced > 0 ? Math.min(Math.round(((packed + damaged + missing) / produced) * 100), 100) : 0;
+  const selectedBranchName = useMemo(
+    () => branches.find((branch) => String(branch.id) === String(filters.branchId))?.name || "Todas las sucursales",
+    [branches, filters.branchId]
+  );
+  const rawMaterialsTotalCost = useMemo(
+    () => report.raw_materials_usage.reduce((total, material) => total + Number(material.total_cost || 0), 0),
+    [report.raw_materials_usage]
+  );
 
   return (
-    <FlowPageLayout title="Produccion - Dia" subtitle="Resumen operativo de hoy">
+    <FlowPageLayout
+      title="Produccion - Dia"
+      subtitle="Reporte de lotes, productos listos, daños y pendientes."
+    >
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       ) : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 3 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }}>
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
+        >
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Produccion de hoy
+            <Typography variant="h5" sx={{ fontWeight: 900 }}>
+              Reporte de produccion
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Seguimiento de ordenes planificadas para {getTodayInputValue()}
+              {reportRange.from === reportRange.to ? reportRange.from : `${reportRange.from} a ${reportRange.to}`} - {selectedBranchName}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button variant="contained" color="secondary" component={Link} href="/production/register">
-              Registrar produccion
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button variant="outlined" color="secondary" component={Link} href="/production/month">
+              Reporte mensual
             </Button>
-            <Button variant="outlined" color="secondary" component={Link} href="/production/orders">
-              Gestionar ordenes
+            <Button variant="outlined" color="secondary" component={Link} href="/recipes/new">
+              Crear receta
+            </Button>
+            <Button variant="contained" color="secondary" component={Link} href="/production/packaging">
+              Crear o contar lote
             </Button>
           </Stack>
         </Stack>
+
+        <Grid container spacing={2} sx={{ alignItems: "flex-start", mt: 1 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <BalanceDatePicker
+              label="Fecha"
+              value={filters.date}
+              onChange={(value) => setFilters((current) => ({ ...current, date: value || toDateInputValue() }))}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Sucursal"
+              value={filters.branchId}
+              onChange={(event) => setFilters((current) => ({ ...current, branchId: event.target.value }))}
+              disabled={branchesLoading}
+            >
+              <MenuItem value="">Todas las sucursales</MenuItem>
+              {branches.map((branch) => (
+                <MenuItem key={branch.id} value={String(branch.id)}>
+                  {getDisplayName(branch)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <AppButton
+              color="inherit"
+              onClick={() => setFilters({ date: toDateInputValue(), branchId: "" })}
+              sx={{ width: "100%", minHeight: 54 }}
+            >
+              Hoy
+            </AppButton>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={3}>
-          <MetricCard label="Ordenes hoy" value={summary.ordersToday} helper={`${summary.pendingOrders} pendientes`} color="info" />
+          <MetricCard label="Lotes" value={formatUnits(summary.batches_count)} helper={`${formatUnits(summary.batch_quantity)} mojes`} color="info" />
         </Grid>
         <Grid item xs={12} md={3}>
-          <MetricCard label="Completadas" value={summary.completedOrders} helper="Ordenes cerradas del dia" color="success" />
+          <MetricCard label="Producido" value={formatUnits(produced)} helper="Unidades esperadas del dia" color="secondary" />
         </Grid>
         <Grid item xs={12} md={3}>
-          <MetricCard label="Productos activos" value={summary.products} helper="Disponibles para planificar" color="secondary" />
+          <MetricCard label="Empacados" value={formatUnits(packed)} helper={`${formatUnits(progress)}% contado`} color="success" />
         </Grid>
         <Grid item xs={12} md={3}>
-          <MetricCard label="Materias primas" value={summary.rawMaterials} helper="Insumos de receta" color="warning" />
+          <MetricCard
+            label="Pendientes"
+            value={formatUnits(pending)}
+            helper={`${formatUnits(damaged)} dañados · ${formatUnits(missing)} faltantes`}
+            color={pending > 0 ? "warning" : "success"}
+          />
         </Grid>
       </Grid>
 
-      <AppCard>
-        <Stack spacing={1}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                Avance del dia
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {formatNumber(summary.producedQty)} producido de {formatNumber(summary.plannedQty)} planificado
-              </Typography>
-            </Box>
-            <Chip label={`${formatNumber(progress)}%`} color={progress >= 100 ? "success" : "info"} />
-          </Stack>
-          <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 2 }} />
-        </Stack>
-      </AppCard>
-
-      <Paper variant="outlined" sx={{ mt: 3, borderRadius: 3, p: { xs: 2, md: 3 } }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Ordenes planificadas para hoy
+              Avance del dia
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Avance individual por orden, cantidades y pendientes.
+              Listos y daños sobre lo producido.
             </Typography>
           </Box>
-          <Chip label={`${ordersToday.length} ordenes`} variant="outlined" />
+          <Chip label={`${formatUnits(progress)}%`} color={progress >= 100 ? "success" : "info"} />
         </Stack>
-
-        {loading ? <Alert severity="info">Cargando ordenes planificadas...</Alert> : null}
-        {!loading && ordersToday.length === 0 ? <Alert severity="info">No hay ordenes planificadas para hoy.</Alert> : null}
-
-        <Grid container spacing={2}>
-          {ordersToday.map((order) => (
-            <Grid item xs={12} md={6} xl={4} key={order.id}>
-              <ProductionOrderCard order={order} />
-            </Grid>
-          ))}
-        </Grid>
+        <LinearProgress
+          variant="determinate"
+          value={progress}
+          sx={{ height: 10, borderRadius: 999, "& .MuiLinearProgress-bar": { borderRadius: 999 } }}
+        />
       </Paper>
+
+      <Grid container spacing={2}>
+        <Grid item xs={12} lg={7}>
+          <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  Productos del dia
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Produccion, listos, daños y pendientes por producto.
+                </Typography>
+              </Box>
+              <Chip label={`${report.products.length} productos`} variant="outlined" />
+            </Stack>
+
+            {loading ? <Alert severity="info">Cargando reporte...</Alert> : null}
+            {!loading && report.products.length === 0 ? <Alert severity="info">No hay productos producidos para estos filtros.</Alert> : null}
+
+            <Stack spacing={1}>
+              {report.products.map((product) => (
+                <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+                  <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
+                    <Grid item xs={12} md={4}>
+                      <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatUnits(product.batches_count)} {Number(product.batches_count || 0) === 1 ? "lote" : "lotes"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={3} md={2}>
+                      <SmallStat label="Producido" value={formatUnits(product.produced_quantity)} />
+                    </Grid>
+                    <Grid item xs={3} md={2}>
+                      <SmallStat label="Listo" value={formatUnits(product.packed_quantity)} />
+                    </Grid>
+                    <Grid item xs={3} md={2}>
+                      <SmallStat
+                        label="Dañado / faltante"
+                        value={`${formatUnits(product.damaged_quantity)} / ${formatUnits(product.missing_quantity)}`}
+                      />
+                    </Grid>
+                    <Grid item xs={3} md={2}>
+                      <SmallStat label="Pendientes" value={formatUnits(product.pending_quantity)} />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={5}>
+          <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  Lotes
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Estado por lote creado en la fecha.
+                </Typography>
+              </Box>
+              <Chip label={`${report.batches.length}`} variant="outlined" />
+            </Stack>
+
+            {!loading && report.batches.length === 0 ? <Alert severity="info">No hay lotes para estos filtros.</Alert> : null}
+            <Grid container spacing={1.5}>
+              {report.batches.map((batch) => (
+                <Grid item xs={12} key={batch.production_batch_id}>
+                  <BatchCard batch={batch} />
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={6}>
+          <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  Consumo de materias primas
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total consumido por los ingredientes base y los ingredientes propios de cada producto. Costo estimado: {formatMoney(rawMaterialsTotalCost)}.
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <Chip label={`${report.raw_materials_usage.length} insumos`} variant="outlined" />
+                <Chip label={formatMoney(rawMaterialsTotalCost)} color="secondary" variant="outlined" />
+              </Stack>
+            </Stack>
+
+            {!loading && report.raw_materials_usage.length === 0 ? <Alert severity="info">No hay consumo de materias primas para estos filtros.</Alert> : null}
+            <Stack spacing={1}>
+              {report.raw_materials_usage.map((material) => (
+                <Paper
+                  key={material.raw_material_id}
+                  variant="outlined"
+                  sx={{ borderRadius: 2, p: 1.5 }}
+                >
+                  <Grid container spacing={1.25} sx={{ alignItems: "center" }}>
+                    <Grid item xs={12} md={4}>
+                      <Typography sx={{ fontWeight: 900 }}>{material.raw_material_name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatMaterialEquivalent(material.total_quantity, material.raw_material_unit)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <SmallStat label="Costo" value={formatMoney(material.total_cost)} />
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <SmallStat label="Total" value={formatMaterialQty(material.total_quantity, material.raw_material_unit)} />
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <SmallStat
+                        label="Base"
+                        value={formatMaterialQty(material.base_quantity, material.raw_material_unit)}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatMoney(material.base_cost)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <SmallStat
+                        label="Producto"
+                        value={formatMaterialQty(material.posterior_quantity, material.raw_material_unit)}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatMoney(material.posterior_cost)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={6}>
+          <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Empaque por persona
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Cantidades reportadas por empacador.
+            </Typography>
+
+            {!loading && report.packers.length === 0 ? <Alert severity="info">No hay empaque registrado para estos filtros.</Alert> : null}
+            <Stack spacing={1}>
+              {report.packers.map((packer) => (
+                <Paper key={packer.packer_employee_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+                  <Grid container spacing={1} sx={{ alignItems: "center" }}>
+                    <Grid item xs={12} sm={5}>
+                      <Typography sx={{ fontWeight: 900 }}>{packer.packer_name || "Empacador"}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatUnits(packer.reports_count)} {Number(packer.reports_count || 0) === 1 ? "reporte" : "reportes"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                  <SmallStat label="Empacados" value={formatUnits(packer.packed_quantity)} />
+                    </Grid>
+                    <Grid item xs={6} sm={4}>
+                      <SmallStat
+                        label="Dañados / faltantes"
+                        value={`${formatUnits(packer.damaged_quantity)} / ${formatUnits(packer.missing_quantity)}`}
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
     </FlowPageLayout>
   );
 };

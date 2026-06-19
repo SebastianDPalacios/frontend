@@ -10,10 +10,6 @@ class CatalogService {
     return GetEndpoint(endpoints.catalog.customers, { params });
   }
 
-  async getRoutes(params = {}) {
-    return GetEndpoint(endpoints.catalog.routes, { params });
-  }
-
   async getProducts(params = {}) {
     return GetEndpoint(endpoints.catalog.products, { params });
   }
@@ -24,6 +20,14 @@ class CatalogService {
 
   async createRawMaterial(payload = {}) {
     return PostEndpoint(endpoints.catalog.rawMaterials, payload);
+  }
+
+  async updateRawMaterial(id, payload = {}) {
+    return PutEndpoint(endpoints.catalog.rawMaterialById(id), payload);
+  }
+
+  async setRawMaterialStatus(id, payload = {}) {
+    return PatchEndpoint(endpoints.catalog.rawMaterialStatus(id), payload);
   }
 
   async getTaxRates(params = {}) {
@@ -74,21 +78,6 @@ class CatalogService {
     return PatchEndpoint(endpoints.commercial.customerStatus(id), payload);
   }
 
-  async createRoute(payload = {}) {
-    return PostEndpoint(endpoints.commercial.routes, payload);
-  }
-
-  async updateRoute(id, payload = {}) {
-    return PutEndpoint(endpoints.commercial.routeById(id), payload);
-  }
-
-  async setRouteStatus(id, payload = {}) {
-    return PatchEndpoint(endpoints.commercial.routeStatus(id), payload);
-  }
-
-  async assignRouteDriver(routeId, payload = {}) {
-    return PostEndpoint(endpoints.commercial.assignRouteDriver(routeId), payload);
-  }
 }
 
 const catalogService = new CatalogService();

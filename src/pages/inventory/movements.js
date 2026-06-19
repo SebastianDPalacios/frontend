@@ -1,19 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert } from "@mui/material";
 import toast from "react-hot-toast";
+import InventoryMovementHistory from "components/organisms/inventory/InventoryMovementHistory";
+import ManualAdjustmentPanel from "components/organisms/inventory/ManualAdjustmentPanel";
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
-import AppButton from "@core/components/ui/AppButton";
 
-const getErrorMessage = (error, fallback) => {
-  return error?.response?.data?.message || error?.message || fallback;
-};
+const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
 const itemTypeLabels = {
   all: "Todos",
   product: "Productos",
   raw_material: "Materia prima",
+};
+
+const movementTypeLabels = {
+  all: "Todos",
+  purchase_in: "Entrada por factura",
+  production_in: "Entrada por producción",
+  production_out: "Salida por receta",
+  sale_out: "Salida por venta",
+  adjustment_in: "Ajuste: suma",
+  adjustment_out: "Ajuste: resta",
+  waste_out: "Merma o daño",
+};
+
+const movementTypeColors = {
+  purchase_in: "success",
+  production_in: "success",
+  adjustment_in: "success",
+  production_out: "warning",
+  sale_out: "warning",
+  adjustment_out: "warning",
+  waste_out: "error",
 };
 
 const movementTypeOptions = [
@@ -32,8 +52,81 @@ const movementTypeOptions = [
 ];
 
 const MAX_INVENTORY_QUANTITY = 99999999999.999;
+const HISTORY_PAGE_SIZE = 12;
+const ITEMS_PAGE_SIZE = 9;
 
 const formatNumber = (value, unit) => formatInventoryQuantity(value, unit);
+
+const numberFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 3,
+});
+
+const moneyFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 0,
+  style: "currency",
+  currency: "COP",
+});
+
+const formatUnits = (value) => numberFormatter.format(Number(value || 0));
+const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
+const onlyPesos = (value) => String(value || "").replace(/\D/g, "");
+const formatDate = (value) => (value ? String(value).slice(0, 10) : "Sin fecha");
+
+const purchaseUnitOptions = [
+  { value: "kg", label: "Kilos", factor: 1000, baseUnit: "g" },
+  { value: "g", label: "Gramos", factor: 1, baseUnit: "g" },
+  { value: "l", label: "Litros", factor: 1000, baseUnit: "ml" },
+  { value: "ml", label: "Mililitros", factor: 1, baseUnit: "ml" },
+];
+
+const formatPackageQuantity = (quantity, unit) => {
+  const amount = Number(quantity || 0);
+  if (amount <= 0) return "";
+  if (unit === "ml") {
+    return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} litros` : `${amount.toLocaleString("es-CO")} ml`;
+  }
+  return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+};
+
+const getPurchaseUnitOptions = (item) => {
+  const baseOptions = purchaseUnitOptions.filter((option) => option.baseUnit === item.unit);
+  const packageQuantity = Number(item.purchase_package_quantity || 0);
+  const packageName = String(item.purchase_package_name || "").trim();
+
+  if (item.item_type !== "raw_material" || packageQuantity <= 0 || !packageName) {
+    return baseOptions;
+  }
+
+  return [
+    {
+      value: "package",
+      label: `${packageName} (${formatPackageQuantity(packageQuantity, item.unit)})`,
+      factor: packageQuantity,
+      baseUnit: item.unit,
+    },
+    ...baseOptions,
+  ];
+};
+
+const getMovementExplanation = (movement) => {
+  if (movement.reference_type === "purchase_order") {
+    return `Factura ${movement.invoice_number || `#${movement.reference_id}`} de ${movement.supplier_name || "proveedor"}`;
+  }
+
+  if (movement.reference_type === "production_batch") {
+    return `Moje ${movement.production_recipe_name || `#${movement.reference_id}`}`;
+  }
+
+  if (movement.reference_type === "production_output_material") {
+    return `Ingrediente posterior para ${movement.output_product_name || "producto final"}`;
+  }
+
+  if (movement.reference_type === "manual") {
+    return movement.notes || "Ajuste manual de inventario";
+  }
+
+  return movement.notes || "Movimiento de inventario";
+};
 
 const InventoryMovementsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -45,10 +138,25 @@ const InventoryMovementsPage = () => {
   const [itemTypeFilter, setItemTypeFilter] = useState("raw_material");
   const [search, setSearch] = useState("");
   const [quantities, setQuantities] = useState({});
+  const [purchaseRows, setPurchaseRows] = useState({});
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [movementHistory, setMovementHistory] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyItemType, setHistoryItemType] = useState("all");
+  const [historyMovementType, setHistoryMovementType] = useState("all");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
+  const [showManualAdjustment, setShowManualAdjustment] = useState(false);
+  const [itemsPage, setItemsPage] = useState(1);
+
+  const totalHistoryPages = Math.max(Math.ceil(historyTotal / HISTORY_PAGE_SIZE), 1);
+  const currentHistoryPage = Math.min(historyPage, totalHistoryPages);
 
   useEffect(() => {
     const run = async () => {
@@ -61,6 +169,7 @@ const InventoryMovementsPage = () => {
           pageSize: 50,
           branchId: selectedBranch || undefined,
         });
+
         if (response?.code !== 1) {
           setError(response?.message || "No se pudo cargar movimientos de inventario");
           return;
@@ -86,6 +195,8 @@ const InventoryMovementsPage = () => {
           name: getDisplayName(material),
           unit: material.unit || "unit",
           quantity_on_hand: material.quantity_on_hand || 0,
+          purchase_package_name: material.purchase_package_name || null,
+          purchase_package_quantity: material.purchase_package_quantity || null,
         }));
 
         setBranches(branchRows);
@@ -101,6 +212,65 @@ const InventoryMovementsPage = () => {
     run();
   }, [reloadKey, selectedBranch]);
 
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyDateFrom, historyDateTo, historyItemType, historyMovementType, historySearch, selectedBranch]);
+
+  useEffect(() => {
+    setItemsPage(1);
+  }, [itemTypeFilter, movementType, search, selectedBranch]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!selectedBranch) {
+        setMovementHistory([]);
+        setHistoryTotal(0);
+        return;
+      }
+
+      setHistoryLoading(true);
+      try {
+        const response = await inventoryService.getMovements({
+          branchId: selectedBranch,
+          itemType: historyItemType,
+          movementType: historyMovementType,
+          search: historySearch || undefined,
+          dateFrom: historyDateFrom || undefined,
+          dateTo: historyDateTo || undefined,
+          page: currentHistoryPage,
+          pageSize: HISTORY_PAGE_SIZE,
+        });
+
+        if (response?.code !== 1) {
+          setMovementHistory([]);
+          setHistoryTotal(0);
+          setError(response?.message || "No se pudo cargar el historial de movimientos");
+          return;
+        }
+
+        setMovementHistory(normalizeRows(response.data));
+        setHistoryTotal(Number(response.data?.total || 0));
+      } catch (requestError) {
+        setMovementHistory([]);
+        setHistoryTotal(0);
+        setError(getErrorMessage(requestError, "Error de red al cargar el historial de movimientos"));
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    run();
+  }, [
+    currentHistoryPage,
+    historyDateFrom,
+    historyDateTo,
+    historyItemType,
+    historyMovementType,
+    historySearch,
+    reloadKey,
+    selectedBranch,
+  ]);
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -111,13 +281,47 @@ const InventoryMovementsPage = () => {
     });
   }, [itemTypeFilter, items, search]);
 
-  const selectedCount = Object.values(quantities).filter((value) => Number(value || 0) > 0).length;
+  const totalItemsPages = Math.max(Math.ceil(filteredItems.length / ITEMS_PAGE_SIZE), 1);
+  const currentItemsPage = Math.min(itemsPage, totalItemsPages);
+  const visibleItems = filteredItems.slice((currentItemsPage - 1) * ITEMS_PAGE_SIZE, currentItemsPage * ITEMS_PAGE_SIZE);
   const selectedMovement = movementTypeOptions.find((option) => option.value === movementType) || movementTypeOptions[0];
+  const isPurchaseInput = movementType === "adjustment_in" && itemTypeFilter === "raw_material";
+
+  const getPurchaseRow = (item) => {
+    const row = purchaseRows[item.id] || {};
+    const options = getPurchaseUnitOptions(item);
+    const unitOption = options.find((option) => option.value === row.unit) || options[0] || purchaseUnitOptions[0];
+    const packageQty = Number(row.packageQty || 0);
+    const totalCost = Number(onlyPesos(row.totalCost) || 0);
+    const baseQuantity = unitOption.baseUnit === item.unit ? packageQty * unitOption.factor : 0;
+    const unitCost = baseQuantity > 0 && totalCost > 0 ? totalCost / baseQuantity : null;
+
+    return {
+      ...row,
+      unit: unitOption.value,
+      unitLabel: unitOption.label,
+      baseQuantity,
+      unitCost,
+    };
+  };
+
+  const updatePurchaseRow = (itemId, values) => {
+    setPurchaseRows((current) => ({
+      ...current,
+      [itemId]: { ...(current[itemId] || {}), ...values },
+    }));
+  };
+
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => ({ ...current, [field]: null }));
+  };
+
+  const selectedCount = isPurchaseInput
+    ? items.filter((item) => item.item_type === "raw_material" && getPurchaseRow(item).baseQuantity > 0).length
+    : Object.values(quantities).filter((value) => Number(value || 0) > 0).length;
 
   const onSubmitMovements = async () => {
-    if (saving) {
-      return;
-    }
+    if (saving) return;
 
     setError(null);
     setFieldErrors({});
@@ -132,15 +336,12 @@ const InventoryMovementsPage = () => {
     }
 
     if (notes.length > 250) {
-      nextErrors.notes = "Maximo 250 caracteres";
+      nextErrors.notes = "Máximo 250 caracteres";
     }
 
     const invalidQuantity = items.some((item) => {
       const raw = quantities[item.id];
-      if (raw === "" || raw === undefined || raw === null) {
-        return false;
-      }
-
+      if (raw === "" || raw === undefined || raw === null) return false;
       const value = Number(raw);
       return !Number.isFinite(value) || value < 0 || (isIntegerUnit(item.unit) && !Number.isInteger(value));
     });
@@ -151,15 +352,12 @@ const InventoryMovementsPage = () => {
 
     const tooLargeQuantity = items.some((item) => {
       const raw = quantities[item.id];
-      if (raw === "" || raw === undefined || raw === null) {
-        return false;
-      }
-
+      if (raw === "" || raw === undefined || raw === null) return false;
       return Number(raw) > MAX_INVENTORY_QUANTITY;
     });
 
     if (tooLargeQuantity) {
-      nextErrors.quantities = `La cantidad maxima permitida por item es ${formatNumber(MAX_INVENTORY_QUANTITY)}`;
+      nextErrors.quantities = `La cantidad máxima permitida por item es ${formatNumber(MAX_INVENTORY_QUANTITY)}`;
     }
 
     const insufficientStock = movementType === "adjustment_out"
@@ -179,7 +377,8 @@ const InventoryMovementsPage = () => {
     const pending = items
       .map((item) => ({
         ...item,
-        quantity: Number(quantities[item.id] || 0),
+        quantity: isPurchaseInput && item.item_type === "raw_material" ? getPurchaseRow(item).baseQuantity : Number(quantities[item.id] || 0),
+        unitCost: isPurchaseInput && item.item_type === "raw_material" ? getPurchaseRow(item).unitCost : null,
       }))
       .filter((item) => item.item_id > 0 && item.quantity > 0);
 
@@ -198,7 +397,7 @@ const InventoryMovementsPage = () => {
             p_item_id: item.item_id,
             p_movement_type: movementType,
             p_quantity: item.quantity,
-            p_unit_cost: null,
+            p_unit_cost: item.unitCost,
             p_reference_type: "manual",
             p_reference_id: null,
             p_notes: notes || null,
@@ -214,6 +413,7 @@ const InventoryMovementsPage = () => {
 
       toast.success(`Movimientos aplicados: ${pending.length}`);
       setQuantities({});
+      setPurchaseRows({});
       setNotes("");
       setReloadKey((current) => current + 1);
     } catch (requestError) {
@@ -227,186 +427,78 @@ const InventoryMovementsPage = () => {
     <FlowPageLayout title="Inventario - Movimientos" subtitle="Entradas y salidas manuales de stock">
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              Tipo de movimiento
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Elige si vas a sumar o restar inventario antes de capturar cantidades.
-            </Typography>
-          </Stack>
-          <Grid container spacing={2}>
-            {movementTypeOptions.map((option) => {
-              const isSelected = movementType === option.value;
+      {!showManualAdjustment ? (
+        <InventoryMovementHistory
+          historyTotal={historyTotal}
+          historySearch={historySearch}
+          onHistorySearchChange={setHistorySearch}
+          historyItemType={historyItemType}
+          onHistoryItemTypeChange={setHistoryItemType}
+          historyMovementType={historyMovementType}
+          onHistoryMovementTypeChange={setHistoryMovementType}
+          historyDateFrom={historyDateFrom}
+          onHistoryDateFromChange={setHistoryDateFrom}
+          historyDateTo={historyDateTo}
+          onHistoryDateToChange={setHistoryDateTo}
+          itemTypeLabels={itemTypeLabels}
+          movementTypeLabels={movementTypeLabels}
+          movementTypeColors={movementTypeColors}
+          historyLoading={historyLoading}
+          movementHistory={movementHistory}
+          formatNumber={formatNumber}
+          formatDate={formatDate}
+          getMovementExplanation={getMovementExplanation}
+          pageSize={HISTORY_PAGE_SIZE}
+          currentPage={currentHistoryPage}
+          totalPages={totalHistoryPages}
+          onPreviousPage={() => setHistoryPage((current) => Math.max(current - 1, 1))}
+          onNextPage={() => setHistoryPage((current) => Math.min(current + 1, totalHistoryPages))}
+        />
+      ) : null}
 
-              return (
-                <Grid item xs={12} md={6} key={option.value}>
-                  <Paper
-                    variant="outlined"
-                    onClick={() => setMovementType(option.value)}
-                    sx={{
-                      borderRadius: 2,
-                      p: 2,
-                      cursor: "pointer",
-                      height: "100%",
-                      borderColor: isSelected ? `${option.color}.main` : "divider",
-                      bgcolor: isSelected ? "action.selected" : "background.paper",
-                    }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Stack spacing={0.5}>
-                        <Typography sx={{ fontWeight: 900 }}>{option.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {option.helper}
-                        </Typography>
-                      </Stack>
-                      <Chip size="small" color={option.color} label={isSelected ? "Activo" : "Elegir"} variant={isSelected ? "filled" : "outlined"} />
-                    </Stack>
-                  </Paper>
-                </Grid>
-              );
-            })}
-          </Grid>
-        </Stack>
-      </Paper>
-
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
-        <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
-          <Grid item xs={12} md={4}>
-            <TextField select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)} error={Boolean(fieldErrors.selectedBranch)} helperText={fieldErrors.selectedBranch || " "}>
-              {branches.map((branch) => (
-                <MenuItem key={branch.id} value={String(branch.id)}>
-                  {getDisplayName(branch)}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField select fullWidth label="Ver" value={itemTypeFilter} onChange={(event) => setItemTypeFilter(event.target.value)}>
-              <MenuItem value="raw_material">Materia prima</MenuItem>
-              <MenuItem value="product">Productos</MenuItem>
-              <MenuItem value="all">Todos</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth label="Buscar item" value={search} onChange={(event) => setSearch(event.target.value)} />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Notas"
-              value={notes}
-              onChange={(event) => {
-                setFieldErrors((prev) => ({ ...prev, notes: null }));
-                setNotes(event.target.value);
-              }}
-              error={Boolean(fieldErrors.notes)}
-              helperText={fieldErrors.notes || " "}
-            />
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {fieldErrors.quantities ? <Alert severity="warning" sx={{ mb: 2 }}>{fieldErrors.quantities}</Alert> : null}
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between", mb: 2 }}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              Items de inventario
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {selectedMovement.title}: captura cantidades en la unidad base de cada item.
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "flex-end" }}>
-            <Chip size="small" variant="outlined" label={`${selectedCount} con cantidad`} />
-            <Chip size="small" color={selectedMovement.color} label={selectedMovement.title} />
-            <AppButton color="secondary" onClick={onSubmitMovements} disabled={saving || loading}>
-              {saving ? "Aplicando..." : "Aplicar movimientos"}
-            </AppButton>
-          </Stack>
-        </Stack>
-
-        {loading ? <Alert severity="info">Cargando items de inventario...</Alert> : null}
-        {!loading && filteredItems.length === 0 ? (
-          <Alert severity="info">No hay items para los filtros seleccionados.</Alert>
-        ) : null}
-
-        <Grid container spacing={2}>
-          {filteredItems.map((item) => (
-            <Grid item xs={12} md={6} xl={4} key={item.id}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  p: 2,
-                  height: "100%",
-                  borderColor: Number(quantities[item.id] || 0) > 0 ? "primary.main" : "divider",
-                }}
-              >
-                <Stack spacing={2}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 800 }} noWrap>
-                        {item.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Stock actual: {formatNumber(item.quantity_on_hand, item.unit)} {item.unit}
-                      </Typography>
-                    </Stack>
-                    <Chip
-                      size="small"
-                      label={item.item_type === "product" ? "Producto" : "Materia prima"}
-                      color={item.item_type === "product" ? "info" : "warning"}
-                      variant="outlined"
-                    />
-                  </Stack>
-
-                  <Paper variant="outlined" sx={{ borderRadius: 2, p: 1.5, bgcolor: "action.hover" }}>
-                    <Grid container spacing={1}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary">
-                          Disponible
-                        </Typography>
-                        <Typography sx={{ fontWeight: 800 }}>
-                          {formatNumber(item.quantity_on_hand, item.unit)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary">
-                          Unidad
-                        </Typography>
-                        <Typography sx={{ fontWeight: 800 }}>
-                          {item.unit}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-
-                  <TextField
-                    type="number"
-                    label={`Cantidad a ${movementType === "adjustment_in" ? "sumar" : "restar"} (${item.unit})`}
-                    value={quantities[item.id] || ""}
-                    onChange={(event) => {
-                      setFieldErrors((prev) => ({ ...prev, quantities: null }));
-                      setQuantities((prev) => ({ ...prev, [item.id]: event.target.value }));
-                    }}
-                    inputProps={{ min: 0, max: MAX_INVENTORY_QUANTITY, step: isIntegerUnit(item.unit) ? 1 : 0.001 }}
-                    error={Boolean(fieldErrors.quantities)}
-                    fullWidth
-                  />
-                </Stack>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+      <ManualAdjustmentPanel
+        show={showManualAdjustment}
+        onToggle={() => setShowManualAdjustment((current) => !current)}
+        movementTypeOptions={movementTypeOptions}
+        movementType={movementType}
+        onMovementTypeChange={setMovementType}
+        branches={branches}
+        selectedBranch={selectedBranch}
+        onBranchChange={setSelectedBranch}
+        fieldErrors={fieldErrors}
+        onClearFieldError={clearFieldError}
+        itemTypeFilter={itemTypeFilter}
+        onItemTypeFilterChange={setItemTypeFilter}
+        search={search}
+        onSearchChange={setSearch}
+        notes={notes}
+        onNotesChange={setNotes}
+        selectedMovement={selectedMovement}
+        selectedCount={selectedCount}
+        onSubmitMovements={onSubmitMovements}
+        saving={saving}
+        loading={loading}
+        filteredItems={filteredItems}
+        visibleItems={visibleItems}
+        itemsPageSize={ITEMS_PAGE_SIZE}
+        currentItemsPage={currentItemsPage}
+        totalItemsPages={totalItemsPages}
+        onPreviousItemsPage={() => setItemsPage((current) => Math.max(current - 1, 1))}
+        onNextItemsPage={() => setItemsPage((current) => Math.min(current + 1, totalItemsPages))}
+        getDisplayName={getDisplayName}
+        formatNumber={formatNumber}
+        formatUnits={formatUnits}
+        formatMoney={formatMoney}
+        isIntegerUnit={isIntegerUnit}
+        movementTypeLabel={movementType === "adjustment_in" ? "sumar" : "restar"}
+        quantities={quantities}
+        onQuantityChange={(itemId, value) => setQuantities((current) => ({ ...current, [itemId]: value }))}
+        getPurchaseRow={getPurchaseRow}
+        getPurchaseUnitOptions={getPurchaseUnitOptions}
+        updatePurchaseRow={updatePurchaseRow}
+        isPurchaseInput={isPurchaseInput}
+        maxInventoryQuantity={MAX_INVENTORY_QUANTITY}
+      />
     </FlowPageLayout>
   );
 };

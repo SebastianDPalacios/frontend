@@ -1,30 +1,57 @@
-import { useEffect, useState } from "react";
-import { Alert, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import Link from "next/link";
+﻿import { useEffect, useState } from "react";
+import InventoryRawMaterialFilters from "components/organisms/inventory/InventoryRawMaterialFilters";
+import InventoryStockSummary from "components/organisms/inventory/InventoryStockSummary";
+import RawMaterialStockGrid from "components/organisms/inventory/RawMaterialStockGrid";
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
-import AppButton from "@core/components/ui/AppButton";
-
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
 
-const StockChip = ({ quantity, minStock }) => {
-  const stock = Number(quantity || 0);
-  const min = Number(minStock || 0);
-  const isEmpty = stock <= 0;
-  const isLow = !isEmpty && stock < min;
+const numberFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 3,
+});
 
-  return (
-    <Chip
-      size="small"
-      label={isEmpty ? "Sin stock" : isLow ? "Bajo minimo" : "Disponible"}
-      color={isEmpty ? "error" : isLow ? "warning" : "success"}
-      variant={isEmpty || isLow ? "filled" : "outlined"}
-      sx={{ minWidth: 112 }}
-    />
-  );
+const formatUnits = (value) => numberFormatter.format(Number(value || 0));
+
+const pluralize = (value, singular, plural) => `${formatUnits(value)} ${Number(value) === 1 ? singular : plural}`;
+
+const formatRemainder = (amount, unit) => {
+  if (unit === "ml") {
+    return amount >= 1000 ? `${formatUnits(amount / 1000)} litros` : `${formatUnits(amount)} ml`;
+  }
+  if (unit === "g") {
+    return amount >= 1000 ? `${formatUnits(amount / 1000)} kg` : `${formatUnits(amount)} g`;
+  }
+  return `${formatInventoryQuantity(amount, unit)} ${unit}`;
+};
+
+const pluralizePackage = (value, name) => `${formatUnits(value)} ${Number(value) === 1 ? name : `${name}s`}`;
+
+const formatStockEquivalent = (row, unit) => {
+  const value = row?.quantity_on_hand;
+  const amount = Number(value || 0);
+  const packageName = String(row?.purchase_package_name || "").trim();
+  const packageQuantity = Number(row?.purchase_package_quantity || 0);
+
+  if (packageName && packageQuantity > 0) {
+    const packages = Math.floor(amount / packageQuantity);
+    const remainder = amount - packages * packageQuantity;
+    return `${pluralizePackage(packages, packageName)} + ${formatRemainder(remainder, unit)}`;
+  }
+
+  if (unit === "ml") {
+    const liters = Math.floor(amount / 1000);
+    const remainingMl = amount - liters * 1000;
+    return `${pluralize(liters, "litro", "litros")} + ${formatUnits(remainingMl)} ml`;
+  }
+
+  if (unit === "g") {
+    return formatRemainder(amount, unit);
+  }
+
+  return `${formatInventoryQuantity(amount, unit)} ${unit}`;
 };
 
 const getStockPriority = (row) => {
@@ -87,136 +114,24 @@ const InventoryRawMaterialsPage = () => {
 
   return (
     <FlowPageLayout title="Inventario - Materia prima" subtitle="Existencias actuales por sucursal">
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
-        <Grid container spacing={2} sx={{ alignItems: "center" }}>
-          <Grid item xs={12} md={4}>
-          <TextField select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)}>
-            {branches.map((branch) => (
-              <MenuItem key={branch.id} value={String(branch.id)}>
-                {getDisplayName(branch)}
-              </MenuItem>
-            ))}
-          </TextField>
-          </Grid>
-          <Grid item xs={12} md={8}>
-            <Typography variant="body2" color="text.secondary">
-              Revisa existencias por sucursal. Los valores se muestran en la unidad base de cada materia prima.
-            </Typography>
-          </Grid>
-        </Grid>
-      </Paper>
+      <InventoryRawMaterialFilters
+        branches={branches}
+        selectedBranch={selectedBranch}
+        onBranchChange={setSelectedBranch}
+        getDisplayName={getDisplayName}
+      />
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary">Sin stock</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 900 }}>{emptyCount}</Typography>
-              <Chip size="small" color={emptyCount ? "error" : "success"} variant="outlined" label={emptyCount ? "Reponer primero" : "Todo con stock"} sx={{ alignSelf: "flex-start" }} />
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-            <Stack spacing={0.5}>
-              <Typography variant="body2" color="text.secondary">Bajo minimo</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 900 }}>{lowCount}</Typography>
-              <Chip size="small" color={lowCount ? "warning" : "success"} variant="outlined" label={lowCount ? "Revisar compra" : "Sin alertas"} sx={{ alignSelf: "flex-start" }} />
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-            <Stack spacing={1}>
-              <Typography variant="body2" color="text.secondary">Accion rapida</Typography>
-              <Typography sx={{ fontWeight: 800 }}>Entrada de materia prima</Typography>
-              <AppButton component={Link} href="/inventory/movements" color="secondary">
-                Cargar stock
-              </AppButton>
-            </Stack>
-          </Paper>
-        </Grid>
-      </Grid>
+      <InventoryStockSummary emptyCount={emptyCount} lowCount={lowCount} />
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between", mb: 2 }}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              Stock de materia prima
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {rows.length} materias registradas. Las criticas aparecen primero.
-            </Typography>
-          </Stack>
-        </Stack>
-
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        {loading ? <Alert severity="info">Cargando stock de materia prima...</Alert> : null}
-        {!loading && rows.length === 0 ? <Alert severity="info">No hay materias primas para mostrar.</Alert> : null}
-
-        <Grid container spacing={2}>
-          {sortedRows.map((row) => {
-            const isLow = Number(row.quantity_on_hand || 0) < Number(row.min_stock || 0);
-            const isEmpty = Number(row.quantity_on_hand || 0) <= 0;
-            const unit = row.unit || "unit";
-
-            return (
-              <Grid item xs={12} md={6} xl={4} key={row.id}>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 2,
-                    p: 2,
-                    height: "100%",
-                    borderColor: isEmpty ? "error.main" : isLow ? "warning.main" : "divider",
-                  }}
-                >
-                  <Stack spacing={2}>
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 800 }} noWrap>
-                          {getDisplayName(row)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Unidad base: {unit}
-                        </Typography>
-                      </Stack>
-                      <StockChip quantity={row.quantity_on_hand} minStock={row.min_stock} />
-                    </Stack>
-
-                    <Grid container spacing={1}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary">
-                          Disponible
-                        </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                          {formatInventoryQuantity(row.quantity_on_hand, unit)} {unit}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary">
-                          Minimo
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                          {formatInventoryQuantity(row.min_stock, unit)} {unit}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-
-                    <AppButton component={Link} href="/inventory/movements" variant="outlined" color="secondary">
-                      Cargar movimiento
-                    </AppButton>
-                  </Stack>
-                </Paper>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Paper>
+      <RawMaterialStockGrid
+        loading={loading}
+        error={error}
+        rows={rows}
+        sortedRows={sortedRows}
+        getDisplayName={getDisplayName}
+        formatStockEquivalent={formatStockEquivalent}
+        formatInventoryQuantity={formatInventoryQuantity}
+      />
     </FlowPageLayout>
   );
 };

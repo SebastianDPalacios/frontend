@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { Alert, Avatar, Box, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
 import BakeryDiningRoundedIcon from "@mui/icons-material/BakeryDiningRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
-import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
+import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
 import authService from "services/auth/auth-service";
 import useForm from "hooks/useForm";
@@ -14,7 +14,7 @@ import { FIELD_VALIDATORS } from "constants/validation";
 const operationHighlights = [
   { label: "Pedidos", value: "Venta diaria", icon: <BakeryDiningRoundedIcon fontSize="small" /> },
   { label: "Produccion", value: "Recetas y avance", icon: <Inventory2RoundedIcon fontSize="small" /> },
-  { label: "Despachos", value: "Rutas listas", icon: <LocalShippingRoundedIcon fontSize="small" /> },
+  { label: "Vendedores", value: "Clientes asignados", icon: <GroupRoundedIcon fontSize="small" /> },
 ];
 
 const Login = () => {

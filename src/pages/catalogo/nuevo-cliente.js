@@ -7,6 +7,7 @@ import { getApiErrorMessage } from "utils/api-error";
 import useForm from "hooks/useForm";
 import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
+import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 
 const NuevoClientePage = () => {
@@ -214,16 +215,14 @@ const NuevoClientePage = () => {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-                  <FormField
+                  <ColombianCurrencyField
                     name="credit_limit"
-                    label="Credito"
-                    type="number"
+                    label="Crédito"
                     value={values.credit_limit}
                     error={errors.credit_limit}
                     touched={touched.credit_limit}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    inputProps={{ min: 0, step: 0.01 }}
                   />
                 </Grid>
               </Grid>

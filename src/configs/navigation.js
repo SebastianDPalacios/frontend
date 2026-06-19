@@ -16,6 +16,8 @@ const navigationItems = [
           { title: "Resumen", path: "/orders/day", icon: "dashboard", permission: "orders.manage" },
           { title: "Captura", path: "/orders/count", icon: "orders", permission: "orders.manage" },
           { title: "Gestion", path: "/orders/history", icon: "orders", permission: "orders.manage" },
+          { title: "Liquidacion diaria", path: "/orders/daily-settlement", icon: "orders", permission: "orders.manage" },
+          { title: "Cambios y devoluciones", path: "/orders/returns", icon: "orders", permission: "orders.manage" },
         ],
       },
       {
@@ -23,9 +25,11 @@ const navigationItems = [
         icon: "production",
         children: [
           { title: "Resumen", path: "/production/day", icon: "dashboard", permission: "production.manage" },
-          { title: "Ordenes", path: "/production/orders", icon: "production", permission: "production.manage" },
-          { title: "Registrar", path: "/production/register", icon: "production", permission: "production.manage" },
-          { title: "Recetas", path: "/recipes/new", icon: "recipes", permission: "recipes.manage" },
+          { title: "Reporte mensual", path: "/production/month", icon: "dashboard", permission: "production.manage" },
+          { title: "Plan del panadero", path: "/production/planning", icon: "production" },
+          { title: "Recetas", path: "/recipes", icon: "recipes", permission: "recipes.manage" },
+          { title: "Lotes y empaque", path: "/production/packaging", icon: "production", permission: "production.manage" },
+          { title: "Faltantes", path: "/production/shortages", icon: "production", permission: "production.manage" },
         ],
       },
       {
@@ -33,10 +37,12 @@ const navigationItems = [
         icon: "inventory",
         children: [
           { title: "Resumen", path: "/inventory/overview", icon: "dashboard", permission: "inventory.manage" },
-          { title: "Movimientos", path: "/inventory/movements", icon: "inventory", permission: "inventory.manage" },
-          { title: "Productos", path: "/inventory/products", icon: "products", permission: "inventory.manage" },
-          { title: "Materia prima", path: "/inventory/raw-materials", icon: "materials", permission: "inventory.manage" },
+          { title: "Entradas y salidas", path: "/inventory/movements", icon: "inventory", permission: "inventory.manage" },
+          { title: "Stock productos", path: "/inventory/products", icon: "products", permission: "inventory.manage" },
+          { title: "Stock materia prima", path: "/inventory/raw-materials", icon: "materials", permission: "inventory.manage" },
           { title: "Compras", path: "/inventory/purchase-orders", icon: "suppliers", permission: "inventory.manage" },
+          { title: "Crear materia prima", path: "/catalogo/nueva-materia-prima", icon: "materials", permission: "materials.manage" },
+          { title: "Editar materias primas", path: "/catalogo/materias-primas", icon: "materials", permission: "materials.manage" },
         ],
       },
     ],
@@ -45,7 +51,7 @@ const navigationItems = [
     section: "Catalogos",
     items: [
       {
-        title: "Productos e insumos",
+        title: "Catalogo",
         icon: "products",
         children: [
           { title: "Productos", path: "/catalogo/productos", icon: "products", permission: "products.manage" },
@@ -55,14 +61,12 @@ const navigationItems = [
         ],
       },
       {
-        title: "Clientes y rutas",
+        title: "Clientes y vendedores",
         icon: "customers",
         children: [
           { title: "Clientes", path: "/catalogo/clientes", icon: "customers", permission: "customers.manage" },
           { title: "Nuevo cliente", path: "/catalogo/nuevo-cliente", icon: "customers", permission: "customers.manage" },
-          { title: "Rutas", path: "/catalogo/repartidores", icon: "routes", permission: "routes.manage" },
-          { title: "Nueva ruta", path: "/catalogo/nueva-ruta", icon: "routes", permission: "routes.manage" },
-          { title: "Asignar repartidor", path: "/catalogo/asignar-repartidor", icon: "routes", permission: "routes.manage" },
+          { title: "Asignar clientes", path: "/orders/customer-assignments", icon: "customers", permission: "roles.manage" },
         ],
       },
       {
@@ -70,6 +74,7 @@ const navigationItems = [
         icon: "catalog",
         children: [
           { title: "Proveedores", path: "/catalogo/proveedores", icon: "suppliers", permission: "materials.manage" },
+          { title: "Reglas de venta", path: "/orders/settings", icon: "orders", permission: "roles.manage" },
           { title: "Tasas de impuesto", path: "/catalogo/tasas-de-impuesto", icon: "tax", permission: "products.manage" },
           { title: "Categorias producto", path: "/catalogo/categorias-producto", icon: "category", permission: "products.manage" },
           { title: "Categorias materia prima", path: "/catalogo/categorias-materia-prima", icon: "materials", permission: "materials.manage" },
@@ -87,6 +92,14 @@ const navigationItems = [
           { title: "Listado", path: "/users/list", icon: "users", permission: "users.manage" },
           { title: "Nuevo usuario", path: "/users/new", icon: "users", permission: "users.manage" },
           { title: "Roles y permisos", path: "/users/roles", icon: "users", permission: "roles.manage" },
+        ],
+      },
+      {
+        title: "Empleados",
+        icon: "users",
+        children: [
+          { title: "Listado", path: "/employees/list", icon: "users", permission: "employees.manage" },
+          { title: "Nuevo empleado", path: "/employees/new", icon: "users", permission: "employees.manage" },
         ],
       },
     ],

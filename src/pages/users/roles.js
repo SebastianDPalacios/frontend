@@ -56,7 +56,6 @@ const friendlyPermissionNames = {
   "products.manage": "Productos",
   "materials.manage": "Materias primas",
   "customers.manage": "Clientes",
-  "routes.manage": "Rutas",
   "recipes.manage": "Recetas",
   "orders.manage": "Pedidos",
   "production.manage": "Produccion",

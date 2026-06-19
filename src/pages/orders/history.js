@@ -12,29 +12,23 @@ import {
   LinearProgress,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 import ordersService from "services/orders/orders-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
+import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
+import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "COP",
   maximumFractionDigits: 0,
-});
-
-const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
 });
 
 const formatDate = (value) => {
@@ -46,8 +40,6 @@ const formatDate = (value) => {
 };
 
 const formatMoney = (value) => currencyFormatter.format(Number(value || 0));
-const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
@@ -133,21 +125,8 @@ const StatusChip = ({ status, sx }) => (
   />
 );
 
-const getProductionProgress = (order) => {
-  const planned = Number(order?.production_planned_qty || 0);
-  if (planned <= 0) {
-    return 0;
-  }
-
-  return Math.min(Math.round((Number(order?.production_produced_qty || 0) / planned) * 100), 100);
-};
-
 const isReadyToDispatch = (order) =>
-  order?.status === "ready" ||
-  (order?.status === "in_production" &&
-    order?.production_order_id &&
-    order?.production_status === "completed" &&
-    Number(order?.production_pending_items || 0) === 0);
+  ["confirmed", "ready"].includes(order?.status);
 
 const getOrderNextStep = (order) => {
   if (!order) {
@@ -155,27 +134,27 @@ const getOrderNextStep = (order) => {
   }
 
   if (order.status === "draft") {
-    return { label: "Confirmar pedido", description: "Valida los productos y confirma para pasar a produccion.", severity: "warning", action: "confirm" };
+    return { label: "Confirmar pedido", description: "Valida los productos antes de habilitar el despacho desde inventario.", severity: "warning", action: "confirm" };
   }
 
   if (order.status === "confirmed") {
-    return { label: "Crear produccion", description: "Planifica la orden de produccion desde este pedido.", severity: "info", action: "production" };
+    return { label: "Despachar pedido", description: "Descuenta los productos disponibles del inventario.", severity: "success", action: "dispatch" };
   }
 
   if (order.status === "in_production") {
-    if (isReadyToDispatch(order)) {
-      return { label: "Despachar pedido", description: "La produccion esta completa y el pedido puede salir.", severity: "success", action: "dispatch" };
-    }
-
-    return { label: "Ver produccion", description: "Revisa avances y pendientes de la orden vinculada.", severity: "info", action: "view-production" };
+    return { label: "Detalle", description: "Estado historico de un flujo anterior vinculado a produccion.", severity: "info", action: "detail" };
   }
 
   if (order.status === "ready") {
     return { label: "Despachar pedido", description: "El pedido esta listo para descontar inventario.", severity: "success", action: "dispatch" };
   }
 
-  if (order.status === "dispatched" || order.status === "delivered") {
-    return { label: "Pedido despachado", description: "Ya impacto inventario. Solo queda consulta o trazabilidad.", severity: "success", action: "detail" };
+  if (order.status === "dispatched") {
+    return { label: "Confirmar entrega", description: "Confirma que el cliente recibio el pedido para generar la comision.", severity: "warning", action: "deliver" };
+  }
+
+  if (order.status === "delivered") {
+    return { label: "Pedido entregado", description: "La venta ya puede incluirse en la liquidacion diaria.", severity: "success", action: "detail" };
   }
 
   if (order.status === "cancelled") {
@@ -193,14 +172,9 @@ const getOrderTraceSteps = (order) => {
     ];
   }
 
-  const isConfirmed = ["confirmed", "in_production", "ready", "dispatched", "delivered"].includes(order?.status);
-  const hasProduction = Boolean(order?.production_order_id);
-  const productionDone =
-    hasProduction &&
-    order?.production_status === "completed" &&
-    Number(order?.production_pending_items || 0) === 0;
-  const isReady = order?.status === "ready" || order?.status === "dispatched" || order?.status === "delivered" || isReadyToDispatch(order);
+  const isConfirmed = ["confirmed", "ready", "dispatched", "delivered"].includes(order?.status);
   const isDispatched = order?.status === "dispatched" || order?.status === "delivered";
+  const isDelivered = order?.status === "delivered";
 
   return [
     { label: "Pedido", helper: "Creado", state: "done" },
@@ -210,19 +184,19 @@ const getOrderTraceSteps = (order) => {
       state: isConfirmed ? "done" : order?.status === "draft" ? "active" : "pending",
     },
     {
-      label: "Produccion",
-      helper: hasProduction ? `Orden #${order.production_order_id}` : "Sin orden",
-      state: productionDone ? "done" : hasProduction ? "active" : "pending",
-    },
-    {
-      label: "Listo",
-      helper: isReady ? "Para despacho" : "Pendiente",
-      state: isReady ? "done" : "pending",
+      label: "Inventario",
+      helper: isDispatched ? "Descontado" : isConfirmed ? "Por validar" : "Pendiente",
+      state: isDispatched ? "done" : isConfirmed ? "active" : "pending",
     },
     {
       label: "Despachado",
       helper: isDispatched ? "Inventario afectado" : "Pendiente",
       state: isDispatched ? "done" : "pending",
+    },
+    {
+      label: "Entregado",
+      helper: isDelivered ? "Comision generada" : "Pendiente",
+      state: isDelivered ? "done" : isDispatched ? "active" : "pending",
     },
   ];
 };
@@ -299,36 +273,19 @@ const OrderTrace = ({ order }) => {
 
 const getOperationalInsight = (order, items) => {
   const itemsCount = items.length;
-  const productionOrderId = order?.production_order_id;
 
   if (!order) {
     return {
       severity: "info",
       title: "Selecciona un pedido",
-      description: "Abre el detalle para revisar si el pedido esta listo para produccion o inventario.",
-    };
-  }
-
-  if (productionOrderId) {
-    const producedQty = Number(order.production_produced_qty || 0);
-    const plannedQty = Number(order.production_planned_qty || 0);
-    const pendingItems = Number(order.production_pending_items || 0);
-
-    return {
-      severity: pendingItems > 0 ? "info" : "success",
-      title: `Produccion vinculada #${productionOrderId}`,
-      description: pendingItems > 0
-        ? `La orden esta vinculada al pedido. Avance: ${producedQty} de ${plannedQty}. Pendientes: ${pendingItems}.`
-        : `La produccion vinculada ya no tiene pendientes. Producido: ${producedQty} de ${plannedQty}.`,
-      actionHref: `/production/orders?search=${productionOrderId}`,
-      actionLabel: "Ver produccion",
+      description: "Abre el detalle para revisar si el pedido esta listo para despacho desde inventario.",
     };
   }
 
   if (order.status === "draft") {
     return {
       severity: itemsCount > 0 ? "info" : "warning",
-      title: "Aun no impacta produccion",
+      title: "Pedido editable",
       description: itemsCount > 0
         ? "El pedido sigue en borrador. Puedes editar items antes de confirmarlo."
         : "Agrega productos antes de confirmar el pedido.",
@@ -337,29 +294,37 @@ const getOperationalInsight = (order, items) => {
 
   if (order.status === "confirmed") {
     return {
-      severity: "info",
-      title: "Listo para planificar produccion",
-      description: "El pedido esta confirmado. Actualmente la orden de produccion se crea manualmente desde Produccion.",
-      actionHref: "/production/orders",
-      actionLabel: "Ir a produccion",
+      severity: "success",
+      title: "Listo para validar inventario",
+      description: "El pedido se despacha con producto disponible en stock. Al despachar se validan y descuentan las existencias.",
     };
   }
 
   if (order.status === "in_production" || order.status === "ready") {
     return {
-      severity: "warning",
-      title: "Revisar avance de produccion",
-      description: "El pedido esta en produccion, pero no se encontro una orden vinculada. Valida si fue creada antes de ejecutar la migracion de vinculo.",
-      actionHref: "/production/orders",
-      actionLabel: "Ver produccion",
+      severity: order.status === "ready" ? "success" : "info",
+      title: order.status === "ready" ? "Listo para despacho" : "Flujo historico",
+      description: order.status === "ready"
+        ? "El pedido puede descontarse del inventario."
+        : "Este pedido conserva un estado anterior vinculado a produccion.",
     };
   }
 
-  if (order.status === "dispatched" || order.status === "delivered") {
+  if (order.status === "dispatched") {
+    return {
+      severity: "warning",
+      title: "Pendiente de confirmar entrega",
+      description: "El inventario ya fue descontado, pero la venta solo aparece en la liquidacion cuando confirmas que el cliente recibio el pedido.",
+      actionHref: "/inventory/movements",
+      actionLabel: "Ver movimientos",
+    };
+  }
+
+  if (order.status === "delivered") {
     return {
       severity: "success",
-      title: "Ya impacto inventario",
-      description: "Este pedido ya fue despachado. Cualquier cambio debe manejarse como ajuste, devolucion o nuevo movimiento.",
+      title: "Pedido entregado",
+      description: "La entrega fue confirmada y la comision ya fue generada para la liquidacion diaria.",
       actionHref: "/inventory/movements",
       actionLabel: "Ver movimientos",
     };
@@ -383,6 +348,7 @@ const getOperationalInsight = (order, items) => {
 };
 
 const OrdersHistoryPage = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
@@ -390,16 +356,19 @@ const OrdersHistoryPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
   const [detailItems, setDetailItems] = useState([]);
-  const [detailQuantities, setDetailQuantities] = useState({});
   const [detailLoading, setDetailLoading] = useState(false);
-  const [savingItemId, setSavingItemId] = useState(null);
   const [orderId, setOrderId] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
-  const [creatingProduction, setCreatingProduction] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (router.isReady && router.query.search) {
+      setSearch(String(router.query.search));
+    }
+  }, [router.isReady, router.query.search]);
 
   useEffect(() => {
     const run = async () => {
@@ -440,9 +409,8 @@ const OrdersHistoryPage = () => {
   const canDispatch =
     selectedOrder?.status === "confirmed" ||
     isReadyToDispatch(selectedOrder);
+  const canDeliver = selectedOrder?.status === "dispatched";
   const canCancel = selectedOrder?.status === "draft" || selectedOrder?.status === "confirmed";
-  const canCreateProduction = detailOrder?.status === "confirmed" && detailItems.length > 0;
-  const canEditDetail = detailOrder?.status === "draft";
   const draftOrders = orders.filter((order) => order.status === "draft").length;
   const dispatchedOrders = orders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = orders.filter((order) => order.status === "cancelled").length;
@@ -463,12 +431,6 @@ const OrdersHistoryPage = () => {
 
       const itemRows = normalizeRows(response.data?.items);
       setDetailItems(itemRows);
-      setDetailQuantities(
-        itemRows.reduce((acc, item) => {
-          acc[item.id] = String(Number(item.quantity || 0));
-          return acc;
-        }, {})
-      );
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al cargar detalles del pedido"));
     } finally {
@@ -492,12 +454,6 @@ const OrdersHistoryPage = () => {
 
       const itemRows = normalizeRows(response.data?.items);
       setDetailItems(itemRows);
-      setDetailQuantities(
-        itemRows.reduce((acc, item) => {
-          acc[item.id] = String(Number(item.quantity || 0));
-          return acc;
-        }, {})
-      );
     } catch (requestError) {
       const message = getErrorMessage(requestError, "Error de red al cargar detalles del pedido");
       setError(message);
@@ -506,77 +462,6 @@ const OrdersHistoryPage = () => {
       setDetailLoading(false);
     }
   };
-
-  const saveDetailItem = async (item, overrideQuantity = null) => {
-    if (savingItemId || !detailOrder) {
-      return;
-    }
-
-    const quantity = overrideQuantity === null ? Number(detailQuantities[item.id] || 0) : Number(overrideQuantity);
-    if (Number.isNaN(quantity) || quantity < 0) {
-      toast.error("La cantidad no puede ser negativa");
-      return;
-    }
-
-    setSavingItemId(item.id);
-    setError(null);
-    try {
-      const result = await ordersService.upsertItem(Number(detailOrder.id), {
-        p_product_id: Number(item.product_id),
-        p_quantity: quantity,
-      });
-
-      if (result?.code !== 1) {
-        setError(result?.message || "No se pudo actualizar el item");
-        toast.error(result?.message || "No se pudo actualizar el item");
-        return;
-      }
-
-      toast.success(result?.message || "Item actualizado");
-      await refreshOrderDetail(detailOrder);
-      setRefreshKey((value) => value + 1);
-    } catch (requestError) {
-      const message = getErrorMessage(requestError, "Error de red al actualizar item");
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSavingItemId(null);
-    }
-  };
-
-  const createProductionForOrder = async (order) => {
-    if (creatingProduction || !order) {
-      return;
-    }
-
-    setCreatingProduction(true);
-    setError(null);
-    try {
-      const result = await ordersService.createProduction(Number(order.id), {
-        p_planned_date: formatDate(order.delivery_date || order.order_date),
-      });
-
-      if (result?.code !== 1) {
-        const message = getFriendlyOrderError(result?.message || "No se pudo crear la orden de produccion");
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      toast.success(result?.message || "Orden de produccion creada");
-      setDetailOpen(false);
-      setRefreshKey((value) => value + 1);
-      window.location.href = `/production/orders?search=${encodeURIComponent(result?.data?.production_order_id || order.id)}`;
-    } catch (requestError) {
-      const message = getFriendlyOrderError(getErrorMessage(requestError, "Error de red al crear produccion"));
-      setError(message);
-      toast.error(message);
-    } finally {
-      setCreatingProduction(false);
-    }
-  };
-
-  const createProductionForDetailOrder = async () => createProductionForOrder(detailOrder);
 
   const runOrderAction = async (action, targetOrderId = orderId) => {
     if (actionLoading) {
@@ -611,6 +496,10 @@ const OrdersHistoryPage = () => {
         result = await ordersService.dispatchOrder(parsedOrderId);
       }
 
+      if (action === "deliver") {
+        result = await ordersService.deliverOrder(parsedOrderId);
+      }
+
       if (action === "cancel") {
         result = await ordersService.cancelOrder(parsedOrderId, { p_reason: cancelReason.trim() || null });
       }
@@ -626,6 +515,9 @@ const OrdersHistoryPage = () => {
       if (action === "cancel") {
         setCancelDialogOpen(false);
         setCancelReason("");
+      }
+      if (["dispatch", "deliver"].includes(action) && detailOpen) {
+        setDetailOpen(false);
       }
       setRefreshKey((value) => value + 1);
     } catch (requestError) {
@@ -651,13 +543,8 @@ const OrdersHistoryPage = () => {
       return;
     }
 
-    if (nextStep.action === "production") {
-      await createProductionForOrder(order);
-      return;
-    }
-
-    if (nextStep.action === "view-production" && order.production_order_id) {
-      window.location.href = `/production/orders?search=${encodeURIComponent(order.production_order_id)}`;
+    if (nextStep.action === "deliver") {
+      await runOrderAction("deliver", order.id);
       return;
     }
 
@@ -669,7 +556,7 @@ const OrdersHistoryPage = () => {
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} md={4}>
-          <TextField fullWidth label="Buscar pedido, cliente o ruta" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <TextField fullWidth label="Buscar pedido, cliente o vendedor" value={search} onChange={(event) => setSearch(event.target.value)} />
         </Grid>
       </Grid>
 
@@ -694,7 +581,7 @@ const OrdersHistoryPage = () => {
             <OrderMetric label="Pedido" value={selectedOrder ? `#${selectedOrder.id}` : "Selecciona un pedido"} />
             <OrderMetric label="Cliente" value={selectedOrder?.customer_name} />
             <OrderMetric label="Fecha" value={formatDate(selectedOrder?.order_date)} />
-            <OrderMetric label="Ruta" value={selectedOrder?.route_name || "Sin ruta"} />
+            <OrderMetric label="Vendedor" value={selectedOrder?.sales_agent_name || "Sin vendedor"} />
             <OrderMetric label="Total" value={formatMoney(selectedOrder?.grand_total)} />
             <Box>
               <Typography variant="caption" color="text.secondary">
@@ -708,6 +595,7 @@ const OrdersHistoryPage = () => {
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
             <AppButton color="secondary" onClick={() => runOrderAction("confirm")} disabled={actionLoading || !canConfirm}>Confirmar</AppButton>
             <AppButton color="secondary" variant="outlined" onClick={() => runOrderAction("dispatch")} disabled={actionLoading || !canDispatch}>Despachar</AppButton>
+            <AppButton color="secondary" onClick={() => runOrderAction("deliver")} disabled={actionLoading || !canDeliver}>Confirmar entrega</AppButton>
             <AppButton color="error" variant="outlined" onClick={() => setCancelDialogOpen(true)} disabled={actionLoading || !canCancel}>Cancelar</AppButton>
           </Stack>
         </Stack>
@@ -720,7 +608,7 @@ const OrdersHistoryPage = () => {
               Pedidos recientes
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Selecciona un pedido para confirmarlo, despacharlo, cancelarlo o ver sus items.
+              Selecciona un pedido para confirmarlo, despacharlo, confirmar su entrega, cancelarlo o ver sus items.
             </Typography>
           </Stack>
           <Chip label={`${orders.length} pedidos`} variant="outlined" />
@@ -736,8 +624,10 @@ const OrdersHistoryPage = () => {
             const progress =
               order.status === "cancelled"
                 ? 0
-                : ["dispatched", "delivered"].includes(order.status)
+                : order.status === "delivered"
                 ? 100
+                : order.status === "dispatched"
+                ? 90
                 : order.status === "ready"
                 ? 85
                 : order.status === "in_production"
@@ -799,7 +689,7 @@ const OrdersHistoryPage = () => {
 
                     <Grid container spacing={1}>
                       <Grid item xs={4}>
-                        <OrderMetric label="Ruta" value={order.route_name || "Sin ruta"} />
+                        <OrderMetric label="Vendedor" value={order.sales_agent_name || "Sin vendedor"} />
                       </Grid>
                       <Grid item xs={4}>
                         <OrderMetric label="Entrega" value={formatDate(order.delivery_date)} />
@@ -817,7 +707,7 @@ const OrdersHistoryPage = () => {
                         color="secondary"
                         variant={["detail", "view-production"].includes(nextStep.action) ? "outlined" : "contained"}
                         onClick={(event) => runCardAction(event, order, nextStep)}
-                        disabled={actionLoading || creatingProduction}
+                        disabled={actionLoading}
                       >
                         {nextStep.label}
                       </AppButton>
@@ -872,7 +762,19 @@ const OrdersHistoryPage = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} fullWidth maxWidth="md">
+      <Dialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            m: { xs: 1, sm: 2 },
+            width: { xs: "calc(100% - 16px)", sm: "calc(100% - 32px)" },
+            maxHeight: { xs: "calc(100% - 16px)", sm: "calc(100% - 32px)" },
+          },
+        }}
+      >
         <DialogTitle>
           {detailOrder ? `Detalle pedido #${detailOrder.id}` : "Detalle pedido"}
         </DialogTitle>
@@ -887,7 +789,7 @@ const OrdersHistoryPage = () => {
                   <OrderMetric label="Sucursal" value={detailOrder.branch_name} />
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <OrderMetric label="Ruta" value={detailOrder.route_name || "Sin ruta"} />
+                  <OrderMetric label="Vendedor" value={detailOrder.sales_agent_name || "Sin vendedor"} />
                 </Grid>
                 <Grid item xs={12} md={3}>
                   <OrderMetric label="Fecha pedido" value={formatDate(detailOrder.order_date)} />
@@ -908,6 +810,29 @@ const OrdersHistoryPage = () => {
                 <Grid item xs={12} md={3}>
                   <OrderMetric label="Total" value={formatMoney(detailOrder.grand_total)} />
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <OrderMetric
+                    label="Ultima impresion"
+                    value={detailOrder.last_printed_at
+                      ? `${detailOrder.last_printed_by_name || "Usuario"} - ${new Date(detailOrder.last_printed_at).toLocaleString("es-CO")}`
+                      : "Sin impresiones confirmadas"}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <OrderPrintManager
+                    order={detailOrder}
+                    onConfirmed={async () => {
+                      setRefreshKey((value) => value + 1);
+                      setDetailOrder((current) => current
+                        ? {
+                            ...current,
+                            print_count: Number(current.print_count || 0) + 1,
+                            last_printed_at: new Date().toISOString(),
+                          }
+                        : current);
+                    }}
+                  />
+                </Grid>
                 <Grid item xs={12}>
                   <OrderMetric label="Notas" value={detailOrder.notes || "Sin notas"} />
                 </Grid>
@@ -917,9 +842,6 @@ const OrdersHistoryPage = () => {
 
               {(() => {
                 const insight = getOperationalInsight(detailOrder, detailItems);
-                const hasProduction = Boolean(detailOrder.production_order_id);
-                const productionProgress = getProductionProgress(detailOrder);
-                const pendingItems = Number(detailOrder.production_pending_items || 0);
                 const readyToDispatch = isReadyToDispatch(detailOrder);
 
                 return (
@@ -931,12 +853,6 @@ const OrdersHistoryPage = () => {
                             <Typography variant="h6" sx={{ fontWeight: 900 }}>
                               Impacto operativo
                             </Typography>
-                            <Chip
-                              size="small"
-                              label={hasProduction ? `Produccion #${detailOrder.production_order_id}` : "Produccion manual"}
-                              color={hasProduction ? "info" : "default"}
-                              variant="outlined"
-                            />
                             <Chip
                               size="small"
                               label={["dispatched", "delivered"].includes(detailOrder.status) ? "Inventario afectado" : "Inventario sin salida"}
@@ -957,157 +873,32 @@ const OrdersHistoryPage = () => {
                               {insight.actionLabel}
                             </Button>
                           ) : null}
-                          {canCreateProduction ? (
-                            <AppButton color="secondary" onClick={createProductionForDetailOrder} disabled={creatingProduction}>
-                              {creatingProduction ? "Creando..." : "Crear orden de produccion"}
-                            </AppButton>
-                          ) : null}
                           {readyToDispatch ? (
                             <AppButton color="secondary" onClick={() => runOrderAction("dispatch")} disabled={actionLoading}>
                               {actionLoading ? "Despachando..." : "Despachar pedido"}
                             </AppButton>
                           ) : null}
+                          {detailOrder.status === "dispatched" ? (
+                            <AppButton color="secondary" onClick={() => runOrderAction("deliver")} disabled={actionLoading}>
+                              {actionLoading ? "Confirmando..." : "Confirmar entrega"}
+                            </AppButton>
+                          ) : null}
                         </Stack>
                       </Stack>
-
-                      {hasProduction ? (
-                        <Paper variant="outlined" sx={{ borderRadius: 2, p: 2, bgcolor: "background.paper", overflow: "hidden" }}>
-                          <Grid container spacing={2} sx={{ alignItems: "center" }}>
-                            <Grid item xs={12} lg={4}>
-                              <Stack spacing={0.75}>
-                                <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between" }}>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Avance de produccion
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                                    {productionProgress}%
-                                  </Typography>
-                                </Stack>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={productionProgress}
-                                  sx={{
-                                    height: 9,
-                                    borderRadius: 999,
-                                    bgcolor: "action.hover",
-                                    "& .MuiLinearProgress-bar": { borderRadius: 999 },
-                                  }}
-                                />
-                              </Stack>
-                            </Grid>
-                            <Grid item xs={6} sm={3} lg={2}>
-                              <OrderMetric label="Planificado" value={formatNumber(detailOrder.production_planned_qty)} />
-                            </Grid>
-                            <Grid item xs={6} sm={3} lg={2}>
-                              <OrderMetric label="Producido" value={formatNumber(detailOrder.production_produced_qty)} />
-                            </Grid>
-                            <Grid item xs={6} sm={3} lg={2}>
-                              <OrderMetric label="Pendientes" value={formatNumber(pendingItems)} />
-                            </Grid>
-                            <Grid item xs={6} sm={3} lg={2}>
-                              <Box sx={{ display: "flex", justifyContent: { xs: "flex-start", lg: "flex-end" }, minWidth: 0 }}>
-                                <StatusChip status={detailOrder.production_status} sx={{ minWidth: 0 }} />
-                              </Box>
-                            </Grid>
-                          </Grid>
-                        </Paper>
-                      ) : null}
                     </Stack>
                   </Paper>
                 );
               })()}
 
-              <Box sx={{ overflowX: "auto" }}>
-                <Table size="small" sx={{ minWidth: 640 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Producto</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Cantidad</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Precio</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Impuesto</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Accion</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {detailItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.product_name}</TableCell>
-                        <TableCell sx={{ width: 180 }}>
-                          {canEditDetail ? (
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={detailQuantities[item.id] ?? ""}
-                              onChange={(event) => {
-                                setDetailQuantities((current) => ({ ...current, [item.id]: event.target.value }));
-                              }}
-                              inputProps={{ min: 0, step: 0.001 }}
-                              fullWidth
-                            />
-                          ) : (
-                            Number(item.quantity || 0)
-                          )}
-                        </TableCell>
-                        <TableCell>{formatMoney(item.unit_price)}</TableCell>
-                        <TableCell>{Number(item.tax_percent || 0)}%</TableCell>
-                        <TableCell>{formatMoney(item.line_total)}</TableCell>
-                        <TableCell sx={{ width: 180 }}>
-                          {canEditDetail ? (
-                            <Stack direction="row" spacing={1}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="secondary"
-                                onClick={() => saveDetailItem(item)}
-                                disabled={savingItemId === item.id}
-                              >
-                                {savingItemId === item.id ? "..." : "Guardar"}
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="error"
-                                onClick={() => {
-                                  setDetailQuantities((current) => ({ ...current, [item.id]: "0" }));
-                                  saveDetailItem(item, 0);
-                                }}
-                                disabled={savingItemId === item.id}
-                              >
-                                Quitar
-                              </Button>
-                            </Stack>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              Bloqueado
-                            </Typography>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!detailLoading && detailItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6}>No hay items para este pedido</TableCell>
-                      </TableRow>
-                    ) : null}
-                    {detailLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6}>Cargando items...</TableCell>
-                      </TableRow>
-                    ) : null}
-                  </TableBody>
-                </Table>
-              </Box>
-
-              {canEditDetail ? (
-                <Alert severity="info">
-                  Puedes ajustar cantidades porque el pedido esta en borrador. Usa cantidad 0 para quitar un producto.
-                </Alert>
-              ) : (
-                <Alert severity="warning">
-                  Este pedido ya no permite editar items porque no esta en borrador.
-                </Alert>
-              )}
+              <OrderDetailEditor
+                order={detailOrder}
+                items={detailItems}
+                loading={detailLoading}
+                onRefresh={async () => {
+                  await refreshOrderDetail(detailOrder);
+                  setRefreshKey((value) => value + 1);
+                }}
+              />
             </Stack>
           ) : null}
         </DialogContent>
