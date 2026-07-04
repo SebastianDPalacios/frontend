@@ -40,6 +40,7 @@ import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
 import productionService from "services/production/production-service";
 import navigationItems from "configs/navigation";
+import { isSalesOnlyUser, salesOnlyPaths } from "configs/access";
 
 const drawerWidth = 280;
 const mobileDrawerWidth = "84vw";
@@ -70,13 +71,33 @@ const hasPermission = (user, permission) => {
 };
 
 const filterNavigationByUser = (items, user) => {
+  const salesOnly = isSalesOnlyUser(user);
+
   return items
     .map((section) => {
       const filteredItems = section.items
         .map((item) => {
+          if (item.salesOnly && !salesOnly) {
+            return null;
+          }
+
           if (item.children?.length) {
-            const children = item.children.filter((child) => hasPermission(user, child.permission));
+            const children = item.children.filter((child) => {
+              if (child.salesOnly && !salesOnly) {
+                return false;
+              }
+
+              if (salesOnly && !salesOnlyPaths.includes(child.path)) {
+                return false;
+              }
+
+              return hasPermission(user, child.permission);
+            });
             return children.length ? { ...item, children } : null;
+          }
+
+          if (salesOnly && !salesOnlyPaths.includes(item.path)) {
+            return null;
           }
 
           return hasPermission(user, item.permission) ? item : null;
@@ -115,6 +136,11 @@ const UserLayout = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   const loadNotifications = useCallback(async () => {
+    if (isSalesOnlyUser(currentUser)) {
+      setNotifications([]);
+      return;
+    }
+
     try {
       const response = await productionService.getNotifications();
       if (response?.code === 1) {
@@ -123,7 +149,7 @@ const UserLayout = ({ children }) => {
     } catch (error) {
       setNotifications([]);
     }
-  }, []);
+  }, [currentUser]);
 
   const isPathSelected = (path) => router.pathname === path || router.pathname.startsWith(`${path}/`);
   const visibleNavigationItems = useMemo(
@@ -184,6 +210,7 @@ const UserLayout = ({ children }) => {
   const accountOpen = Boolean(accountAnchor);
   const notificationOpen = Boolean(notificationAnchor);
   const unreadCount = notifications.filter((notification) => !notification.viewed_at).length;
+  const salesOnly = isSalesOnlyUser(currentUser);
 
   const openNotification = async (notification) => {
     try {
@@ -294,6 +321,7 @@ const UserLayout = ({ children }) => {
                       <List disablePadding sx={{ pl: 1.25, mb: 0.75 }}>
                         {item.children.map((child) => {
                           const childSelected = isPathSelected(child.path);
+                          const childTitle = salesOnly && child.path === "/orders/count" ? "Ventas" : child.title;
 
                           return (
                             <ListItemButton
@@ -317,7 +345,7 @@ const UserLayout = ({ children }) => {
                               }}
                             >
                               <ListItemText
-                                primary={child.title}
+                                primary={childTitle}
                                 primaryTypographyProps={{ fontSize: 13, lineHeight: 1.2, fontWeight: childSelected ? 800 : 600 }}
                               />
                             </ListItemButton>

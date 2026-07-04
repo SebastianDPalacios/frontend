@@ -50,12 +50,24 @@ class CatalogService {
     return PostEndpoint(endpoints.catalog.products, payload);
   }
 
+  async updateProduct(id, payload = {}) {
+    return PutEndpoint(endpoints.catalog.productById(id), payload);
+  }
+
+  async updateProductYield(id, payload = {}) {
+    return PatchEndpoint(endpoints.catalog.productYield(id), payload);
+  }
+
   async createTaxRate(payload = {}) {
     return PostEndpoint(endpoints.catalog.taxRates, payload);
   }
 
   async createProductCategory(payload = {}) {
     return PostEndpoint(endpoints.catalog.productCategories, payload);
+  }
+
+  async updateProductCategory(id, payload = {}) {
+    return PutEndpoint(endpoints.catalog.productCategoryById(id), payload);
   }
 
   async createRawMaterialCategory(payload = {}) {

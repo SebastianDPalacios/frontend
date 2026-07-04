@@ -24,6 +24,7 @@ const moneyFormatter = new Intl.NumberFormat("es-CO", {
 const formatUnits = (value) => numberFormatter.format(Number(value || 0));
 const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
+const formatKilos = (grams) => `${formatUnits(Number(grams || 0) / 1000)} kg`;
 
 const pluralize = (value, singular, plural) => `${formatUnits(value)} ${Number(value) === 1 ? singular : plural}`;
 
@@ -99,12 +100,21 @@ const ProductionMonthPage = () => {
     branchId: "",
     recipeId: "",
   });
+  const [flourMaterialId, setFlourMaterialId] = useState("");
   const [report, setReport] = useState({
     summary: {},
     products: [],
     batches: [],
     packers: [],
+    raw_materials_usage: [],
     recipe_materials_usage: [],
+    flour_daily_usage: [],
+    returns_summary: [],
+    inventory_snapshot: {
+      raw_materials: [],
+      finished_products: [],
+      packaging: [],
+    },
     estimated_cost: 0,
   });
 
@@ -209,7 +219,15 @@ const ProductionMonthPage = () => {
           products: normalizeRows(response.data?.products),
           batches: normalizeRows(response.data?.batches),
           packers: normalizeRows(response.data?.packers),
+          raw_materials_usage: normalizeRows(response.data?.raw_materials_usage),
           recipe_materials_usage: normalizeRows(response.data?.recipe_materials_usage),
+          flour_daily_usage: normalizeRows(response.data?.flour_daily_usage),
+          returns_summary: normalizeRows(response.data?.returns_summary),
+          inventory_snapshot: {
+            raw_materials: normalizeRows(response.data?.inventory_snapshot?.raw_materials),
+            finished_products: normalizeRows(response.data?.inventory_snapshot?.finished_products),
+            packaging: normalizeRows(response.data?.inventory_snapshot?.packaging),
+          },
           estimated_cost: Number(response.data?.estimated_cost || 0),
         });
       } catch (requestError) {
@@ -229,6 +247,52 @@ const ProductionMonthPage = () => {
   const missing = Number(summary.missing_quantity || 0);
   const pending = Number(summary.pending_quantity || 0);
   const progress = produced > 0 ? Math.min(Math.round(((packed + damaged + missing) / produced) * 100), 100) : 0;
+  const flourOptions = useMemo(() => {
+    const uniqueFlours = new Map();
+    report.flour_daily_usage.forEach((row) => {
+      const id = String(row.raw_material_id || "");
+      if (id && !uniqueFlours.has(id)) {
+        uniqueFlours.set(id, {
+          id,
+          name: row.raw_material_name || `Harina #${id}`,
+        });
+      }
+    });
+
+    return Array.from(uniqueFlours.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [report.flour_daily_usage]);
+
+  const filteredFlourDailyUsage = useMemo(() => {
+    if (!flourMaterialId) {
+      return report.flour_daily_usage;
+    }
+
+    return report.flour_daily_usage.filter((row) => String(row.raw_material_id) === String(flourMaterialId));
+  }, [flourMaterialId, report.flour_daily_usage]);
+
+  const selectedFlourName = useMemo(
+    () => flourOptions.find((flour) => flour.id === String(flourMaterialId))?.name || "Todas las harinas",
+    [flourMaterialId, flourOptions]
+  );
+
+  const flourSummary = useMemo(() => {
+    const days = new Set();
+    const totals = filteredFlourDailyUsage.reduce(
+      (current, row) => {
+        if (row.usage_date) {
+          days.add(String(row.usage_date).slice(0, 10));
+        }
+
+        return {
+          grams: current.grams + Number(row.total_grams || 0),
+          bags: current.bags + Number(row.bags_used || 0),
+        };
+      },
+      { grams: 0, bags: 0 }
+    );
+
+    return { ...totals, days };
+  }, [filteredFlourDailyUsage]);
 
   const handleExport = async () => {
     try {
@@ -245,6 +309,8 @@ const ProductionMonthPage = () => {
         pending,
         progress,
         report,
+        flourDailyUsage: filteredFlourDailyUsage,
+        selectedFlourName,
         bakerSummary,
         formatMaterialEquivalent,
       });
@@ -336,7 +402,10 @@ const ProductionMonthPage = () => {
           <Grid item xs={12} sm={6} md={2}>
             <AppButton
               color="inherit"
-              onClick={() => setFilters({ month: toMonthInputValue(), branchId: "", recipeId: "" })}
+              onClick={() => {
+                setFilters({ month: toMonthInputValue(), branchId: "", recipeId: "" });
+                setFlourMaterialId("");
+              }}
               sx={{ width: "100%", minHeight: 54 }}
             >
               Mes actual
@@ -347,7 +416,7 @@ const ProductionMonthPage = () => {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={3}>
-          <MetricCard label="Lotes" value={formatUnits(summary.batches_count)} helper={`${formatUnits(summary.batch_quantity)} mojes`} color="info" />
+          <MetricCard label="Bultos" value={formatUnits(summary.batches_count)} helper={`${formatUnits(summary.batch_quantity)} mojes`} color="info" />
         </Grid>
         <Grid item xs={12} md={3}>
           <MetricCard label="Fabricados" value={formatUnits(produced)} helper="Unidades producidas" color="secondary" />
@@ -384,6 +453,57 @@ const ProductionMonthPage = () => {
         />
       </Paper>
 
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, mb: 2 }}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Consumo diario de harina
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Resumen dia por dia para la hoja de Excel mensual.
+            </Typography>
+          </Box>
+          <TextField
+            select
+            label="Tipo de harina"
+            value={flourMaterialId}
+            onChange={(event) => setFlourMaterialId(event.target.value)}
+            sx={{ minWidth: { xs: "100%", md: 280 } }}
+            disabled={loading || flourOptions.length === 0}
+          >
+            <MenuItem value="">Todas las harinas</MenuItem>
+            {flourOptions.map((flour) => (
+              <MenuItem key={flour.id} value={flour.id}>
+                {flour.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+
+        {loading ? <Alert severity="info">Cargando consumo de harinas...</Alert> : null}
+        {!loading && report.flour_daily_usage.length === 0 ? (
+          <Alert severity="info">No hay movimientos de harina para estos filtros.</Alert>
+        ) : null}
+
+        {report.flour_daily_usage.length > 0 ? (
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <SmallStat label="Dias con consumo" value={formatUnits(flourSummary.days.size)} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <SmallStat label="Harina total" value={formatKilos(flourSummary.grams)} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <SmallStat label="Bultos usados" value={formatUnits(flourSummary.bags)} />
+            </Grid>
+          </Grid>
+        ) : null}
+      </Paper>
+
       <Grid container spacing={2}>
         <Grid item xs={12} lg={7}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
@@ -409,7 +529,12 @@ const ProductionMonthPage = () => {
                     <Grid item xs={12} md={4}>
                       <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
                       <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75, mt: 0.75 }}>
-                        <Chip size="small" label={`Lotes: ${formatUnits(product.batches_count)}`} color="secondary" variant="outlined" />
+                        <Chip
+                          size="small"
+                          label={`Bultos: ${formatUnits(product.batches_count)}`}
+                          color="info"
+                          variant="outlined"
+                        />
                       </Stack>
                     </Grid>
                     <Grid item xs={6} sm={3} md={2}>
@@ -457,7 +582,7 @@ const ProductionMonthPage = () => {
                       <Grid item xs={12} sm={5}>
                         <Typography sx={{ fontWeight: 900 }}>{baker.baker_name}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {formatUnits(baker.batches_count)} {Number(baker.batches_count || 0) === 1 ? "lote" : "lotes"} - {formatUnits(baker.batch_quantity)} mojes
+                          {formatUnits(baker.batches_count)} {Number(baker.batches_count || 0) === 1 ? "bulto" : "bultos"} - {formatUnits(baker.batch_quantity)} mojes
                         </Typography>
                       </Grid>
                       <Grid item xs={4} sm={2}>

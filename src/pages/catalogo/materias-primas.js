@@ -9,9 +9,14 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 const unitOptions = [
   { value: "g", label: "Gramo" },
   { value: "ml", label: "Mililitro" },
+  { value: "unit", label: "Unidad" },
+  { value: "package", label: "Paquete" },
+  { value: "roll", label: "Rollo" },
+  { value: "bag", label: "Bolsa" },
+  { value: "box", label: "Caja" },
 ];
 
-const unitHelperText = "Usa gramos para harinas, azucar y secos; mililitros para aceites y liquidos.";
+const unitHelperText = "Usa gramos/ml para produccion; unidad, paquete, rollo, bolsa o caja para inventario de empaque.";
 
 const purchaseUnitOptions = {
   g: [
@@ -22,9 +27,24 @@ const purchaseUnitOptions = {
     { value: "ml", label: "Mililitros" },
     { value: "l", label: "Litros" },
   ],
+  unit: [{ value: "unit", label: "Unidades" }],
+  package: [{ value: "package", label: "Paquetes" }],
+  roll: [{ value: "roll", label: "Rollos" }],
+  bag: [{ value: "bag", label: "Bolsas" }],
+  box: [{ value: "box", label: "Cajas" }],
 };
 
-const getDefaultPackageName = (unit) => (unit === "ml" ? "Garrafa" : "Bulto");
+const defaultPackageNames = {
+  g: "Bulto",
+  ml: "Garrafa",
+  unit: "Unidad",
+  package: "Paquete",
+  roll: "Rollo",
+  bag: "Bolsa",
+  box: "Caja",
+};
+
+const getDefaultPackageName = (unit) => defaultPackageNames[unit] || "Presentacion";
 
 const toBaseQuantity = (quantity, unit) => {
   const numericQuantity = Number(quantity || 0);
@@ -47,7 +67,17 @@ const calculateUnitCost = ({ packageQuantity, packageUnit, packageCost }) => {
   return Number((numericCost / baseQuantity).toFixed(6)).toString();
 };
 
-const getUnitCostLabel = (unit) => (unit === "ml" ? "Costo por ml" : "Costo por gramo");
+const unitCostLabels = {
+  g: "Costo por gramo",
+  ml: "Costo por ml",
+  unit: "Costo por unidad",
+  package: "Costo por paquete",
+  roll: "Costo por rollo",
+  bag: "Costo por bolsa",
+  box: "Costo por caja",
+};
+
+const getUnitCostLabel = (unit) => unitCostLabels[unit] || "Costo unitario";
 
 const formatPackageQuantity = (quantity, unit) => {
   const amount = Number(quantity || 0);
@@ -55,7 +85,11 @@ const formatPackageQuantity = (quantity, unit) => {
   if (unit === "ml") {
     return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} litros` : `${amount.toLocaleString("es-CO")} ml`;
   }
-  return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+  if (unit === "g") {
+    return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+  }
+  const label = unitOptions.find((option) => option.value === unit)?.label?.toLowerCase() || unit;
+  return `${amount.toLocaleString("es-CO")} ${label}${amount === 1 ? "" : "s"}`;
 };
 
 const formatPackageSummary = (item) => {
@@ -89,6 +123,12 @@ const PAGE_SIZE = 10;
 const getOptionName = (items, id, fallback = "Sin asignar") => {
   const match = items.find((item) => Number(item.id) === Number(id));
   return match?.name || fallback;
+};
+
+const getInventoryUsageType = (categoryId, categories) => {
+  const category = categories.find((item) => String(item.id) === String(categoryId));
+  const name = String(category?.name || "").toLowerCase();
+  return name.includes("rollo") || name.includes("bolsa") ? "packaging" : "production";
 };
 
 const emptyForm = {
@@ -178,8 +218,8 @@ const RawMaterialsPage = () => {
   }, [totalPages]);
 
   const openEditDialog = (item) => {
-    const unit = item.unit === "ml" ? "ml" : "g";
-    const packageUnit = unit === "ml" ? "l" : "kg";
+    const unit = unitOptions.some((option) => option.value === item.unit) ? item.unit : "g";
+    const packageUnit = unit === "ml" ? "l" : unit === "g" ? "kg" : unit;
     setEditingItem(item);
     setForm({
       sku: item.sku || "",
@@ -211,7 +251,7 @@ const RawMaterialsPage = () => {
     setForm((current) => {
       const next = { ...current, [field]: value };
       if (field === "unit") {
-        next.package_unit = value === "ml" ? "l" : "kg";
+        next.package_unit = value === "ml" ? "l" : value === "g" ? "kg" : value;
         if (!current.purchase_package_name || current.purchase_package_name === getDefaultPackageName(current.unit)) {
           next.purchase_package_name = getDefaultPackageName(value);
         }
@@ -253,6 +293,7 @@ const RawMaterialsPage = () => {
         p_unit: form.unit || null,
         p_purchase_package_name: form.purchase_package_name.trim() || getDefaultPackageName(form.unit),
         p_purchase_package_quantity: toBaseQuantity(form.package_quantity, form.package_unit),
+        p_inventory_usage_type: getInventoryUsageType(form.category_id, categories),
         p_unit_cost: form.unit_cost === "" ? null : Number(form.unit_cost),
         p_min_stock: form.min_stock === "" ? null : Number(form.min_stock),
         p_is_active: Number(form.is_active),

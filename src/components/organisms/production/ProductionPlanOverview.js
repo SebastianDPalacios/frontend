@@ -16,13 +16,17 @@ const ProductionPlanOverview = ({
     <Grid item xs={12} lg={canManage ? 6 : 12}>
       <Stack spacing={1.5}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 900 }}>Mi producción asignada</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 900 }}>Mi produccion asignada</Typography>
           <Typography variant="body2" color="text.secondary">
-            Planes enviados a tu usuario como panadero.
+            Aqui el panadero inicia y marca como lista cada receta asignada.
           </Typography>
         </Box>
         {!loading && myPlans.length === 0 ? (
-          <Alert severity="info">No tienes producción asignada.</Alert>
+          <Alert severity={canManage ? "warning" : "info"}>
+            {canManage
+              ? "Tu usuario no es el panadero asignado. Para completar una asignacion, entra con el usuario del panadero."
+              : "No tienes produccion asignada."}
+          </Alert>
         ) : null}
         {myPlans.map((plan) => (
           <AssignedProductionPlanCard
@@ -43,14 +47,19 @@ const ProductionPlanOverview = ({
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>Asignaciones enviadas</Typography>
             <Typography variant="body2" color="text.secondary">
-              Consulta si el panadero ya vio cada plan.
+              Seguimiento administrativo: aqui ves si el panadero ya la vio o la completo.
             </Typography>
           </Box>
           {!loading && plans.length === 0 ? (
-            <Alert severity="info">Aún no hay planes enviados.</Alert>
+            <Alert severity="info">Aun no hay planes enviados.</Alert>
           ) : null}
           {plans.map((plan) => (
-            <ProductionPlanCard key={plan.id} plan={plan} formatNumber={formatNumber} />
+            <ProductionPlanCard
+              key={plan.id}
+              plan={plan}
+              formatNumber={formatNumber}
+              onViewItem={(currentPlan, currentItem) => onViewItem(currentPlan, currentItem, { canFinish: false })}
+            />
           ))}
         </Stack>
       </Grid>

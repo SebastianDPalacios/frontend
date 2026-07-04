@@ -17,6 +17,21 @@ const formatUnits = (value) => numberFormatter.format(Number(value || 0));
 
 const pluralize = (value, singular, plural) => `${formatUnits(value)} ${Number(value) === 1 ? singular : plural}`;
 
+const unitLabels = {
+  g: "g",
+  ml: "ml",
+  unit: "unidad",
+  package: "paquete",
+  roll: "rollo",
+  bag: "bolsa",
+  box: "caja",
+};
+
+const getUnitLabel = (unit, quantity = 1) => {
+  const label = unitLabels[unit] || unit || "unidad";
+  return Number(quantity) === 1 ? label : `${label}s`;
+};
+
 const formatRemainder = (amount, unit) => {
   if (unit === "ml") {
     return amount >= 1000 ? `${formatUnits(amount / 1000)} litros` : `${formatUnits(amount)} ml`;
@@ -24,7 +39,7 @@ const formatRemainder = (amount, unit) => {
   if (unit === "g") {
     return amount >= 1000 ? `${formatUnits(amount / 1000)} kg` : `${formatUnits(amount)} g`;
   }
-  return `${formatInventoryQuantity(amount, unit)} ${unit}`;
+  return `${formatInventoryQuantity(amount, unit)} ${getUnitLabel(unit, amount)}`;
 };
 
 const pluralizePackage = (value, name) => `${formatUnits(value)} ${Number(value) === 1 ? name : `${name}s`}`;
@@ -51,7 +66,7 @@ const formatStockEquivalent = (row, unit) => {
     return formatRemainder(amount, unit);
   }
 
-  return `${formatInventoryQuantity(amount, unit)} ${unit}`;
+  return `${formatInventoryQuantity(amount, unit)} ${getUnitLabel(unit, amount)}`;
 };
 
 const getStockPriority = (row) => {
@@ -131,6 +146,7 @@ const InventoryRawMaterialsPage = () => {
         getDisplayName={getDisplayName}
         formatStockEquivalent={formatStockEquivalent}
         formatInventoryQuantity={formatInventoryQuantity}
+        getUnitLabel={getUnitLabel}
       />
     </FlowPageLayout>
   );

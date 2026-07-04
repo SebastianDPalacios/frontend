@@ -42,7 +42,7 @@ export const formatDate = (value) => {
 };
 
 export const isIntegerUnit = (unit) => {
-  return ["unit", "unidad", "unidades", "ud", "uds", "caja", "cajas", "paquete", "paquetes"].includes(
+  return ["unit", "unidad", "unidades", "ud", "uds", "box", "caja", "cajas", "package", "paquete", "paquetes", "roll", "rollo", "rollos", "bag", "bolsa", "bolsas"].includes(
     String(unit || "").trim().toLowerCase()
   );
 };

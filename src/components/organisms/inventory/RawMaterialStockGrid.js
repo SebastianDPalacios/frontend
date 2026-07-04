@@ -27,6 +27,7 @@ const RawMaterialStockGrid = ({
   getDisplayName,
   formatStockEquivalent,
   formatInventoryQuantity,
+  getUnitLabel,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
     <Stack
@@ -88,7 +89,7 @@ const RawMaterialStockGrid = ({
                       Disponible
                     </Typography>
                     <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                      {formatInventoryQuantity(row.quantity_on_hand, unit)} {unit}
+                      {formatInventoryQuantity(row.quantity_on_hand, unit)} {getUnitLabel(unit, row.quantity_on_hand)}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -96,7 +97,7 @@ const RawMaterialStockGrid = ({
                       Minimo
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      {formatInventoryQuantity(row.min_stock, unit)} {unit}
+                      {formatInventoryQuantity(row.min_stock, unit)} {getUnitLabel(unit, row.min_stock)}
                     </Typography>
                   </Grid>
                 </Grid>

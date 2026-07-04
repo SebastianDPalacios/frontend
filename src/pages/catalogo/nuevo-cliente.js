@@ -27,6 +27,7 @@ const NuevoClientePage = () => {
         email: "",
         phone: "",
         address: "",
+        neighborhood: "",
         status: "active",
         credit_limit: "0",
       },
@@ -38,6 +39,7 @@ const NuevoClientePage = () => {
             p_email: formValues.email.trim() || null,
             p_phone: formValues.phone.trim() || null,
             p_address: formValues.address.trim() || null,
+            p_neighborhood: formValues.neighborhood.trim() || null,
             p_status: formValues.status,
             p_credit_limit: formValues.credit_limit === "" ? 0 : Number(formValues.credit_limit),
           });
@@ -202,6 +204,19 @@ const NuevoClientePage = () => {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Calle 123"
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    name="neighborhood"
+                    label="Barrio / zona"
+                    value={values.neighborhood}
+                    error={errors.neighborhood}
+                    touched={touched.neighborhood}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="La Esperanza"
                   />
                 </Grid>
               </Grid>

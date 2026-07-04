@@ -1,5 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Chip, Grid, LinearProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Grid,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import Link from "next/link";
 import ordersService from "services/orders/orders-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
@@ -57,12 +75,28 @@ const statusColors = {
 };
 
 const MetricCard = ({ label, value, helper, color = "primary" }) => (
-  <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-    <Stack spacing={1}>
+  <Paper
+    variant="outlined"
+    sx={{
+      borderRadius: 4,
+      p: 2,
+      height: "100%",
+      position: "relative",
+      overflow: "hidden",
+      "&:before": {
+        content: '""',
+        position: "absolute",
+        inset: "0 auto 0 0",
+        width: 5,
+        bgcolor: `${color}.main`,
+      },
+    }}
+  >
+    <Stack spacing={0.75} sx={{ pl: 1 }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 900, color: `${color}.main` }}>
+      <Typography variant="h4" sx={{ fontWeight: 950, color: "text.primary", letterSpacing: 0 }}>
         {value}
       </Typography>
       {helper ? (
@@ -70,25 +104,6 @@ const MetricCard = ({ label, value, helper, color = "primary" }) => (
           {helper}
         </Typography>
       ) : null}
-    </Stack>
-  </Paper>
-);
-
-const ActionCard = ({ title, description, href, primary = false }) => (
-  <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-    <Stack spacing={2} sx={{ height: "100%" }}>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {description}
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1 }} />
-      <Button component={Link} href={href} variant={primary ? "contained" : "outlined"} color="secondary" sx={{ alignSelf: "flex-start" }}>
-        Abrir
-      </Button>
     </Stack>
   </Paper>
 );
@@ -124,50 +139,140 @@ const getTraceSteps = (order) => {
   ];
 };
 
-const traceStyles = {
-  done: { dot: "success.main", color: "common.white", line: "success.main" },
-  active: { dot: "secondary.main", color: "common.white", line: "divider" },
-  pending: { dot: "action.hover", color: "text.secondary", line: "divider" },
-  error: { dot: "error.main", color: "common.white", line: "divider" },
+const buildDailyOrderNumberMap = (orders) => {
+  const dayMap = new Map();
+
+  orders.forEach((order) => {
+    const day = formatDate(order.order_date);
+    if (!dayMap.has(day)) {
+      dayMap.set(day, []);
+    }
+    dayMap.get(day).push(order);
+  });
+
+  return Array.from(dayMap.values()).reduce((acc, dayOrders) => {
+    [...dayOrders]
+      .sort((a, b) => Number(a.id || 0) - Number(b.id || 0))
+      .forEach((order, index) => {
+        acc[String(order.id)] = index + 1;
+      });
+    return acc;
+  }, {});
 };
 
-const OrderTrace = ({ order }) => {
-  const steps = getTraceSteps(order);
+const BalancePanel = ({ title, emptyText, items }) => (
+  <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
+    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+      <Typography variant="h6" sx={{ fontWeight: 900 }}>
+        {title}
+      </Typography>
+      <Chip label={`${items.length} registros`} size="small" variant="outlined" />
+    </Stack>
+    <Stack spacing={1}>
+      {items.length === 0 ? <Alert severity="info">{emptyText}</Alert> : null}
+      {items.map((item, index) => (
+        <Paper
+          key={item.name}
+          variant="outlined"
+          sx={{
+            borderRadius: 3,
+            p: 1.5,
+            bgcolor: index === 0 ? "rgba(221, 93, 38, 0.05)" : "background.default",
+          }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 900 }} noWrap>
+                {item.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {item.orders} pedido{item.orders === 1 ? "" : "s"}
+              </Typography>
+            </Box>
+            <Typography sx={{ fontWeight: 950, fontSize: 18 }}>{formatMoney(item.amount)}</Typography>
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
+  </Paper>
+);
+
+const OrdersPeriodTable = ({ orders }) => {
+  const dailyOrderNumberById = buildDailyOrderNumberMap(orders);
 
   return (
-    <Box sx={{ overflowX: "auto", pb: 0.25 }}>
-      <Stack direction="row" spacing={0.75} sx={{ minWidth: steps.length > 2 ? 420 : 180, alignItems: "center" }}>
-        {steps.map((step, index) => {
-          const styles = traceStyles[step.state] || traceStyles.pending;
+    <TableContainer>
+      <Table sx={{ minWidth: 860 }}>
+      <TableHead>
+        <TableRow>
+          <TableCell>Pedido</TableCell>
+          <TableCell>Cliente</TableCell>
+          <TableCell>Flujo</TableCell>
+          <TableCell>Estado</TableCell>
+          <TableCell>Vendedor</TableCell>
+          <TableCell>Entrega</TableCell>
+          <TableCell align="right">Total</TableCell>
+          <TableCell align="right">Accion</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {orders.slice(0, 12).map((order) => {
+          const isDone = ["dispatched", "delivered"].includes(order.status);
+          const progress = getTraceSteps(order).filter((step) => step.state === "done").length * 20;
+          const dailyNumber = dailyOrderNumberById[String(order.id)] || "";
 
           return (
-            <Stack key={`${order.id}-${step.label}`} direction="row" spacing={0.75} sx={{ flex: 1, minWidth: 70, alignItems: "center" }}>
-              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0, alignItems: "center" }}>
-                <Box
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    bgcolor: styles.dot,
-                    color: styles.color,
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: 12,
-                    fontWeight: 900,
-                  }}
-                >
-                  {index + 1}
-                </Box>
-                <Typography variant="caption" sx={{ fontWeight: 800, textAlign: "center", lineHeight: 1.1 }}>
-                  {step.label}
+            <TableRow key={order.id} hover>
+              <TableCell>
+                <Typography sx={{ fontWeight: 900 }}>Pedido #{dailyNumber}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(order.order_date)}
                 </Typography>
-              </Stack>
-              {index < steps.length - 1 ? <Box sx={{ width: 14, height: 2, bgcolor: styles.line, flexShrink: 0 }} /> : null}
-            </Stack>
+              </TableCell>
+              <TableCell>
+                <Typography sx={{ fontWeight: 800 }}>{order.customer_name || "Cliente"}</Typography>
+              </TableCell>
+              <TableCell sx={{ minWidth: 220 }}>
+                <Stack spacing={0.5}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Avance
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 900 }}>
+                      {Math.min(progress, 100)}%
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(progress, 100)}
+                    sx={{
+                      height: 8,
+                      borderRadius: 999,
+                      bgcolor: "action.hover",
+                      "& .MuiLinearProgress-bar": { borderRadius: 999, bgcolor: isDone ? "success.main" : "secondary.main" },
+                    }}
+                  />
+                </Stack>
+              </TableCell>
+              <TableCell>
+                <StatusChip status={order.status} />
+              </TableCell>
+              <TableCell>{order.sales_agent_name || "Sin vendedor"}</TableCell>
+              <TableCell>{formatDate(order.delivery_date)}</TableCell>
+              <TableCell align="right">
+                <Typography sx={{ fontWeight: 900 }}>{formatMoney(order.grand_total)}</Typography>
+              </TableCell>
+              <TableCell align="right">
+                <Button component={Link} href={`/orders/history?search=${encodeURIComponent(dailyNumber)}`} color="secondary" variant="outlined">
+                  Ver detalle
+                </Button>
+              </TableCell>
+            </TableRow>
           );
         })}
-      </Stack>
-    </Box>
+      </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 
@@ -287,21 +392,29 @@ const OrdersDayPage = () => {
   }, [periodOrders]);
 
   return (
-    <FlowPageLayout title="Pedidos - Balances" subtitle="Consulta ventas y flujo de pedidos por dia, semana, quincena, mes o semestre">
+    <FlowPageLayout title="Resumen de pedidos" subtitle="Consulta el balance operativo por dia, semana, quincena, mes o semestre">
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       ) : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: 4,
+          p: { xs: 2, md: 2.5 },
+          mb: 2.5,
+          bgcolor: "background.paper",
+        }}
+      >
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", lg: "center" } }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 900 }}>
               Balance {selectedPeriodLabel.toLowerCase()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Del {dateRange.from} al {dateRange.to}. Revisa valor vendido, pedidos activos y avance de despacho.
+            <Typography color="text.secondary">
+              Del {dateRange.from} al {dateRange.to}. Venta, pedidos activos y avance de inventario.
             </Typography>
           </Box>
 
@@ -344,28 +457,31 @@ const OrdersDayPage = () => {
               Crear pedido
             </AppButton>
             <Button color="secondary" variant="outlined" component={Link} href="/orders/history">
+              Gestion diaria
+            </Button>
+            <Button color="secondary" variant="outlined" component={Link} href="/orders/historical">
               Historico
             </Button>
           </Stack>
         </Stack>
       </Paper>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Valor del periodo" value={formatMoney(periodAmount)} helper={`${activeOrders} pedidos activos`} color="secondary" />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Pedidos" value={periodOrders.length} helper={`${draftOrders} borrador, ${confirmedOrders} confirmados`} color="info" />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Ticket promedio" value={formatMoney(averageTicket)} helper="Sobre pedidos no cancelados" color="primary" />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Despachados" value={dispatchedOrders} helper={`${completedFlow}% del flujo del periodo`} color="success" />
         </Grid>
       </Grid>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 3 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, mb: 2.5 }}>
         <Stack spacing={1.25}>
           <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, gap: 2 }}>
             <Box>
@@ -395,68 +511,16 @@ const OrdersDayPage = () => {
         </Stack>
       </Paper>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, mb: 1.5 }}>
-              Clientes con mayor balance
-            </Typography>
-            <Stack spacing={1.25}>
-              {customerBalances.length === 0 ? <Alert severity="info">Sin clientes en este periodo.</Alert> : null}
-              {customerBalances.map((item) => (
-                <Stack key={item.name} direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 800 }} noWrap>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.orders} pedidos
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontWeight: 900 }}>{formatMoney(item.amount)}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Paper>
+          <BalancePanel title="Clientes con mayor venta" emptyText="Sin clientes en este periodo." items={customerBalances} />
         </Grid>
         <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, mb: 1.5 }}>
-              Vendedores con mayor balance
-            </Typography>
-            <Stack spacing={1.25}>
-              {sellerBalances.length === 0 ? <Alert severity="info">Sin vendedores en este periodo.</Alert> : null}
-              {sellerBalances.map((item) => (
-                <Stack key={item.name} direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 800 }} noWrap>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.orders} pedidos
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontWeight: 900 }}>{formatMoney(item.amount)}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Paper>
+          <BalancePanel title="Vendedores con mayor venta" emptyText="Sin vendedores en este periodo." items={sellerBalances} />
         </Grid>
       </Grid>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={4}>
-          <ActionCard title="Crear pedido" description="Selecciona un cliente asignado y los productos del pedido." href="/orders/count" primary />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <ActionCard title="Gestion de pedidos" description="Confirma, valida inventario, despacha o cancela pedidos recientes." href="/orders/history" />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <ActionCard title="Clientes y vendedores" description="Administra la asignacion comercial de cada cliente." href="/orders/customer-assignments" />
-        </Grid>
-      </Grid>
-
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 } }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
@@ -472,57 +536,7 @@ const OrdersDayPage = () => {
         {loading ? <Alert severity="info">Cargando balance de pedidos...</Alert> : null}
         {!loading && periodOrders.length === 0 ? <Alert severity="info">No hay pedidos registrados en este periodo.</Alert> : null}
 
-        <Grid container spacing={2}>
-          {periodOrders.slice(0, 12).map((order) => (
-            <Grid item xs={12} md={6} xl={4} key={order.id}>
-              <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                        Pedido #{order.id}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {order.customer_name || "Cliente"} - {order.sales_agent_name || "Sin vendedor"}
-                      </Typography>
-                    </Box>
-                    <StatusChip status={order.status} />
-                  </Stack>
-                  <Grid container spacing={1}>
-                    <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">
-                        Fecha
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                        {formatDate(order.order_date)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">
-                        Entrega
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                        {formatDate(order.delivery_date)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                        {formatMoney(order.grand_total)}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                  <OrderTrace order={order} />
-                  <Button component={Link} href={`/orders/history?search=${encodeURIComponent(order.id)}`} color="secondary" variant="outlined" sx={{ alignSelf: "flex-start" }}>
-                    Ver flujo
-                  </Button>
-                </Stack>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+        {!loading && periodOrders.length > 0 ? <OrdersPeriodTable orders={periodOrders} /> : null}
       </Paper>
     </FlowPageLayout>
   );

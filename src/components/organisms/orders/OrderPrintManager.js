@@ -51,23 +51,44 @@ const buildReceiptHtml = ({ order, items }) => {
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
 
-  const rows = items.map((item) => {
-    const value = item.line_type === "sale" ? item.line_total : item.commercial_value;
-    const requestDetail = item.capture_mode === "amount" && item.requested_amount
-      ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
-      : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`;
+  const groupedItems = items.reduce((groups, item) => {
+    const categoryName = item.category_name || "Sin categoria";
+    if (!groups.has(categoryName)) {
+      groups.set(categoryName, []);
+    }
+    groups.get(categoryName).push(item);
+    return groups;
+  }, new Map());
+
+  const rows = Array.from(groupedItems.entries()).map(([categoryName, categoryItems]) => {
+    const itemRows = categoryItems.map((item) => {
+      const value = item.line_type === "sale" ? item.line_total : item.commercial_value;
+      const requestDetail = item.capture_mode === "amount" && item.requested_amount
+        ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
+        : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`;
+
+      return `
+        <div class="item">
+          <div class="item-head">
+            <span class="item-name">${escapeHtml(item.product_name)}</span>
+            <span class="type type-${escapeHtml(item.line_type)}">${escapeHtml(lineLabels[item.line_type] || item.line_type)}</span>
+          </div>
+          <div class="item-values">
+            <span></span>
+            <span class="qty-box">
+              <span class="qty">${number.format(Number(item.quantity || 0))}</span>
+              <span class="qty-label">UND</span>
+            </span>
+            <strong>${money.format(Number(value || 0))}</strong>
+          </div>
+          <div class="item-detail">${escapeHtml(requestDetail)}</div>
+        </div>`;
+    }).join("");
 
     return `
-      <div class="item">
-        <div class="item-head">
-          <span class="item-name">${escapeHtml(item.product_name)}</span>
-          <span class="type type-${escapeHtml(item.line_type)}">${escapeHtml(lineLabels[item.line_type] || item.line_type)}</span>
-        </div>
-        <div class="item-values">
-          <span>${number.format(Number(item.quantity || 0))} und.</span>
-          <strong>${money.format(Number(value || 0))}</strong>
-        </div>
-        <div class="item-detail">${escapeHtml(requestDetail)}</div>
+      <div class="category-block">
+        <div class="category-title">${escapeHtml(categoryName)}</div>
+        ${itemRows}
       </div>`;
   }).join("");
 
@@ -79,28 +100,38 @@ const buildReceiptHtml = ({ order, items }) => {
       <style>
         @page { size: 80mm auto; margin: 3mm; }
         * { box-sizing: border-box; }
-        body { width: 74mm; margin: 0 auto; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: 10.5px; line-height: 1.25; }
-        h1 { margin: 0; font-size: 23px; line-height: 1; text-align: center; text-transform: uppercase; }
-        .branch { margin-top: 4px; text-align: center; font-size: 12px; font-weight: 800; }
-        .contact { margin-top: 2px; text-align: center; font-size: 9.5px; }
+        body { width: 74mm; margin: 0 auto; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.28; }
+        h1 { margin: 0; font-size: 24px; line-height: 1; text-align: center; text-transform: uppercase; }
+        .branch { margin-top: 4px; text-align: center; font-size: 13px; font-weight: 900; }
+        .contact { margin-top: 2px; text-align: center; font-size: 10.5px; }
         .rule { margin: 7px 0; border-top: 1px dashed #111; }
-        .section-title { margin-bottom: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
-        .meta { display: grid; gap: 2px; }
-        .meta strong { font-size: 12px; }
-        .order-number { padding: 4px; border: 1px solid #111; text-align: center; font-size: 14px; font-weight: 900; }
-        .item { padding: 6px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
-        .item-head, .item-values { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
-        .item-name { min-width: 0; font-weight: 900; font-size: 11.5px; }
-        .item-values { margin-top: 3px; font-size: 11px; }
-        .item-values strong { font-size: 11.5px; }
-        .item-detail { margin-top: 2px; color: #333; font-size: 9px; }
-        .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: 8px; font-weight: 900; text-transform: uppercase; }
-        .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 7px; font-size: 11.5px; }
+        .section-title { margin-bottom: 4px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+        .meta { display: grid; gap: 2px; font-size: 11.5px; }
+        .meta strong { font-size: 15px; }
+        .customer-meta { gap: 3px; font-size: 13px; line-height: 1.25; }
+        .customer-meta strong { font-size: 20px; line-height: 1.05; text-transform: uppercase; }
+        .customer-address { font-size: 16px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-zone { font-size: 14px; font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-phone { font-size: 16px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
+        .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: 16px; font-weight: 900; }
+        .category-block { margin-top: 7px; break-inside: avoid; }
+        .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; }
+        .item { padding: 7px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
+        .item-head { display: flex; justify-content: space-between; gap: 5px; align-items: baseline; }
+        .item-name { min-width: 0; font-weight: 900; font-size: 13px; overflow-wrap: anywhere; }
+        .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 58px auto; gap: 4px; align-items: center; margin-top: 3px; }
+        .item-values strong { font-size: 12.5px; white-space: nowrap; text-align: right; }
+        .qty-box { display: grid; justify-items: center; text-align: center; }
+        .qty { font-size: 20px; font-weight: 900; letter-spacing: 0; line-height: 1; }
+        .qty-label { font-size: 10px; font-weight: 900; line-height: 1; }
+        .item-detail { margin-top: 2px; color: #333; font-size: 10px; }
+        .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: 8.5px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+        .totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; margin-top: 8px; font-size: 12.5px; }
         .totals strong { text-align: right; }
-        .total { padding-top: 5px; border-top: 2px solid #111; font-size: 16px; font-weight: 900; }
-        .policy { padding: 6px; border: 1px solid #111; font-size: 9px; line-height: 1.35; }
-        .policy strong { display: block; margin-bottom: 3px; text-align: center; font-size: 10px; }
-        .footer { margin-top: 8px; text-align: center; font-size: 9px; font-weight: 700; }
+        .total { padding-top: 5px; border-top: 2px solid #111; font-size: 17px; font-weight: 900; }
+        .policy { padding: 6px; border: 1px solid #111; font-size: 10px; line-height: 1.35; }
+        .policy strong { display: block; margin-bottom: 3px; text-align: center; font-size: 11px; }
+        .footer { margin-top: 8px; text-align: center; font-size: 10px; font-weight: 700; }
         @media print { body { width: 74mm; } }
       </style>
     </head>
@@ -121,11 +152,12 @@ const buildReceiptHtml = ({ order, items }) => {
       </div>
       <div class="rule"></div>
       <div class="section-title">Cliente</div>
-      <div class="meta">
+      <div class="meta customer-meta">
         <strong>${escapeHtml(order.customer_name)}</strong>
         <span>Identificacion: ${escapeHtml(order.customer_identification || "Sin identificacion")}</span>
-        <span>Direccion: ${escapeHtml(order.customer_address || "Sin direccion")}</span>
-        <span>Tel: ${escapeHtml(order.customer_phone || "Sin telefono")}</span>
+        <span class="customer-address">Direccion: ${escapeHtml(order.customer_address || "Sin direccion")}</span>
+        <span class="customer-zone">Barrio/Zona: ${escapeHtml(order.customer_neighborhood || "Sin barrio/zona")}</span>
+        <span class="customer-phone">Tel: ${escapeHtml(order.customer_phone || "Sin telefono")}</span>
       </div>
       <div class="rule"></div>
       <div class="section-title">Detalle solicitado</div>

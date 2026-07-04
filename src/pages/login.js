@@ -10,6 +10,7 @@ import useForm from "hooks/useForm";
 import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
 import { FIELD_VALIDATORS } from "constants/validation";
+import { getHomePathForUser } from "configs/access";
 
 const operationHighlights = [
   { label: "Pedidos", value: "Venta diaria", icon: <BakeryDiningRoundedIcon fontSize="small" /> },
@@ -34,7 +35,7 @@ const Login = () => {
           router.replace("/change-password");
           return;
         }
-        router.replace("/dashboards/analytics");
+        router.replace(getHomePathForUser(result.data?.user));
       } catch (error) {
         helpers.setSubmitError("Error de conexion al iniciar sesion");
       }

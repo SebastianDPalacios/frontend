@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import authService from "services/auth/auth-service";
+import { canAccessPath, getHomePathForUser } from "configs/access";
 
 const AuthGuard = ({ children }) => {
   const router = useRouter();
@@ -29,7 +30,14 @@ const AuthGuard = ({ children }) => {
     }
 
     if (!mustChangePassword && router.pathname === "/change-password") {
-      router.replace("/dashboards/analytics");
+      router.replace(getHomePathForUser(currentUser));
+      setAuthorized(false);
+      setChecked(true);
+      return;
+    }
+
+    if (!canAccessPath(currentUser, router.pathname)) {
+      router.replace(getHomePathForUser(currentUser));
       setAuthorized(false);
       setChecked(true);
       return;

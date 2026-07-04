@@ -47,6 +47,26 @@ const lineLabels = {
   exchange: "Cambio",
 };
 
+const preferredCategoryOrder = [
+  "Pan de sal",
+  "Pan de dulce",
+  "Pasteleria",
+  "Pastelería",
+  "Integral",
+  "Tostados",
+];
+
+const isPastryProduct = (product) => {
+  return String(product?.category_name || "").toLowerCase().includes("pasteler");
+};
+
+const getOrderModesForProduct = (product) => {
+  if (!isPastryProduct(product)) {
+    return orderModes;
+  }
+  return orderModes.filter((mode) => !["sale_bonus", "bonus"].includes(mode.value));
+};
+
 const getCommercialUnitPrice = (product) => {
   const price = Number(product?.base_price || 0);
   const taxPercent = Number(product?.tax_percent || product?.rate_percent || 0);
@@ -117,6 +137,7 @@ const AtomicOrderForm = () => {
   const [orderDate, setOrderDate] = useState(today);
   const [deliveryDate, setDeliveryDate] = useState(today);
   const [notes, setNotes] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedLines, setSelectedLines] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -162,10 +183,38 @@ const AtomicOrderForm = () => {
     [products]
   );
 
+  const productCategories = useMemo(() => {
+    const categoriesById = new Map();
+    products.forEach((product) => {
+      const id = Number(product.category_id || 0);
+      const name = String(product.category_name || "").trim();
+      if (id > 0 && name && !categoriesById.has(id)) {
+        categoriesById.set(id, { id, name });
+      }
+    });
+
+    return Array.from(categoriesById.values()).sort((a, b) => {
+      const aIndex = preferredCategoryOrder.findIndex(
+        (name) => name.toLowerCase() === a.name.toLowerCase()
+      );
+      const bIndex = preferredCategoryOrder.findIndex(
+        (name) => name.toLowerCase() === b.name.toLowerCase()
+      );
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [products]);
+
   const availableProducts = useMemo(() => {
     const selectedIds = new Set(selectedLines.map((line) => Number(line.productId)));
-    return products.filter((product) => !selectedIds.has(Number(product.id)));
-  }, [products, selectedLines]);
+    return products.filter((product) => {
+      const belongsToCategory = !selectedCategoryId
+        || String(product.category_id || "") === String(selectedCategoryId);
+      return !selectedIds.has(Number(product.id)) && belongsToCategory;
+    });
+  }, [products, selectedCategoryId, selectedLines]);
 
   const preparedOrder = useMemo(() => {
     const preparedRows = selectedLines.map((entry) => {
@@ -177,14 +226,14 @@ const AtomicOrderForm = () => {
       };
     });
 
-    const saleTotal = preparedRows.reduce((total, row) => {
-      return ["sale", "sale_bonus"].includes(row.entry.orderMode)
+    const bonusEligibleSaleTotal = preparedRows.reduce((total, row) => {
+      return ["sale", "sale_bonus"].includes(row.entry.orderMode) && !isPastryProduct(row.product)
         ? total + row.calculation.commercialValue
         : total;
     }, 0);
     const minimum = Number(settings.bonus_minimum_amount || 0);
     const percent = Number(settings.bonus_percent || 0);
-    const bonusEnabled = saleTotal >= minimum;
+    const bonusEnabled = bonusEligibleSaleTotal >= minimum;
     const lines = [];
 
     preparedRows.forEach((row) => {
@@ -193,7 +242,10 @@ const AtomicOrderForm = () => {
         return;
       }
 
-      const primaryType = entry.orderMode === "sale_bonus" ? "sale" : entry.orderMode;
+      const orderMode = isPastryProduct(product) && ["sale_bonus", "bonus"].includes(entry.orderMode)
+        ? "sale"
+        : entry.orderMode;
+      const primaryType = orderMode === "sale_bonus" ? "sale" : orderMode;
       lines.push({
         key: `${entry.id}-${primaryType}`,
         product,
@@ -205,7 +257,7 @@ const AtomicOrderForm = () => {
         automatic: false,
       });
 
-      if (entry.orderMode === "sale_bonus" && bonusEnabled) {
+      if (orderMode === "sale_bonus" && bonusEnabled && !isPastryProduct(product)) {
         const automaticBonus = calculateAutomaticBonus(
           product,
           calculation.commercialValue * (percent / 100)
@@ -235,7 +287,7 @@ const AtomicOrderForm = () => {
       },
       { saleTotal: 0, bonusTotal: 0, giftTotal: 0, exchangeTotal: 0 }
     );
-    summary.allowedBonus = bonusEnabled ? summary.saleTotal * (percent / 100) : 0;
+    summary.allowedBonus = bonusEnabled ? bonusEligibleSaleTotal * (percent / 100) : 0;
     summary.bonusExceeded = summary.bonusTotal > summary.allowedBonus + 0.01;
 
     return { rows: preparedRows, lines, summary, bonusEnabled };
@@ -372,6 +424,28 @@ const AtomicOrderForm = () => {
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
                 Busca un producto, agrégalo y configura cómo se entregará.
               </Typography>
+              {productCategories.length > 0 ? (
+                <Box sx={{ mb: 2 }}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Categoria"
+                    value={selectedCategoryId}
+                    onChange={(event) => {
+                      setSelectedCategoryId(event.target.value);
+                      setSelectedProduct(null);
+                    }}
+                    helperText="Filtra los productos finales por categoria"
+                  >
+                    <MenuItem value="">Todos</MenuItem>
+                    {productCategories.map((category) => (
+                      <MenuItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              ) : null}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Autocomplete
                   fullWidth
@@ -381,7 +455,17 @@ const AtomicOrderForm = () => {
                   getOptionLabel={(option) => option.name || "Producto"}
                   isOptionEqualToValue={(option, value) => Number(option.id) === Number(value.id)}
                   noOptionsText="No hay productos disponibles"
-                  renderInput={(params) => <TextField {...params} label="Seleccionar producto" />}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} sx={{ display: "block", py: 1.25 }}>
+                      <Typography sx={{ fontWeight: 900 }}>{option.name || "Producto"}</Typography>
+                      {option.category_name ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {option.category_name}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  )}
+                  renderInput={(params) => <TextField {...params} label="Seleccionar producto final" />}
                 />
                 <Button
                   variant="contained"
@@ -406,7 +490,11 @@ const AtomicOrderForm = () => {
 
             <Stack divider={<Divider flexItem />}>
               {preparedOrder.rows.map(({ entry, product, calculation }, index) => {
-                const automaticBonus = entry.orderMode === "sale_bonus" && preparedOrder.bonusEnabled
+                const rowOrderModes = getOrderModesForProduct(product);
+                const orderModeValue = rowOrderModes.some((mode) => mode.value === entry.orderMode)
+                  ? entry.orderMode
+                  : "sale";
+                const automaticBonus = orderModeValue === "sale_bonus" && preparedOrder.bonusEnabled && !isPastryProduct(product)
                   ? calculateAutomaticBonus(
                       product,
                       calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100)
@@ -420,9 +508,14 @@ const AtomicOrderForm = () => {
                         <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
                           {index + 1}. {product?.name || "Producto"}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          ${formatCurrencyValue(product?.base_price, 0)} por {product?.unit || "unidad"}
-                        </Typography>
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
+                          {product?.category_name ? (
+                            <Chip size="small" variant="outlined" label={product.category_name} />
+                          ) : null}
+                          <Typography variant="body2" color="text.secondary">
+                            ${formatCurrencyValue(product?.base_price, 0)} por {product?.unit || "unidad"}
+                          </Typography>
+                        </Stack>
                       </Box>
                       <IconButton color="error" aria-label={`Retirar ${product?.name || "producto"}`} onClick={() => removeLine(entry.id)}>
                         <DeleteOutlineRoundedIcon />
@@ -440,10 +533,10 @@ const AtomicOrderForm = () => {
                           select
                           fullWidth
                           label="Tipo"
-                          value={entry.orderMode}
+                          value={orderModeValue}
                           onChange={(event) => updateLine(entry.id, { orderMode: event.target.value })}
                         >
-                          {orderModes.map((mode) => (
+                          {rowOrderModes.map((mode) => (
                             <MenuItem key={mode.value} value={mode.value}>{mode.label}</MenuItem>
                           ))}
                         </TextField>
@@ -479,7 +572,7 @@ const AtomicOrderForm = () => {
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5, alignItems: { sm: "center" }, flexWrap: "wrap" }}>
                         <Chip size="small" variant="outlined" label={`${calculation.quantity} unidades`} />
                         <Chip size="small" variant="outlined" label={`Valor ${formatCurrencyValue(calculation.commercialValue, 0)}`} />
-                        {entry.orderMode === "sale_bonus" ? (
+                        {orderModeValue === "sale_bonus" && !isPastryProduct(product) ? (
                           preparedOrder.bonusEnabled && automaticBonus.quantity > 0 ? (
                             <Chip
                               size="small"

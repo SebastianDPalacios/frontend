@@ -3,7 +3,7 @@ import Cookies from "js-cookie";
 import authConfig from "configs/auth";
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "/api",
   timeout: 30000,
 });
 

@@ -65,7 +65,7 @@ const ProductionPlanningPage = () => {
   const [saving, setSaving] = useState(false);
   const [startingItemId, setStartingItemId] = useState("");
   const [finishingItemId, setFinishingItemId] = useState("");
-  const [workDialog, setWorkDialog] = useState({ plan: null, item: null });
+  const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [bakers, setBakers] = useState([]);
@@ -191,8 +191,8 @@ const ProductionPlanningPage = () => {
     }
   };
 
-  const openWorkDialog = (plan, item) => {
-    setWorkDialog({ plan, item });
+  const openWorkDialog = (plan, item, options = {}) => {
+    setWorkDialog({ plan, item, canFinish: options.canFinish !== false });
   };
 
   const startPlanItem = async (productionPlanItemId) => {
@@ -305,7 +305,8 @@ const ProductionPlanningPage = () => {
         plan={workDialog.plan}
         item={workDialog.item}
         finishing={Boolean(finishingItemId)}
-        onClose={() => setWorkDialog({ plan: null, item: null })}
+        canFinish={workDialog.canFinish}
+        onClose={() => setWorkDialog({ plan: null, item: null, canFinish: true })}
         onFinish={finishPlanItem}
       />
     </FlowPageLayout>

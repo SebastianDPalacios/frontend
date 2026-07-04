@@ -45,6 +45,32 @@ const formatDateTime = (value) => {
   }).format(new Date(value));
 };
 
+const formatDate = (value) => {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+};
+
+const getDailyOrderNumbers = (items) => {
+  const dayMap = new Map();
+
+  items.forEach((item) => {
+    const day = formatDate(item.order_date || item.delivered_at);
+    if (!dayMap.has(day)) {
+      dayMap.set(day, []);
+    }
+    dayMap.get(day).push(item);
+  });
+
+  return Array.from(dayMap.values()).reduce((acc, dayItems) => {
+    [...dayItems]
+      .sort((a, b) => Number(a.order_id || 0) - Number(b.order_id || 0))
+      .forEach((item, index) => {
+        acc[String(item.order_id)] = index + 1;
+      });
+    return acc;
+  }, {});
+};
+
 const Metric = ({ label, value, helper }) => (
   <Paper variant="outlined" sx={{ p: 2, height: "100%", borderRadius: 2 }}>
     <Typography variant="body2" color="text.secondary">{label}</Typography>
@@ -55,11 +81,12 @@ const Metric = ({ label, value, helper }) => (
 
 const buildSettlementReceipt = (data) => {
   const summary = data.summary || {};
+  const dailyOrderNumbers = getDailyOrderNumbers(data.items || []);
   const rows = (data.items || []).map((item) => `
     <div class="row">
       <div class="customer">${escapeHtml(item.customer_name)}</div>
       <div class="values">
-        <span>Pedido #${Number(item.order_id)}</span>
+        <span>Pedido #${dailyOrderNumbers[String(item.order_id)] || Number(item.order_id)}</span>
         <strong>${money.format(Number(item.delivered_sales_total || 0))}</strong>
       </div>
     </div>
@@ -102,7 +129,6 @@ const buildSettlementReceipt = (data) => {
       <div class="totals">
         <span>VENTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>
         <span>DEVOLUCIONES</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>
-        <span>BASE COMISION</span><strong>${money.format(Number(summary.commission_base || 0))}</strong>
         <span>COMISION</span><strong>${money.format(Number(summary.commission_amount || 0))}</strong>
         <span class="deliver">ENTREGAR</span><strong class="deliver">${money.format(Number(summary.amount_to_deliver || 0))}</strong>
       </div>
@@ -172,8 +198,9 @@ const DailySettlementPage = () => {
   };
 
   const summary = data?.summary || {};
-  const sellers = Array.isArray(data?.sellers) ? data.sellers : [];
-  const items = Array.isArray(data?.items) ? data.items : [];
+  const sellers = useMemo(() => (Array.isArray(data?.sellers) ? data.sellers : []), [data?.sellers]);
+  const items = useMemo(() => (Array.isArray(data?.items) ? data.items : []), [data?.items]);
+  const dailyOrderNumbers = useMemo(() => getDailyOrderNumbers(items), [items]);
 
   return (
     <FlowPageLayout
@@ -198,7 +225,7 @@ const DailySettlementPage = () => {
               onChange={(event) => setSellerId(event.target.value)}
               sx={{ minWidth: { md: 280 } }}
             >
-              <MenuItem value="">Seleccionar vendedor</MenuItem>
+              <MenuItem value="">Todos los vendedores</MenuItem>
               {sellers.map((seller) => (
                 <MenuItem key={seller.id} value={String(seller.id)}>
                   {seller.full_name}
@@ -253,7 +280,11 @@ const DailySettlementPage = () => {
           <Chip label={`${items.length} pedido(s)`} variant="outlined" />
         </Stack>
 
-        {!loading && !items.length ? <Alert severity="info">No hay pedidos entregados para esta fecha.</Alert> : null}
+        {!loading && !items.length ? (
+          <Alert severity="info">
+            No hay pedidos entregados para esta fecha{sellerId ? " con este vendedor. Prueba con Todos los vendedores o valida que el pedido haya sido marcado como entregado." : "."}
+          </Alert>
+        ) : null}
         <Grid container spacing={2}>
           {items.map((item) => (
             <Grid item xs={12} md={6} xl={4} key={item.commission_id}>
@@ -262,7 +293,9 @@ const DailySettlementPage = () => {
                   <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 900 }}>{item.customer_name}</Typography>
-                      <Typography variant="body2" color="text.secondary">Pedido #{item.order_id}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Pedido #{dailyOrderNumbers[String(item.order_id)] || item.order_id}{item.sales_agent_name ? ` - ${item.sales_agent_name}` : ""}
+                      </Typography>
                     </Box>
                     <Chip size="small" color="success" label="Entregado" />
                   </Stack>

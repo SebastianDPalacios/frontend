@@ -60,6 +60,11 @@ const CatalogListView = ({
   searchPlaceholder = "Buscar",
   typeLabel = "Registro",
   emptyMessage = "No hay registros para mostrar.",
+  showProductYield = false,
+  onEditYield,
+  showProductCategory = false,
+  getCategoryName,
+  onAssignCategory,
 }) => {
   const [search, setSearch] = useState("");
   const filteredItems = useMemo(() => {
@@ -123,7 +128,7 @@ const CatalogListView = ({
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflowX: "auto" }}>
-        <Table sx={{ minWidth: 840 }}>
+        <Table sx={{ minWidth: showProductYield || showProductCategory ? 1080 : 840 }}>
           <TableHead>
             <TableRow
               sx={{
@@ -139,10 +144,13 @@ const CatalogListView = ({
             >
               <TableCell>Producto</TableCell>
               <TableCell>SKU</TableCell>
+              {showProductCategory ? <TableCell>Categoria</TableCell> : null}
               <TableCell>Unidad</TableCell>
+              {showProductYield ? <TableCell align="right">Unid./bulto</TableCell> : null}
               <TableCell align="right">Valor</TableCell>
               <TableCell align="right">Stock minimo</TableCell>
               <TableCell>Estado</TableCell>
+              {showProductYield || showProductCategory ? <TableCell align="right">Accion</TableCell> : null}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -164,7 +172,21 @@ const CatalogListView = ({
               <TableCell>
                 <Typography sx={{ fontWeight: 800 }}>{item.sku || "Sin SKU"}</Typography>
               </TableCell>
+              {showProductCategory ? (
+                <TableCell>
+                  <Typography sx={{ fontWeight: 800 }}>
+                    {getCategoryName?.(item.category_id) || "Sin categoria"}
+                  </Typography>
+                </TableCell>
+              ) : null}
               <TableCell>{formatUnit(item.unit)}</TableCell>
+              {showProductYield ? (
+                <TableCell align="right">
+                  <Typography sx={{ fontWeight: 800 }}>
+                    {item.units_per_bag ? Number(item.units_per_bag).toLocaleString("es-CO") : "Sin configurar"}
+                  </Typography>
+                </TableCell>
+              ) : null}
               <TableCell align="right">
                 <Typography sx={{ fontWeight: 800 }}>{price || "$ 0"}</Typography>
               </TableCell>
@@ -180,12 +202,28 @@ const CatalogListView = ({
                   sx={{ minWidth: 82, fontWeight: 800 }}
                 />
               </TableCell>
+              {showProductYield || showProductCategory ? (
+                <TableCell align="right">
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    {showProductCategory ? (
+                      <Button size="small" variant="outlined" color="secondary" onClick={() => onAssignCategory?.(item)}>
+                        Asignar categoria
+                      </Button>
+                    ) : null}
+                    {showProductYield ? (
+                      <Button size="small" variant="outlined" color="secondary" onClick={() => onEditYield?.(item)}>
+                        Editar bulto
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </TableCell>
+              ) : null}
             </TableRow>
           );
             })}
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={showProductYield || showProductCategory ? 9 : 6}>
                   <Typography color="text.secondary">{emptyMessage}</Typography>
                 </TableCell>
               </TableRow>

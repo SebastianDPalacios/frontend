@@ -77,6 +77,11 @@ const purchaseUnitOptions = [
   { value: "g", label: "Gramos", factor: 1, baseUnit: "g" },
   { value: "l", label: "Litros", factor: 1000, baseUnit: "ml" },
   { value: "ml", label: "Mililitros", factor: 1, baseUnit: "ml" },
+  { value: "unit", label: "Unidades", factor: 1, baseUnit: "unit" },
+  { value: "package", label: "Paquetes", factor: 1, baseUnit: "package" },
+  { value: "roll", label: "Rollos", factor: 1, baseUnit: "roll" },
+  { value: "bag", label: "Bolsas", factor: 1, baseUnit: "bag" },
+  { value: "box", label: "Cajas", factor: 1, baseUnit: "box" },
 ];
 
 const formatPackageQuantity = (quantity, unit) => {
@@ -85,7 +90,12 @@ const formatPackageQuantity = (quantity, unit) => {
   if (unit === "ml") {
     return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} litros` : `${amount.toLocaleString("es-CO")} ml`;
   }
-  return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+  if (unit === "g") {
+    return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+  }
+  const option = purchaseUnitOptions.find((item) => item.baseUnit === unit);
+  const label = option?.label?.toLowerCase() || unit;
+  return `${amount.toLocaleString("es-CO")} ${label}`;
 };
 
 const getPurchaseUnitOptions = (item) => {
@@ -197,6 +207,7 @@ const InventoryMovementsPage = () => {
           quantity_on_hand: material.quantity_on_hand || 0,
           purchase_package_name: material.purchase_package_name || null,
           purchase_package_quantity: material.purchase_package_quantity || null,
+          inventory_usage_type: material.inventory_usage_type || "production",
         }));
 
         setBranches(branchRows);
@@ -427,35 +438,6 @@ const InventoryMovementsPage = () => {
     <FlowPageLayout title="Inventario - Movimientos" subtitle="Entradas y salidas manuales de stock">
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
 
-      {!showManualAdjustment ? (
-        <InventoryMovementHistory
-          historyTotal={historyTotal}
-          historySearch={historySearch}
-          onHistorySearchChange={setHistorySearch}
-          historyItemType={historyItemType}
-          onHistoryItemTypeChange={setHistoryItemType}
-          historyMovementType={historyMovementType}
-          onHistoryMovementTypeChange={setHistoryMovementType}
-          historyDateFrom={historyDateFrom}
-          onHistoryDateFromChange={setHistoryDateFrom}
-          historyDateTo={historyDateTo}
-          onHistoryDateToChange={setHistoryDateTo}
-          itemTypeLabels={itemTypeLabels}
-          movementTypeLabels={movementTypeLabels}
-          movementTypeColors={movementTypeColors}
-          historyLoading={historyLoading}
-          movementHistory={movementHistory}
-          formatNumber={formatNumber}
-          formatDate={formatDate}
-          getMovementExplanation={getMovementExplanation}
-          pageSize={HISTORY_PAGE_SIZE}
-          currentPage={currentHistoryPage}
-          totalPages={totalHistoryPages}
-          onPreviousPage={() => setHistoryPage((current) => Math.max(current - 1, 1))}
-          onNextPage={() => setHistoryPage((current) => Math.min(current + 1, totalHistoryPages))}
-        />
-      ) : null}
-
       <ManualAdjustmentPanel
         show={showManualAdjustment}
         onToggle={() => setShowManualAdjustment((current) => !current)}
@@ -499,6 +481,35 @@ const InventoryMovementsPage = () => {
         isPurchaseInput={isPurchaseInput}
         maxInventoryQuantity={MAX_INVENTORY_QUANTITY}
       />
+
+      {!showManualAdjustment ? (
+        <InventoryMovementHistory
+          historyTotal={historyTotal}
+          historySearch={historySearch}
+          onHistorySearchChange={setHistorySearch}
+          historyItemType={historyItemType}
+          onHistoryItemTypeChange={setHistoryItemType}
+          historyMovementType={historyMovementType}
+          onHistoryMovementTypeChange={setHistoryMovementType}
+          historyDateFrom={historyDateFrom}
+          onHistoryDateFromChange={setHistoryDateFrom}
+          historyDateTo={historyDateTo}
+          onHistoryDateToChange={setHistoryDateTo}
+          itemTypeLabels={itemTypeLabels}
+          movementTypeLabels={movementTypeLabels}
+          movementTypeColors={movementTypeColors}
+          historyLoading={historyLoading}
+          movementHistory={movementHistory}
+          formatNumber={formatNumber}
+          formatDate={formatDate}
+          getMovementExplanation={getMovementExplanation}
+          pageSize={HISTORY_PAGE_SIZE}
+          currentPage={currentHistoryPage}
+          totalPages={totalHistoryPages}
+          onPreviousPage={() => setHistoryPage((current) => Math.max(current - 1, 1))}
+          onNextPage={() => setHistoryPage((current) => Math.min(current + 1, totalHistoryPages))}
+        />
+      ) : null}
     </FlowPageLayout>
   );
 };

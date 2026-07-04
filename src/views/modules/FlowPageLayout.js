@@ -1,6 +1,6 @@
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { Box, Breadcrumbs, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
+import { Box, Breadcrumbs, Button, Link as MuiLink, Stack, Typography } from "@mui/material";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import navigationItems from "configs/navigation";
 
@@ -98,37 +98,48 @@ const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, child
         </Box>
       </Stack>
       {links.length > 0 ? (
-        <Paper
-          variant="outlined"
+        <Box
           sx={{
-            borderRadius: 3,
-            p: 1,
             mb: 3,
-            display: "inline-flex",
             maxWidth: "100%",
-            bgcolor: "background.paper",
+            overflowX: "auto",
+            pb: 0.5,
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={0.75} sx={{ flexWrap: "wrap", width: { xs: "100%", sm: "auto" } }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              width: "max-content",
+              minWidth: { xs: "100%", sm: 0 },
+              alignItems: "center",
+            }}
+          >
             {links.map((link) => (
               <Button
                 key={link.href}
                 component={NextLink}
                 href={link.href}
-                variant={link.active ? "contained" : "text"}
+                variant={link.active ? "contained" : "outlined"}
                 size="small"
                 color="secondary"
                 fullWidth={false}
                 sx={{
-                  borderRadius: 2,
-                  minHeight: 40,
-                  px: 2.5,
-                  justifyContent: { xs: "flex-start", sm: "center" },
-                  width: { xs: "100%", sm: "auto" },
-                  color: link.active ? "secondary.contrastText" : "text.secondary",
-                  fontWeight: link.active ? 800 : 700,
+                  borderRadius: 999,
+                  minHeight: { xs: 36, sm: 40 },
+                  px: { xs: 1.75, sm: 2.5 },
+                  whiteSpace: "nowrap",
+                  bgcolor: link.active ? "secondary.main" : "background.paper",
+                  color: link.active ? "secondary.contrastText" : "secondary.main",
+                  borderColor: link.active ? "secondary.main" : "divider",
+                  boxShadow: "none",
+                  fontWeight: 800,
                   "&:hover": {
                     bgcolor: link.active ? "secondary.dark" : "action.hover",
+                    borderColor: link.active ? "secondary.dark" : "secondary.main",
+                    boxShadow: "none",
                   },
                 }}
               >
@@ -136,7 +147,7 @@ const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, child
               </Button>
             ))}
           </Stack>
-        </Paper>
+        </Box>
       ) : null}
       {children}
     </Box>

@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Divider, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Grid,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import toast from "react-hot-toast";
 import ColombianCurrencyField, { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import CaptureModeSwitch from "components/atoms/CaptureModeSwitch";
@@ -7,7 +22,7 @@ import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
-const editableStatuses = ["draft", "confirmed"];
+const editableStatuses = ["draft", "confirmed", "ready", "dispatched"];
 const emptyNewLine = {
   productId: "",
   lineType: "sale",
@@ -130,131 +145,212 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       {loading ? <Alert severity="info">Cargando productos...</Alert> : null}
       {!loading && items.length === 0 ? <Alert severity="info">No hay productos en este pedido.</Alert> : null}
 
-      <Grid container spacing={2}>
-        {items.map((item) => {
-          const draft = drafts[item.id] || toDraft(item);
-          return (
-            <Grid item xs={12} md={6} key={item.id}>
-              <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 2, height: "100%" }}>
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 900 }}>{item.product_name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.product_sku || "Sin SKU"} | ${formatCurrencyValue(item.unit_price, 0)} por {item.product_unit}
+      {!canEdit && items.length > 0 ? (
+        <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflowX: "auto" }}>
+          <Table sx={{ minWidth: 920 }} aria-label="Productos solicitados del pedido">
+            <TableHead>
+              <TableRow>
+                <TableCell>Producto</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Solicitado</TableCell>
+                <TableCell align="center">Unidades</TableCell>
+                <TableCell align="right">Precio unitario</TableCell>
+                <TableCell align="right">Total</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id} hover>
+                  <TableCell sx={{ minWidth: 220 }}>
+                    <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
+                      {item.product_name}
                     </Typography>
-                  </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.product_sku || "Sin SKU"} | {item.product_unit || "und"}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 800 }}>
+                      {lineTypeLabels[item.line_type] || item.line_type || "-"}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 800 }}>
+                      {item.capture_mode === "amount"
+                        ? `$${formatCurrencyValue(item.requested_amount, 0)}`
+                        : `${Number(item.quantity || 0)} ${item.product_unit || ""}`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.capture_mode === "amount" ? "Por valor" : "Por cantidad"}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Typography sx={{ fontWeight: 900, fontSize: 20 }}>
+                      {Number(item.quantity || 0)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontWeight: 800 }}>
+                      ${formatCurrencyValue(item.unit_price, 0)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontWeight: 900 }}>
+                      ${formatCurrencyValue(item.line_type === "sale" ? item.line_total : item.commercial_value, 0)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.line_type === "sale" ? "Cobrado" : "Comercial"}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : null}
 
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                    <OrderLineTypeSelect
-                      value={draft.lineType}
-                      disabled={!canEdit}
-                      onChange={(lineType) =>
-                        setDrafts((current) => ({ ...current, [item.id]: { ...draft, lineType } }))
-                      }
-                    />
-                    <CaptureModeSwitch
-                      mode={draft.captureMode}
-                      disabled={!canEdit}
-                      onChange={(captureMode) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [item.id]: { ...draft, captureMode, value: "" },
-                        }))
-                      }
-                    />
-                  </Stack>
+      {canEdit && items.length > 0 ? (
+        <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflowX: "auto" }}>
+          <Table sx={{ minWidth: 1180 }} aria-label="Productos editables del pedido">
+            <TableHead>
+              <TableRow>
+                <TableCell>Producto</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Captura</TableCell>
+                <TableCell>Valor o cantidad</TableCell>
+                <TableCell align="center">Unidades</TableCell>
+                <TableCell>Solicitado</TableCell>
+                <TableCell align="right">Total</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => {
+                const draft = drafts[item.id] || toDraft(item);
 
-                  {draft.captureMode === "amount" ? (
-                    <ColombianCurrencyField
-                      size="small"
-                      label="Valor solicitado"
-                      name={`detail-${item.id}`}
-                      value={draft.value}
-                      disabled={!canEdit}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [item.id]: { ...draft, value: event.target.value },
-                        }))
-                      }
-                    />
-                  ) : (
-                    <TextField
-                      size="small"
-                      type="number"
-                      label="Cantidad solicitada"
-                      value={draft.value}
-                      disabled={!canEdit}
-                      inputProps={{
-                        min: 0,
-                        step: isIntegerUnit(item.product_unit) ? 1 : 0.001,
-                        inputMode: "decimal",
-                      }}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [item.id]: { ...draft, value: event.target.value },
-                        }))
-                      }
-                    />
-                  )}
-
-                  <Divider />
-                  <Grid container spacing={1}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Tipo</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{lineTypeLabels[item.line_type]}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Unidades calculadas</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{Number(item.quantity || 0)}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Solicitado originalmente</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                return (
+                  <TableRow key={item.id} hover>
+                    <TableCell sx={{ minWidth: 220 }}>
+                      <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
+                        {item.product_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.product_sku || "Sin SKU"} | ${formatCurrencyValue(item.unit_price, 0)} por {item.product_unit}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 180 }}>
+                      <OrderLineTypeSelect
+                        value={draft.lineType}
+                        disabled={!canEdit}
+                        onChange={(lineType) =>
+                          setDrafts((current) => ({ ...current, [item.id]: { ...draft, lineType } }))
+                        }
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        Actual: {lineTypeLabels[item.line_type] || item.line_type || "-"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 180 }}>
+                      <CaptureModeSwitch
+                        mode={draft.captureMode}
+                        disabled={!canEdit}
+                        onChange={(captureMode) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [item.id]: { ...draft, captureMode, value: "" },
+                          }))
+                        }
+                      />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 190 }}>
+                      {draft.captureMode === "amount" ? (
+                        <ColombianCurrencyField
+                          size="small"
+                          label="Valor solicitado"
+                          name={`detail-${item.id}`}
+                          value={draft.value}
+                          disabled={!canEdit}
+                          onChange={(event) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [item.id]: { ...draft, value: event.target.value },
+                            }))
+                          }
+                        />
+                      ) : (
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Cantidad"
+                          value={draft.value}
+                          disabled={!canEdit}
+                          inputProps={{
+                            min: 0,
+                            step: isIntegerUnit(item.product_unit) ? 1 : 0.001,
+                            inputMode: "decimal",
+                          }}
+                          onChange={(event) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [item.id]: { ...draft, value: event.target.value },
+                            }))
+                          }
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography sx={{ fontWeight: 900, fontSize: 22 }}>
+                        {Number(item.quantity || 0)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.product_unit || "und"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 150 }}>
+                      <Typography sx={{ fontWeight: 800 }}>
                         {item.capture_mode === "amount"
                           ? `$${formatCurrencyValue(item.requested_amount, 0)}`
                           : `${Number(item.quantity || 0)} ${item.product_unit}`}
                       </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
                       <Typography variant="caption" color="text.secondary">
-                        {item.line_type === "sale" ? "Total cobrado" : "Valor comercial"}
+                        {item.capture_mode === "amount" ? "Por valor" : "Por cantidad"}
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography sx={{ fontWeight: 900 }}>
                         ${formatCurrencyValue(item.line_type === "sale" ? item.line_total : item.commercial_value, 0)}
                       </Typography>
-                    </Grid>
-                  </Grid>
-
-                  {canEdit ? (
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        color="secondary"
-                        disabled={Boolean(savingKey)}
-                        onClick={() => saveExisting(item)}
-                      >
-                        {savingKey === `item-${item.id}` ? "Guardando..." : "Guardar cambios"}
-                      </Button>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        color="error"
-                        disabled={Boolean(savingKey)}
-                        onClick={() => saveExisting(item, true)}
-                      >
-                        Retirar
-                      </Button>
-                    </Stack>
-                  ) : null}
-                </Stack>
-              </Box>
-            </Grid>
-          );
-        })}
-      </Grid>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.line_type === "sale" ? "Cobrado" : "Comercial"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ minWidth: 240 }}>
+                      <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          disabled={Boolean(savingKey)}
+                          onClick={() => saveExisting(item)}
+                        >
+                          {savingKey === `item-${item.id}` ? "Guardando..." : "Guardar"}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          disabled={Boolean(savingKey)}
+                          onClick={() => saveExisting(item, true)}
+                        >
+                          Retirar
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : null}
 
       {canEdit ? (
         <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 2 }}>
@@ -324,7 +420,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         </Box>
       ) : (
         <Alert severity="warning">
-          Edicion bloqueada: el pedido ya fue enviado al flujo de produccion o despacho.
+          Edicion bloqueada: el pedido ya fue entregado o cancelado.
         </Alert>
       )}
     </Stack>

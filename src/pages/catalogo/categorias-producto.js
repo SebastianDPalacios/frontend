@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Alert,
@@ -7,12 +7,18 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
+  MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import toast from "react-hot-toast";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
@@ -58,26 +64,104 @@ const ProductCategoriesPage = () => {
   const [error, setError] = useState(null);
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editCategory, setEditCategory] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    isActive: "1",
+  });
+
+  const loadCategories = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await catalogService.getProductCategories({ onlyActive: 0 });
+      if (response?.code !== 1) {
+        setError(response?.message || "No se pudo cargar el catalogo de categorias de producto");
+        return;
+      }
+      setItems(normalizeList(response.data));
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, "Error de red al cargar categorias de producto"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      try {
-        const response = await catalogService.getProductCategories({ onlyActive: 1 });
-        if (response?.code !== 1) {
-          setError(response?.message || "No se pudo cargar el catalogo de categorias de producto");
-          return;
-        }
-        setItems(normalizeList(response.data));
-      } catch (requestError) {
-        setError(getApiErrorMessage(requestError, "Error de red al cargar categorias de producto"));
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadCategories();
+  }, [loadCategories]);
 
-    run();
-  }, []);
+  const openEditDialog = (category) => {
+    setEditCategory(category);
+    setEditForm({
+      name: category.name || "",
+      description: category.description || "",
+      isActive: isCategoryActive(category) ? "1" : "0",
+    });
+    setEditOpen(true);
+  };
+
+  const closeEditDialog = () => {
+    if (editSaving) {
+      return;
+    }
+    setEditOpen(false);
+    setEditCategory(null);
+  };
+
+  const saveEdit = async () => {
+    const name = editForm.name.trim();
+    if (!editCategory?.id || name.length < 2) {
+      toast.error("Indica un nombre de categoria valido");
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const response = await catalogService.updateProductCategory(editCategory.id, {
+        p_name: name,
+        p_description: editForm.description.trim() || null,
+        p_is_active: Number(editForm.isActive),
+      });
+
+      if (response?.code !== 1) {
+        toast.error(response?.message || "No se pudo actualizar la categoria");
+        return;
+      }
+
+      toast.success("Categoria actualizada");
+      setEditOpen(false);
+      setEditCategory(null);
+      await loadCategories();
+    } catch (requestError) {
+      toast.error(getApiErrorMessage(requestError, "Error de red al actualizar categoria"));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const toggleCategoryStatus = async (category) => {
+    const nextActive = isCategoryActive(category) ? 0 : 1;
+    try {
+      const response = await catalogService.updateProductCategory(category.id, {
+        p_name: category.name,
+        p_description: category.description || null,
+        p_is_active: nextActive,
+      });
+
+      if (response?.code !== 1) {
+        toast.error(response?.message || "No se pudo actualizar la categoria");
+        return;
+      }
+
+      toast.success(nextActive ? "Categoria activada" : "Categoria desactivada");
+      await loadCategories();
+    } catch (requestError) {
+      toast.error(getApiErrorMessage(requestError, "Error de red al actualizar categoria"));
+    }
+  };
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -203,6 +287,24 @@ const ProductCategoriesPage = () => {
                       <CategoryOutlinedIcon fontSize="small" />
                       <Typography variant="caption">Clasificacion para productos terminados</Typography>
                     </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => openEditDialog(category)}
+                      >
+                        Editar categoria
+                      </Button>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color={active ? "error" : "success"}
+                        onClick={() => toggleCategoryStatus(category)}
+                      >
+                        {active ? "Desactivar" : "Activar"}
+                      </Button>
+                    </Stack>
                   </Stack>
                 </Paper>
               </Grid>
@@ -216,6 +318,50 @@ const ProductCategoriesPage = () => {
           No hay categorias de producto para mostrar.
         </Alert>
       ) : null}
+
+      <Dialog open={editOpen} onClose={closeEditDialog} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {editCategory ? `Editar categoria #${editCategory.id}` : "Editar categoria"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              label="Nombre"
+              value={editForm.name}
+              onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))}
+              inputProps={{ maxLength: 120 }}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Descripcion"
+              value={editForm.description}
+              onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))}
+              inputProps={{ maxLength: 255 }}
+            />
+            <TextField
+              select
+              fullWidth
+              label="Estado"
+              value={editForm.isActive}
+              onChange={(event) => setEditForm((current) => ({ ...current, isActive: event.target.value }))}
+            >
+              <MenuItem value="1">Activa</MenuItem>
+              <MenuItem value="0">Inactiva</MenuItem>
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="secondary" onClick={closeEditDialog} disabled={editSaving}>
+            Cancelar
+          </Button>
+          <Button variant="contained" color="secondary" onClick={saveEdit} disabled={editSaving}>
+            {editSaving ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </FlowPageLayout>
   );
 };

@@ -3,6 +3,7 @@ const navigationItems = [
     section: "General",
     items: [
       { title: "Dashboard", path: "/dashboards/analytics", icon: "dashboard", permission: "reports.view" },
+      { title: "Dashboard ventas", path: "/sales/dashboard", icon: "dashboard", permission: "orders.manage", salesOnly: true },
       { title: "Auditoria", path: "/reports/audit", icon: "dashboard", permission: "roles.manage" },
     ],
   },
@@ -16,6 +17,7 @@ const navigationItems = [
           { title: "Resumen", path: "/orders/day", icon: "dashboard", permission: "orders.manage" },
           { title: "Captura", path: "/orders/count", icon: "orders", permission: "orders.manage" },
           { title: "Gestion", path: "/orders/history", icon: "orders", permission: "orders.manage" },
+          { title: "Historial", path: "/orders/historical", icon: "orders", permission: "orders.manage" },
           { title: "Liquidacion diaria", path: "/orders/daily-settlement", icon: "orders", permission: "orders.manage" },
           { title: "Cambios y devoluciones", path: "/orders/returns", icon: "orders", permission: "orders.manage" },
         ],
@@ -38,6 +40,7 @@ const navigationItems = [
         children: [
           { title: "Resumen", path: "/inventory/overview", icon: "dashboard", permission: "inventory.manage" },
           { title: "Entradas y salidas", path: "/inventory/movements", icon: "inventory", permission: "inventory.manage" },
+          { title: "Salida a puerta", path: "/inventory/door-exit", icon: "inventory", permission: "inventory.manage" },
           { title: "Stock productos", path: "/inventory/products", icon: "products", permission: "inventory.manage" },
           { title: "Stock materia prima", path: "/inventory/raw-materials", icon: "materials", permission: "inventory.manage" },
           { title: "Compras", path: "/inventory/purchase-orders", icon: "suppliers", permission: "inventory.manage" },

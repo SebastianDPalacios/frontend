@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -12,6 +12,13 @@ import {
   LinearProgress,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  MenuItem,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,6 +29,7 @@ import ordersService from "services/orders/orders-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
 import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
 
@@ -38,6 +46,8 @@ const formatDate = (value) => {
 
   return String(value).slice(0, 10);
 };
+
+const getTodayDate = () => toDateInputValue();
 
 const formatMoney = (value) => currencyFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => {
@@ -101,13 +111,73 @@ const OrderMetric = ({ label, value }) => (
   </Box>
 );
 
+const CustomerDeliveryCard = ({ order }) => (
+  <Paper
+    variant="outlined"
+    sx={{
+      borderRadius: 3,
+      p: { xs: 2, md: 2.5 },
+      bgcolor: "background.default",
+      borderColor: "secondary.light",
+    }}
+  >
+    <Stack spacing={2}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary">
+            Cliente
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
+            {order.customer_name || "Sin cliente"}
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: { md: 180 } }}>
+          <Typography variant="caption" color="text.secondary">
+            Telefono
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 900 }}>
+            {order.customer_phone || "Sin telefono"}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={7}>
+          <OrderMetric label="Direccion" value={order.customer_address || "Sin direccion"} />
+        </Grid>
+        <Grid item xs={12} md={5}>
+          <OrderMetric label="Barrio / zona" value={order.customer_neighborhood || "Sin barrio/zona"} />
+        </Grid>
+      </Grid>
+    </Stack>
+  </Paper>
+);
+
 const SummaryCard = ({ label, value, helper, color = "primary" }) => (
-  <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%" }}>
-    <Stack spacing={1}>
+  <Paper
+    variant="outlined"
+    sx={{
+      borderRadius: 3,
+      p: 2.25,
+      height: "100%",
+      position: "relative",
+      overflow: "hidden",
+      borderColor: color === "default" ? "divider" : `${color}.light`,
+      bgcolor: "background.paper",
+      "&:before": {
+        content: '""',
+        position: "absolute",
+        inset: "0 auto 0 0",
+        width: 6,
+        bgcolor: color === "default" ? "divider" : `${color}.main`,
+      },
+    }}
+  >
+    <Stack spacing={1.25} sx={{ pl: 0.75 }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 900 }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, lineHeight: 1 }}>
         {value}
       </Typography>
       <Chip label={helper} color={color} variant="outlined" sx={{ alignSelf: "flex-start" }} />
@@ -162,6 +232,102 @@ const getOrderNextStep = (order) => {
   }
 
   return { label: "Revisar pedido", description: "Abre el detalle para validar el siguiente paso.", severity: "info", action: "detail" };
+};
+
+const getOrderProgress = (order) => {
+  if (order?.status === "cancelled") {
+    return 0;
+  }
+
+  if (order?.status === "delivered") {
+    return 100;
+  }
+
+  if (order?.status === "dispatched") {
+    return 90;
+  }
+
+  if (order?.status === "ready") {
+    return 85;
+  }
+
+  if (order?.status === "in_production") {
+    return Number(order.production_pending_items || 0) === 0 ? 85 : 70;
+  }
+
+  if (order?.status === "confirmed") {
+    return 60;
+  }
+
+  return 25;
+};
+
+const buildOrderDayGroups = (orders) => {
+  const dayMap = new Map();
+
+  orders.forEach((order) => {
+    const day = formatDate(order.order_date);
+    if (!dayMap.has(day)) {
+      dayMap.set(day, []);
+    }
+    dayMap.get(day).push(order);
+  });
+
+  return Array.from(dayMap.entries()).map(([day, dayOrders]) => {
+    const orderedForNumber = [...dayOrders].sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    const numberById = orderedForNumber.reduce((acc, order, index) => {
+      acc[String(order.id)] = index + 1;
+      return acc;
+    }, {});
+
+    return {
+      day,
+      orders: dayOrders,
+      numberById,
+    };
+  });
+};
+
+const normalizeSearchText = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const isPlainNumberSearch = (value) => /^\d+$/.test(String(value || "").trim());
+
+const orderMatchesSearch = (order, searchValue, dailyNumberById) => {
+  const normalizedSearch = normalizeSearchText(searchValue);
+
+  if (!normalizedSearch) {
+    return true;
+  }
+
+  const dailyNumber = String(dailyNumberById[String(order.id)] || "");
+
+  if (isPlainNumberSearch(normalizedSearch) && dailyNumber === normalizedSearch) {
+    return true;
+  }
+
+  const searchableText = [
+    `pedido ${dailyNumber}`,
+    `pedido #${dailyNumber}`,
+    `pedido del dia ${dailyNumber}`,
+    `pedido del dia #${dailyNumber}`,
+    order.customer_name,
+    order.customer_phone,
+    order.customer_address,
+    order.customer_neighborhood,
+    order.sales_agent_name,
+    statusLabels[order.status],
+    formatDate(order.order_date),
+    formatDate(order.delivery_date),
+    formatMoney(order.grand_total),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(normalizedSearch);
 };
 
 const getOrderTraceSteps = (order) => {
@@ -347,8 +513,9 @@ const getOperationalInsight = (order, items) => {
   };
 };
 
-const OrdersHistoryPage = () => {
+export const OrdersHistoryPage = ({ mode = "today" }) => {
   const router = useRouter();
+  const isTodayMode = mode === "today";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
@@ -363,6 +530,8 @@ const OrdersHistoryPage = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedDate, setSelectedDate] = useState("");
+  const todayDate = useMemo(() => getTodayDate(), []);
 
   useEffect(() => {
     if (router.isReady && router.query.search) {
@@ -375,7 +544,13 @@ const OrdersHistoryPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await ordersService.getOrders({ page: 1, pageSize: 40, search });
+        const effectiveDate = isTodayMode ? todayDate : selectedDate;
+        const response = await ordersService.getOrders({
+          page: 1,
+          pageSize: isTodayMode ? 200 : 500,
+          dateFrom: effectiveDate || undefined,
+          dateTo: effectiveDate || undefined,
+        });
         if (response?.code !== 1) {
           setError(response?.message || "No se pudo cargar historico de pedidos");
           return;
@@ -399,22 +574,56 @@ const OrdersHistoryPage = () => {
 
     const timer = setTimeout(run, 250);
     return () => clearTimeout(timer);
-  }, [search, refreshKey]);
+  }, [isTodayMode, selectedDate, refreshKey, todayDate]);
 
-  const selectedOrder = useMemo(
-    () => orders.find((order) => String(order.id) === String(orderId)) || null,
-    [orderId, orders]
+  const availableDates = useMemo(
+    () => Array.from(new Set(orders.map((order) => formatDate(order.order_date)))).filter((date) => date !== "Sin fecha"),
+    [orders]
   );
+  const dateScopedOrders = useMemo(
+    () => selectedDate ? orders.filter((order) => formatDate(order.order_date) === selectedDate) : orders,
+    [orders, selectedDate]
+  );
+  const orderDayGroups = useMemo(() => buildOrderDayGroups(dateScopedOrders), [dateScopedOrders]);
+  const dailyOrderNumberById = useMemo(
+    () =>
+      orderDayGroups.reduce((acc, group) => {
+        Object.assign(acc, group.numberById);
+        return acc;
+      }, {}),
+    [orderDayGroups]
+  );
+  const filteredOrders = useMemo(
+    () => dateScopedOrders.filter((order) => orderMatchesSearch(order, search, dailyOrderNumberById)),
+    [dateScopedOrders, dailyOrderNumberById, search]
+  );
+  const filteredOrderDayGroups = useMemo(() => buildOrderDayGroups(filteredOrders), [filteredOrders]);
+  const selectedOrder = useMemo(
+    () => filteredOrders.find((order) => String(order.id) === String(orderId)) || null,
+    [filteredOrders, orderId]
+  );
+
+  useEffect(() => {
+    if (filteredOrders.some((order) => String(order.id) === String(orderId))) {
+      return;
+    }
+
+    setOrderId(filteredOrders[0]?.id ? String(filteredOrders[0].id) : "");
+  }, [filteredOrders, orderId]);
+
   const canConfirm = selectedOrder?.status === "draft";
   const canDispatch =
     selectedOrder?.status === "confirmed" ||
     isReadyToDispatch(selectedOrder);
   const canDeliver = selectedOrder?.status === "dispatched";
   const canCancel = selectedOrder?.status === "draft" || selectedOrder?.status === "confirmed";
-  const draftOrders = orders.filter((order) => order.status === "draft").length;
-  const dispatchedOrders = orders.filter((order) => order.status === "dispatched").length;
-  const cancelledOrders = orders.filter((order) => order.status === "cancelled").length;
-  const totalAmount = orders.reduce((acc, order) => acc + Number(order.grand_total || 0), 0);
+  const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
+  const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
+  const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
+  const totalAmount = filteredOrders.reduce((acc, order) => acc + Number(order.grand_total || 0), 0);
+  const selectedDailyNumber = selectedOrder ? dailyOrderNumberById[String(selectedOrder.id)] : null;
+  const selectedProgress = selectedOrder ? getOrderProgress(selectedOrder) : 0;
+  const selectedNextStep = getOrderNextStep(selectedOrder);
 
   const openOrderDetail = async (order) => {
     setOrderId(String(order.id));
@@ -552,17 +761,60 @@ const OrdersHistoryPage = () => {
   };
 
   return (
-    <FlowPageLayout title="Pedidos - Historico" subtitle="Consulta y acciones de pedidos recientes">
+    <FlowPageLayout
+      title={isTodayMode ? "Pedidos - Gestion diaria" : "Pedidos - Historial"}
+      subtitle={isTodayMode ? "Gestiona solo los pedidos del dia actual" : "Consulta pedidos por fecha, cliente o vendedor"}
+    >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={4}>
-          <TextField fullWidth label="Buscar pedido, cliente o vendedor" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: 4,
+          p: { xs: 2, md: 2.5 },
+          mb: 2,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Grid container spacing={2} sx={{ alignItems: "center" }}>
+          <Grid item xs={12} md={isTodayMode ? 7 : 5}>
+            <TextField
+              fullWidth
+              label="Buscar pedido, cliente o vendedor"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </Grid>
+          {!isTodayMode ? (
+            <Grid item xs={12} md={3}>
+              <TextField
+                select
+                fullWidth
+                label="Fecha"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+              >
+                <MenuItem value="">Todas las fechas</MenuItem>
+                {availableDates.map((date) => (
+                  <MenuItem key={date} value={date}>
+                    {date}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          ) : null}
+          <Grid item xs={12} md={isTodayMode ? 5 : 4}>
+            <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: "flex-start", md: "flex-end" }, flexWrap: "wrap" }}>
+              <Chip color="secondary" label={isTodayMode ? todayDate : selectedDate || "Todas las fechas"} />
+              <Chip variant="outlined" label={`${filteredOrders.length} pedido(s)`} />
+              <Chip variant="outlined" color={draftOrders ? "warning" : "success"} label={`${draftOrders} borrador`} />
+            </Stack>
+          </Grid>
         </Grid>
-      </Grid>
+      </Paper>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={3}>
-          <SummaryCard label="Pedidos recientes" value={orders.length} helper={`${draftOrders} borrador`} color={draftOrders ? "warning" : "success"} />
+          <SummaryCard label={isTodayMode ? "Pedidos de hoy" : "Pedidos visibles"} value={filteredOrders.length} helper={`${draftOrders} borrador`} color={draftOrders ? "warning" : "success"} />
         </Grid>
         <Grid item xs={12} md={3}>
           <SummaryCard label="Despachados" value={dispatchedOrders} helper="Ya impactaron inventario" color="success" />
@@ -575,165 +827,263 @@ const OrdersHistoryPage = () => {
         </Grid>
       </Grid>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={3} sx={{ flexWrap: "wrap" }}>
-            <OrderMetric label="Pedido" value={selectedOrder ? `#${selectedOrder.id}` : "Selecciona un pedido"} />
-            <OrderMetric label="Cliente" value={selectedOrder?.customer_name} />
-            <OrderMetric label="Fecha" value={formatDate(selectedOrder?.order_date)} />
-            <OrderMetric label="Vendedor" value={selectedOrder?.sales_agent_name || "Sin vendedor"} />
-            <OrderMetric label="Total" value={formatMoney(selectedOrder?.grand_total)} />
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Estado
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: 4,
+          p: { xs: 2, md: 2.5 },
+          mb: 2.5,
+          borderColor: selectedOrder ? "secondary.light" : "divider",
+          bgcolor: selectedOrder ? "rgba(221, 91, 42, 0.04)" : "background.paper",
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "flex-start" } }}>
+            <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  {selectedOrder ? `Pedido seleccionado #${selectedDailyNumber || "-"}` : "Selecciona un pedido"}
+                </Typography>
+                {selectedOrder ? <StatusChip status={selectedOrder.status} /> : null}
+              </Stack>
+              <Typography color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                {selectedOrder
+                  ? `${selectedOrder.customer_name || "Cliente"} - ${selectedNextStep.description}`
+                  : "Elige una fila para ver acciones y detalle del pedido."}
               </Typography>
-              <Box sx={{ mt: 0.25 }}>
-                <StatusChip status={selectedOrder?.status} />
-              </Box>
-            </Box>
+            </Stack>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+              <AppButton color="secondary" onClick={() => runOrderAction("confirm")} disabled={actionLoading || !canConfirm}>Confirmar</AppButton>
+              <AppButton color="secondary" variant="outlined" onClick={() => runOrderAction("dispatch")} disabled={actionLoading || !canDispatch}>Despachar</AppButton>
+              <AppButton color="secondary" onClick={() => runOrderAction("deliver")} disabled={actionLoading || !canDeliver}>Confirmar entrega</AppButton>
+              <AppButton color="error" variant="outlined" onClick={() => setCancelDialogOpen(true)} disabled={actionLoading || !canCancel}>Cancelar</AppButton>
+            </Stack>
           </Stack>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
-            <AppButton color="secondary" onClick={() => runOrderAction("confirm")} disabled={actionLoading || !canConfirm}>Confirmar</AppButton>
-            <AppButton color="secondary" variant="outlined" onClick={() => runOrderAction("dispatch")} disabled={actionLoading || !canDispatch}>Despachar</AppButton>
-            <AppButton color="secondary" onClick={() => runOrderAction("deliver")} disabled={actionLoading || !canDeliver}>Confirmar entrega</AppButton>
-            <AppButton color="error" variant="outlined" onClick={() => setCancelDialogOpen(true)} disabled={actionLoading || !canCancel}>Cancelar</AppButton>
-          </Stack>
+
+          <Grid container spacing={2} sx={{ alignItems: "center" }}>
+            <Grid item xs={12} md={4}>
+              <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Flujo del pedido
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 900 }}>
+                  {selectedProgress}%
+                </Typography>
+              </Stack>
+              <LinearProgress
+                variant="determinate"
+                value={selectedProgress}
+                color={selectedOrder?.status === "cancelled" ? "error" : "secondary"}
+                sx={{
+                  height: 10,
+                  borderRadius: 999,
+                  bgcolor: "background.paper",
+                  "& .MuiLinearProgress-bar": { borderRadius: 999 },
+                }}
+              />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <OrderMetric label="Fecha" value={formatDate(selectedOrder?.order_date)} />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <OrderMetric label="Entrega" value={formatDate(selectedOrder?.delivery_date)} />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <OrderMetric label="Vendedor" value={selectedOrder?.sales_agent_name || "Sin vendedor"} />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <OrderMetric label="Total" value={formatMoney(selectedOrder?.grand_total)} />
+            </Grid>
+          </Grid>
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 3 }, mb: 3 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}>
           <Stack spacing={0.5}>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Pedidos recientes
+              {isTodayMode ? `Pedidos de hoy (${todayDate})` : "Historial de pedidos"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Selecciona un pedido para confirmarlo, despacharlo, confirmar su entrega, cancelarlo o ver sus items.
+              {isTodayMode
+                ? "Selecciona un pedido del dia para confirmarlo, despacharlo, confirmar su entrega, cancelarlo o ver sus items."
+                : "Filtra por fecha, cliente o vendedor para consultar pedidos anteriores."}
             </Typography>
           </Stack>
-          <Chip label={`${orders.length} pedidos`} variant="outlined" />
+          <Chip label={`${filteredOrders.length} pedidos`} variant="outlined" />
         </Stack>
 
         {loading ? <Alert severity="info">Cargando pedidos...</Alert> : null}
-        {!loading && orders.length === 0 ? <Alert severity="info">No hay pedidos recientes.</Alert> : null}
+        {!loading && filteredOrders.length === 0 ? (
+          <Alert severity="info">
+            {isTodayMode ? "No hay pedidos para el dia actual." : "No hay pedidos para el filtro seleccionado."}
+          </Alert>
+        ) : null}
 
-        <Grid container spacing={2}>
-          {orders.map((order) => {
-            const isSelected = String(order.id) === String(orderId);
-            const nextStep = getOrderNextStep(order);
-            const progress =
-              order.status === "cancelled"
-                ? 0
-                : order.status === "delivered"
-                ? 100
-                : order.status === "dispatched"
-                ? 90
-                : order.status === "ready"
-                ? 85
-                : order.status === "in_production"
-                ? Number(order.production_pending_items || 0) === 0
-                  ? 85
-                  : 70
-                : order.status === "confirmed"
-                ? 60
-                : 25;
-
-            return (
-              <Grid item xs={12} md={6} xl={4} key={order.id}>
-                <Paper
-                  variant="outlined"
-                  onClick={() => setOrderId(String(order.id))}
-                  sx={{
-                    borderRadius: 3,
-                    p: 2,
-                    height: "100%",
-                    cursor: "pointer",
-                    borderColor: isSelected ? "primary.main" : "divider",
-                    bgcolor: isSelected ? "action.selected" : "background.paper",
-                  }}
-                >
-                  <Stack spacing={2} sx={{ height: "100%" }}>
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                          Pedido #{order.id}
+        <TableContainer
+          sx={{
+            overflowX: "auto",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 3,
+          }}
+        >
+          <Table
+            sx={{
+              minWidth: 1060,
+              "& thead th": {
+                bgcolor: "background.default",
+                fontWeight: 900,
+                color: "text.secondary",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              },
+            }}
+            aria-label="Pedidos recientes"
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell>Pedido del dia</TableCell>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Flujo</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell>Vendedor</TableCell>
+                <TableCell>Entrega</TableCell>
+                <TableCell align="right">Total</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredOrderDayGroups.map((group) => (
+                <Fragment key={group.day}>
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      sx={{
+                        bgcolor: "rgba(221, 91, 42, 0.06)",
+                        py: 1,
+                        borderTop: "1px solid",
+                        borderColor: "secondary.light",
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                        <Typography sx={{ fontWeight: 900 }}>
+                          {group.day}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {order.customer_name || "Cliente"} - {formatDate(order.order_date)}
-                        </Typography>
+                        <Chip size="small" variant="outlined" label={`${group.orders.length} pedido(s) del dia`} />
                       </Stack>
-                      <StatusChip status={order.status} />
-                    </Stack>
+                    </TableCell>
+                  </TableRow>
+                  {group.orders.map((order) => {
+                    const isSelected = String(order.id) === String(orderId);
+                    const nextStep = getOrderNextStep(order);
+                    const progress = getOrderProgress(order);
+                    const dailyNumber = dailyOrderNumberById[String(order.id)];
 
-                    <Box>
-                      <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Flujo del pedido
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                          {progress}%
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={progress}
-                        color={order.status === "cancelled" ? "error" : "primary"}
+                    return (
+                      <TableRow
+                        hover
+                        key={order.id}
+                        selected={isSelected}
+                        onClick={() => setOrderId(String(order.id))}
                         sx={{
-                          height: 8,
-                          borderRadius: 999,
-                          bgcolor: "action.hover",
-                          "& .MuiLinearProgress-bar": { borderRadius: 999 },
-                        }}
-                      />
-                    </Box>
-
-                    <Grid container spacing={1}>
-                      <Grid item xs={4}>
-                        <OrderMetric label="Vendedor" value={order.sales_agent_name || "Sin vendedor"} />
-                      </Grid>
-                      <Grid item xs={4}>
-                        <OrderMetric label="Entrega" value={formatDate(order.delivery_date)} />
-                      </Grid>
-                      <Grid item xs={4}>
-                        <OrderMetric label="Total" value={formatMoney(order.grand_total)} />
-                      </Grid>
-                    </Grid>
-
-                    <Box sx={{ flex: 1 }} />
-
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-                      <AppButton
-                        size="small"
-                        color="secondary"
-                        variant={["detail", "view-production"].includes(nextStep.action) ? "outlined" : "contained"}
-                        onClick={(event) => runCardAction(event, order, nextStep)}
-                        disabled={actionLoading}
-                      >
-                        {nextStep.label}
-                      </AppButton>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openOrderDetail(order);
+                          cursor: "pointer",
+                          bgcolor: isSelected ? "rgba(221, 91, 42, 0.08)" : "background.paper",
+                          "& td": { py: 1.5, verticalAlign: "middle" },
+                          "&:hover": {
+                            bgcolor: isSelected ? "rgba(221, 91, 42, 0.12)" : "action.hover",
+                          },
+                          "& td:first-of-type": {
+                            borderLeft: isSelected ? "4px solid" : "4px solid transparent",
+                            borderLeftColor: isSelected ? "secondary.main" : "transparent",
+                          },
                         }}
                       >
-                        Detalle
-                      </Button>
-                      {isSelected ? <Chip size="small" color="primary" label="Seleccionado" variant="outlined" /> : null}
-                    </Stack>
-                  </Stack>
-                </Paper>
-              </Grid>
-            );
-          })}
-        </Grid>
+                        <TableCell>
+                          <Stack spacing={0.25}>
+                            <Typography sx={{ fontWeight: 900 }}>Pedido #{dailyNumber}</Typography>
+                            {isSelected ? <Chip size="small" color="primary" label="Seleccionado" variant="outlined" sx={{ alignSelf: "flex-start" }} /> : null}
+                          </Stack>
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 190 }}>
+                          <Typography sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                            {order.customer_name || "Cliente"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Pedido: {formatDate(order.order_date)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 220 }}>
+                          <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Flujo del pedido
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 900 }}>
+                              {progress}%
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate"
+                            value={progress}
+                            color={order.status === "cancelled" ? "error" : "primary"}
+                            sx={{
+                              height: 8,
+                              borderRadius: 999,
+                              bgcolor: "action.hover",
+                              "& .MuiLinearProgress-bar": { borderRadius: 999 },
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusChip status={order.status} />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 150 }}>
+                          <Typography sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                            {order.sales_agent_name || "Sin vendedor"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontWeight: 800 }}>{formatDate(order.delivery_date)}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography sx={{ fontWeight: 900, fontSize: 17 }}>{formatMoney(order.grand_total)}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            <AppButton
+                              size="small"
+                              color="secondary"
+                              variant={["detail", "view-production"].includes(nextStep.action) ? "outlined" : "contained"}
+                              onClick={(event) => runCardAction(event, order, nextStep)}
+                              disabled={actionLoading}
+                            >
+                              {nextStep.label}
+                            </AppButton>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openOrderDetail(order);
+                              }}
+                            >
+                              Detalle
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
       <Dialog open={cancelDialogOpen} onClose={() => !actionLoading && setCancelDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Cancelar pedido {selectedOrder ? `#${selectedOrder.id}` : ""}</DialogTitle>
+        <DialogTitle>Cancelar pedido {selectedOrder ? `del dia #${selectedDailyNumber || "-"}` : ""}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
@@ -776,39 +1126,45 @@ const OrdersHistoryPage = () => {
         }}
       >
         <DialogTitle>
-          {detailOrder ? `Detalle pedido #${detailOrder.id}` : "Detalle pedido"}
+          {detailOrder ? `Detalle pedido del dia #${dailyOrderNumberById[String(detailOrder.id)] || "-"}` : "Detalle pedido"}
         </DialogTitle>
         <DialogContent dividers>
           {detailOrder ? (
             <Stack spacing={2}>
               <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <OrderMetric label="Cliente" value={detailOrder.customer_name} />
+                <Grid item xs={12} lg={7}>
+                  <CustomerDeliveryCard order={detailOrder} />
                 </Grid>
-                <Grid item xs={12} md={4}>
-                  <OrderMetric label="Sucursal" value={detailOrder.branch_name} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <OrderMetric label="Vendedor" value={detailOrder.sales_agent_name || "Sin vendedor"} />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <OrderMetric label="Fecha pedido" value={formatDate(detailOrder.order_date)} />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <OrderMetric label="Fecha entrega" value={formatDate(detailOrder.delivery_date)} />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Estado
-                    </Typography>
-                    <Box sx={{ mt: 0.25 }}>
-                      <StatusChip status={detailOrder.status} />
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <OrderMetric label="Total" value={formatMoney(detailOrder.grand_total)} />
+                <Grid item xs={12} lg={5}>
+                  <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 2.5 }, height: "100%" }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <OrderMetric label="Fecha pedido" value={formatDate(detailOrder.order_date)} />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <OrderMetric label="Fecha entrega" value={formatDate(detailOrder.delivery_date)} />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Estado
+                          </Typography>
+                          <Box sx={{ mt: 0.25 }}>
+                            <StatusChip status={detailOrder.status} />
+                          </Box>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <OrderMetric label="Total" value={formatMoney(detailOrder.grand_total)} />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <OrderMetric label="Sucursal" value={detailOrder.branch_name} />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <OrderMetric label="Vendedor" value={detailOrder.sales_agent_name || "Sin vendedor"} />
+                      </Grid>
+                    </Grid>
+                  </Paper>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <OrderMetric

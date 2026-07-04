@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Box, Grid, Paper, Stack, Typography } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
@@ -14,6 +14,7 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
+import DashboardActionCard from "components/molecules/dashboard/DashboardActionCard";
 import DashboardMetricCard from "components/molecules/dashboard/DashboardMetricCard";
 import DashboardActionSection from "components/organisms/dashboard/DashboardActionSection";
 import DashboardOperationalSignals from "components/organisms/dashboard/DashboardOperationalSignals";
@@ -162,6 +163,23 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
       : null,
   ].filter(Boolean);
 
+  const primaryActions = [
+    canManageOrders
+      ? { title: "Crear pedido", description: "Captura una venta para clientes asignados.", href: "/orders/count", label: "Crear pedido", icon: <ShoppingCartIcon />, primary: true }
+      : null,
+    canManageOrders
+      ? { title: "Gestion diaria", description: "Confirma, despacha y entrega pedidos de hoy.", href: "/orders/history", label: "Abrir gestion", icon: <ReceiptLongIcon />, primary: true }
+      : null,
+    canManageInventory
+      ? { title: "Salida a puerta", description: "Descuenta productos terminados del inventario.", href: "/inventory/door-exit", label: "Registrar salida", icon: <WarehouseIcon />, primary: true }
+      : null,
+    canManageProduction
+      ? { title: "Lotes y empaque", description: "Registra fabricados, empacados y faltantes.", href: "/production/packaging", label: "Abrir lotes", icon: <FactCheckIcon />, primary: true }
+      : null,
+  ].filter(Boolean);
+
+  const isPrimaryAction = (action) => primaryActions.some((primary) => primary.href === action.href);
+
   return (
     <>
       <DashboardWelcomePanel
@@ -171,44 +189,73 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
         canManageInventory={canManageInventory}
       />
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
         {canManageOrders && insights.orders ? (
           <>
-            <Grid item xs={6} sm={4} lg={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <DashboardMetricCard title="Pedidos" value={insights.orders.total} helper="Pedidos recientes" icon={<ShoppingCartIcon />} color="primary" />
             </Grid>
-            <Grid item xs={6} sm={4} lg={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <DashboardMetricCard title="Por despachar" value={insights.orders.dispatchable} helper="Confirmados y listos" icon={<LocalShippingIcon />} color="warning" />
             </Grid>
-            <Grid item xs={6} sm={4} lg={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2.4}>
               <DashboardMetricCard title="Entregados" value={insights.orders.delivered} helper="Con comisión generada" icon={<CheckCircleIcon />} color="success" />
             </Grid>
           </>
         ) : null}
         {canManageUsers ? (
-          <Grid item xs={6} sm={4} lg={2.4}>
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
             <DashboardMetricCard title="Usuarios" value={stats.users} helper="Cuentas administrables" icon={<PeopleIcon />} color="primary" />
           </Grid>
         ) : null}
         {canManageCustomers ? (
-          <Grid item xs={6} sm={4} lg={2.4}>
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
             <DashboardMetricCard title="Clientes" value={stats.customers} helper="Base comercial" icon={<StorefrontIcon />} color="secondary" />
           </Grid>
         ) : null}
         {canManageProducts ? (
-          <Grid item xs={6} sm={4} lg={2.4}>
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
             <DashboardMetricCard title="Productos" value={stats.products} helper="Catálogo de venta" icon={<Inventory2Icon />} color="success" />
           </Grid>
         ) : null}
       </Grid>
 
-      <DashboardOperationalSignals signals={signals} />
-      <DashboardActionSection title="Ventas" subtitle="Pedidos, entregas, liquidaciones y clientes." actions={salesActions} />
-      <DashboardActionSection title="Producción" subtitle="Lotes, conteo, recetas y reportes." actions={productionActions} />
-      <DashboardActionSection title="Inventario" subtitle="Stock, movimientos, compras e insumos." actions={inventoryActions} />
-      <DashboardActionSection title="Administración" subtitle="Usuarios, permisos y catálogos." actions={adminActions} />
+      <Grid container spacing={2.5} sx={{ alignItems: "stretch", mb: 3 }}>
+        <Grid item xs={12} lg={7}>
+          <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                  Acciones rapidas
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Las tareas que mas se usan durante el dia.
+                </Typography>
+              </Box>
+              <Grid container spacing={1.5}>
+                {primaryActions.map((action) => (
+                  <Grid item xs={12} sm={6} key={action.href}>
+                    <DashboardActionCard {...action} />
+                  </Grid>
+                ))}
+              </Grid>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
+            <DashboardOperationalSignals signals={signals} />
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <DashboardActionSection title="Mas opciones de ventas" subtitle="Liquidaciones, clientes y devoluciones." actions={salesActions.filter((action) => !isPrimaryAction(action))} />
+      <DashboardActionSection title="Produccion" subtitle="Reportes, recetas y resumen diario." actions={productionActions.filter((action) => !isPrimaryAction(action))} />
+      <DashboardActionSection title="Inventario" subtitle="Stock, movimientos, compras e insumos." actions={inventoryActions.filter((action) => !isPrimaryAction(action))} />
+      <DashboardActionSection title="Administracion" subtitle="Usuarios, permisos y catalogos." actions={adminActions} />
     </>
   );
 };
 
 export default DashboardView;
+

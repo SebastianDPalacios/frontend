@@ -27,7 +27,7 @@ const getPhase = (plan, item) => {
   return 1;
 };
 
-const ProductionWorkDialog = ({ open, plan, item, finishing, onClose, onFinish }) => {
+const ProductionWorkDialog = ({ open, plan, item, finishing, canFinish = true, onClose, onFinish }) => {
   const phase = getPhase(plan, item);
   const steps = [
     { label: "Asignada", description: "La producción fue enviada al panadero." },
@@ -119,7 +119,7 @@ const ProductionWorkDialog = ({ open, plan, item, finishing, onClose, onFinish }
         <AppButton variant="outlined" color="secondary" onClick={onClose} disabled={finishing}>
           Cerrar
         </AppButton>
-        {item && phase < 4 ? (
+        {canFinish && item && phase < 4 ? (
           <AppButton
             color="secondary"
             loading={finishing}

@@ -4,9 +4,15 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import { Box, LinearProgress, Paper, Stack, Typography } from "@mui/material";
 
 const ProductionTrace = ({ steps }) => {
-  const activeIndex = Math.max(steps.findIndex((step) => step.active), 0);
+  const rawActiveIndex = steps.findIndex((step) => step.active);
+  const finalActive = rawActiveIndex === steps.length - 1;
+  const activeIndex = Math.max(rawActiveIndex, 0);
   const completedCount = steps.filter((step) => step.complete).length;
-  const progress = Math.round(((completedCount + 1) / steps.length) * 100);
+  const currentStepCount = completedCount + 1;
+  const progress = Math.min(
+    100,
+    Math.round((currentStepCount / steps.length) * 100)
+  );
 
   return (
     <Paper
@@ -44,9 +50,9 @@ const ProductionTrace = ({ steps }) => {
 
       <Stack spacing={0}>
         {steps.map((step, index) => {
-          const complete = step.complete;
-          const active = step.active;
           const last = index === steps.length - 1;
+          const complete = step.complete || (finalActive && last);
+          const active = step.active && !complete;
 
           return (
             <Stack

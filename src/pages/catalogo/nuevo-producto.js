@@ -55,6 +55,7 @@ const NuevoProductoPage = () => {
         unit: "unit",
         base_price: "",
         min_stock: "",
+        units_per_bag: "",
         is_active: "1",
       },
       async (formValues, helpers) => {
@@ -68,6 +69,7 @@ const NuevoProductoPage = () => {
             p_unit: formValues.unit.trim() || null,
             p_base_price: formValues.base_price ? Number(formValues.base_price) : null,
             p_min_stock: formValues.min_stock ? Number(formValues.min_stock) : null,
+            p_units_per_bag: formValues.units_per_bag ? Number(formValues.units_per_bag) : null,
             p_is_active: Number(formValues.is_active),
           });
 
@@ -296,6 +298,21 @@ const NuevoProductoPage = () => {
                 onBlur={handleBlur}
                 placeholder="0"
                 inputProps={{ min: 0 }}
+              />
+            </Grid>
+                <Grid item xs={12} md={4}>
+              <FormField
+                name="units_per_bag"
+                label="Unidades por bulto"
+                type="number"
+                value={values.units_per_bag}
+                error={errors.units_per_bag}
+                touched={touched.units_per_bag}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="Ej: 900"
+                helperText="Rendimiento productivo: unidades que salen de un bulto"
+                inputProps={{ min: 0.001, step: "0.001" }}
               />
             </Grid>
                 <Grid item xs={12} md={4}>

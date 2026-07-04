@@ -16,9 +16,14 @@ const normalizeList = (payload) => {
 const unitOptions = [
   { value: "g", label: "Gramo" },
   { value: "ml", label: "Mililitro" },
+  { value: "unit", label: "Unidad" },
+  { value: "package", label: "Paquete" },
+  { value: "roll", label: "Rollo" },
+  { value: "bag", label: "Bolsa" },
+  { value: "box", label: "Caja" },
 ];
 
-const unitHelperText = "Usa gramos para harinas, azucar y secos; mililitros para aceites y liquidos.";
+const unitHelperText = "Usa gramos/ml para produccion; unidad, paquete, rollo, bolsa o caja para inventario de empaque.";
 
 const purchaseUnitOptions = {
   g: [
@@ -29,9 +34,24 @@ const purchaseUnitOptions = {
     { value: "ml", label: "Mililitros" },
     { value: "l", label: "Litros" },
   ],
+  unit: [{ value: "unit", label: "Unidades" }],
+  package: [{ value: "package", label: "Paquetes" }],
+  roll: [{ value: "roll", label: "Rollos" }],
+  bag: [{ value: "bag", label: "Bolsas" }],
+  box: [{ value: "box", label: "Cajas" }],
 };
 
-const getDefaultPackageName = (unit) => (unit === "ml" ? "Garrafa" : "Bulto");
+const defaultPackageNames = {
+  g: "Bulto",
+  ml: "Garrafa",
+  unit: "Unidad",
+  package: "Paquete",
+  roll: "Rollo",
+  bag: "Bolsa",
+  box: "Caja",
+};
+
+const getDefaultPackageName = (unit) => defaultPackageNames[unit] || "Presentacion";
 
 const toBaseQuantity = (quantity, unit) => {
   const numericQuantity = Number(quantity || 0);
@@ -47,7 +67,23 @@ const calculateUnitCost = ({ packageQuantity, packageUnit, packageCost }) => {
   return Number((numericCost / baseQuantity).toFixed(6)).toString();
 };
 
-const getUnitCostLabel = (unit) => (unit === "ml" ? "Costo por ml" : "Costo por gramo");
+const unitCostLabels = {
+  g: "Costo por gramo",
+  ml: "Costo por ml",
+  unit: "Costo por unidad",
+  package: "Costo por paquete",
+  roll: "Costo por rollo",
+  bag: "Costo por bolsa",
+  box: "Costo por caja",
+};
+
+const getUnitCostLabel = (unit) => unitCostLabels[unit] || "Costo unitario";
+
+const getInventoryUsageType = (categoryId, categories) => {
+  const category = categories.find((item) => String(item.id) === String(categoryId));
+  const name = String(category?.name || "").toLowerCase();
+  return name.includes("rollo") || name.includes("bolsa") ? "packaging" : "production";
+};
 
 const getFriendlyRawMaterialError = (error) => {
   const message = getApiErrorMessage(error, "No se pudo crear la materia prima");
@@ -132,6 +168,7 @@ const NuevaMateriaPrimaPage = () => {
             p_unit: formValues.unit.trim() || null,
             p_purchase_package_name: formValues.purchase_package_name.trim() || getDefaultPackageName(formValues.unit),
             p_purchase_package_quantity: toBaseQuantity(formValues.package_quantity, formValues.package_unit),
+            p_inventory_usage_type: getInventoryUsageType(formValues.category_id, categories),
             p_unit_cost: formValues.unit_cost ? Number(formValues.unit_cost) : null,
             p_min_stock: formValues.min_stock ? Number(formValues.min_stock) : null,
             p_is_active: Number(formValues.is_active),
@@ -156,7 +193,7 @@ const NuevaMateriaPrimaPage = () => {
 
     const nextValues = { ...values, [name]: value };
     if (name === "unit") {
-      const nextPackageUnit = value === "ml" ? "l" : "kg";
+      const nextPackageUnit = value === "ml" ? "l" : value === "g" ? "kg" : value;
       nextValues.package_unit = nextPackageUnit;
       setFieldValue("package_unit", nextPackageUnit);
       if (!values.purchase_package_name || values.purchase_package_name === getDefaultPackageName(values.unit)) {

@@ -218,6 +218,9 @@ const CustomersPage = () => {
                           <Typography variant="body2" color="text.secondary">
                             {customer.phone || "Sin telefono"}
                           </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {customer.neighborhood || "Sin barrio/zona"}
+                          </Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>
