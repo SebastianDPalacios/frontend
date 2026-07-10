@@ -14,6 +14,7 @@ import {
 import PrintRoundedIcon from "@mui/icons-material/PrintRounded";
 import toast from "react-hot-toast";
 import ordersService from "services/orders/orders-service";
+import settingsService from "services/settings/settings-service";
 
 const money = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -46,7 +47,89 @@ const lineLabels = {
   exchange: "Cambio",
 };
 
-const buildReceiptHtml = ({ order, items }) => {
+const defaultTicketSettings = {
+  businessName: "PANADERIA",
+  businessSubtitle: "",
+  logoDataUrl: "",
+  showLogo: false,
+  showBranchName: true,
+  showBranchContact: true,
+  showSeller: true,
+  showDeliveryDate: true,
+  customerTitle: "CLIENTE",
+  detailTitle: "DETALLE SOLICITADO",
+  policyTitle: "POLITICA DE CAMBIOS",
+  policyText:
+    "Se realizan cambios por producto vencido, con moho, mojado o mal moldeado. La vigencia es de 15 dias desde la entrega. El inconveniente debe reportarse como maximo dentro de los 2 dias siguientes al vencimiento y requiere autorizacion del vendedor.",
+  footerText: "Gracias por su compra",
+  fontScale: "normal",
+  bodyFontSize: 12,
+  headerFontSize: 24,
+  customerFontSize: 20,
+  customerContactFontSize: 16,
+  productFontSize: 13,
+  quantityFontSize: 20,
+  totalFontSize: 17,
+  showExtraLegend: false,
+  extraLegendTitle: "LEYENDA ADICIONAL",
+  extraLegendText: "",
+};
+
+const numberOrFallback = (value, fallback) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const getTicketFontScale = (settings) => {
+  if (settings.fontScale === "extra_large") {
+    return {
+      body: numberOrFallback(settings.bodyFontSize, 14),
+      title: numberOrFallback(settings.headerFontSize, 29),
+      branch: 15,
+      section: 15,
+      customer: numberOrFallback(settings.customerFontSize, 25),
+      address: numberOrFallback(settings.customerContactFontSize, 19),
+      item: numberOrFallback(settings.productFontSize, 15),
+      qty: numberOrFallback(settings.quantityFontSize, 24),
+      total: numberOrFallback(settings.totalFontSize, 20),
+    };
+  }
+
+  if (settings.fontScale === "large") {
+    return {
+      body: numberOrFallback(settings.bodyFontSize, 13),
+      title: numberOrFallback(settings.headerFontSize, 27),
+      branch: 14,
+      section: 14,
+      customer: numberOrFallback(settings.customerFontSize, 23),
+      address: numberOrFallback(settings.customerContactFontSize, 18),
+      item: numberOrFallback(settings.productFontSize, 14),
+      qty: numberOrFallback(settings.quantityFontSize, 22),
+      total: numberOrFallback(settings.totalFontSize, 19),
+    };
+  }
+
+  return {
+    body: numberOrFallback(settings.bodyFontSize, 12),
+    title: numberOrFallback(settings.headerFontSize, 24),
+    branch: 13,
+    section: 12,
+    customer: numberOrFallback(settings.customerFontSize, 20),
+    address: numberOrFallback(settings.customerContactFontSize, 16),
+    item: numberOrFallback(settings.productFontSize, 13),
+    qty: numberOrFallback(settings.quantityFontSize, 20),
+    total: numberOrFallback(settings.totalFontSize, 17),
+  };
+};
+
+const mergeTicketSettings = (settings) => ({
+  ...defaultTicketSettings,
+  ...(settings || {}),
+});
+
+const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
+  const ticketSettings = mergeTicketSettings(settings);
+  const scale = getTicketFontScale(ticketSettings);
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
@@ -100,35 +183,37 @@ const buildReceiptHtml = ({ order, items }) => {
       <style>
         @page { size: 80mm auto; margin: 3mm; }
         * { box-sizing: border-box; }
-        body { width: 74mm; margin: 0 auto; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.28; }
-        h1 { margin: 0; font-size: 24px; line-height: 1; text-align: center; text-transform: uppercase; }
-        .branch { margin-top: 4px; text-align: center; font-size: 13px; font-weight: 900; }
+        body { width: 74mm; margin: 0 auto; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: ${scale.body}px; line-height: 1.28; }
+        h1 { margin: 0; font-size: ${scale.title}px; line-height: 1; text-align: center; text-transform: uppercase; }
+        .logo { display: block; max-width: 34mm; max-height: 22mm; object-fit: contain; margin: 0 auto 3px; }
+        .subtitle { margin-top: 2px; text-align: center; font-size: 11px; font-weight: 700; }
+        .branch { margin-top: 4px; text-align: center; font-size: ${scale.branch}px; font-weight: 900; }
         .contact { margin-top: 2px; text-align: center; font-size: 10.5px; }
         .rule { margin: 7px 0; border-top: 1px dashed #111; }
-        .section-title { margin-bottom: 4px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+        .section-title { margin-bottom: 4px; font-size: ${scale.section}px; font-weight: 900; text-transform: uppercase; }
         .meta { display: grid; gap: 2px; font-size: 11.5px; }
         .meta strong { font-size: 15px; }
         .customer-meta { gap: 3px; font-size: 13px; line-height: 1.25; }
-        .customer-meta strong { font-size: 20px; line-height: 1.05; text-transform: uppercase; }
-        .customer-address { font-size: 16px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-meta strong { font-size: ${scale.customer}px; line-height: 1.05; text-transform: uppercase; }
+        .customer-address { font-size: ${scale.address}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
         .customer-zone { font-size: 14px; font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
-        .customer-phone { font-size: 16px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-phone { font-size: ${scale.address}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
         .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: 16px; font-weight: 900; }
         .category-block { margin-top: 7px; break-inside: avoid; }
         .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; }
         .item { padding: 7px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
         .item-head { display: flex; justify-content: space-between; gap: 5px; align-items: baseline; }
-        .item-name { min-width: 0; font-weight: 900; font-size: 13px; overflow-wrap: anywhere; }
+        .item-name { min-width: 0; font-weight: 900; font-size: ${scale.item}px; overflow-wrap: anywhere; }
         .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 58px auto; gap: 4px; align-items: center; margin-top: 3px; }
         .item-values strong { font-size: 12.5px; white-space: nowrap; text-align: right; }
         .qty-box { display: grid; justify-items: center; text-align: center; }
-        .qty { font-size: 20px; font-weight: 900; letter-spacing: 0; line-height: 1; }
+        .qty { font-size: ${scale.qty}px; font-weight: 900; letter-spacing: 0; line-height: 1; }
         .qty-label { font-size: 10px; font-weight: 900; line-height: 1; }
         .item-detail { margin-top: 2px; color: #333; font-size: 10px; }
         .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: 8.5px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
         .totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; margin-top: 8px; font-size: 12.5px; }
         .totals strong { text-align: right; }
-        .total { padding-top: 5px; border-top: 2px solid #111; font-size: 17px; font-weight: 900; }
+        .total { padding-top: 5px; border-top: 2px solid #111; font-size: ${scale.total}px; font-weight: 900; }
         .policy { padding: 6px; border: 1px solid #111; font-size: 10px; line-height: 1.35; }
         .policy strong { display: block; margin-bottom: 3px; text-align: center; font-size: 11px; }
         .footer { margin-top: 8px; text-align: center; font-size: 10px; font-weight: 700; }
@@ -136,22 +221,24 @@ const buildReceiptHtml = ({ order, items }) => {
       </style>
     </head>
     <body>
-      <h1>Panaderia</h1>
-      <div class="branch">${escapeHtml(order.branch_name)}</div>
-      <div class="contact">
+      ${ticketSettings.showLogo && ticketSettings.logoDataUrl ? `<img class="logo" src="${escapeHtml(ticketSettings.logoDataUrl)}" alt="Logo" />` : ""}
+      <h1>${escapeHtml(ticketSettings.businessName || defaultTicketSettings.businessName)}</h1>
+      ${ticketSettings.businessSubtitle ? `<div class="subtitle">${escapeHtml(ticketSettings.businessSubtitle)}</div>` : ""}
+      ${ticketSettings.showBranchName ? `<div class="branch">${escapeHtml(order.branch_name)}</div>` : ""}
+      ${ticketSettings.showBranchContact ? `<div class="contact">
         ${escapeHtml(order.branch_address || "")}
         ${order.branch_phone ? `<br>Tel: ${escapeHtml(order.branch_phone)}` : ""}
-      </div>
+      </div>` : ""}
       <div class="rule"></div>
       <div class="order-number">PEDIDO #${Number(order.id)}</div>
       <div class="rule"></div>
       <div class="meta">
         <span>Fecha: ${escapeHtml(String(order.created_at || order.order_date).replace("T", " ").slice(0, 19))}</span>
-        <span>Entrega: ${escapeHtml(String(order.delivery_date || "Sin fecha").slice(0, 10))}</span>
-        <span>Vendedor: ${escapeHtml(order.sales_agent_name || "Sin vendedor")}</span>
+        ${ticketSettings.showDeliveryDate ? `<span>Entrega: ${escapeHtml(String(order.delivery_date || "Sin fecha").slice(0, 10))}</span>` : ""}
+        ${ticketSettings.showSeller ? `<span>Vendedor: ${escapeHtml(order.sales_agent_name || "Sin vendedor")}</span>` : ""}
       </div>
       <div class="rule"></div>
-      <div class="section-title">Cliente</div>
+      <div class="section-title">${escapeHtml(ticketSettings.customerTitle || defaultTicketSettings.customerTitle)}</div>
       <div class="meta customer-meta">
         <strong>${escapeHtml(order.customer_name)}</strong>
         <span>Identificacion: ${escapeHtml(order.customer_identification || "Sin identificacion")}</span>
@@ -160,7 +247,7 @@ const buildReceiptHtml = ({ order, items }) => {
         <span class="customer-phone">Tel: ${escapeHtml(order.customer_phone || "Sin telefono")}</span>
       </div>
       <div class="rule"></div>
-      <div class="section-title">Detalle solicitado</div>
+      <div class="section-title">${escapeHtml(ticketSettings.detailTitle || defaultTicketSettings.detailTitle)}</div>
       ${rows}
       <div class="totals">
         <span>Venta</span><strong>${money.format(saleTotal)}</strong>
@@ -172,13 +259,15 @@ const buildReceiptHtml = ({ order, items }) => {
       ${order.notes ? `<div class="rule"></div><div>Nota: ${escapeHtml(order.notes)}</div>` : ""}
       <div class="rule"></div>
       <div class="policy">
-        <strong>POLITICA DE CAMBIOS</strong>
-        Se realizan cambios por producto vencido, con moho, mojado o mal moldeado.
-        La vigencia es de 15 dias desde la entrega. El inconveniente debe reportarse
-        como maximo dentro de los 2 dias siguientes al vencimiento y requiere
-        autorizacion del vendedor.
+        <strong>${escapeHtml(ticketSettings.policyTitle || defaultTicketSettings.policyTitle)}</strong>
+        ${escapeHtml(ticketSettings.policyText || defaultTicketSettings.policyText)}
       </div>
-      <div class="footer">Gracias por su compra</div>
+      ${ticketSettings.showExtraLegend && ticketSettings.extraLegendText ? `<div class="rule"></div>
+      <div class="policy">
+        <strong>${escapeHtml(ticketSettings.extraLegendTitle || defaultTicketSettings.extraLegendTitle)}</strong>
+        ${escapeHtml(ticketSettings.extraLegendText)}
+      </div>` : ""}
+      <div class="footer">${escapeHtml(ticketSettings.footerText || defaultTicketSettings.footerText)}</div>
     </body>
   </html>`;
 };
@@ -200,7 +289,10 @@ const OrderPrintManager = ({ order, onConfirmed }) => {
     popup.document.write("<p style='font-family:Arial;padding:20px'>Preparando comprobante...</p>");
     setLoading(true);
     try {
-      const response = await ordersService.getOrderPrintData(Number(order.id));
+      const [response, settingsResponse] = await Promise.all([
+        ordersService.getOrderPrintData(Number(order.id)),
+        settingsService.getPosTicketSettings().catch(() => null),
+      ]);
       if (response?.code !== 1) {
         popup.close();
         toast.error(response?.message || "No se pudo preparar la impresion");
@@ -209,7 +301,7 @@ const OrderPrintManager = ({ order, onConfirmed }) => {
 
       setPrintData(response.data);
       popup.document.open();
-      popup.document.write(buildReceiptHtml(response.data));
+      popup.document.write(buildReceiptHtml(response.data, settingsResponse?.data));
       popup.document.close();
       popup.focus();
       window.setTimeout(() => {

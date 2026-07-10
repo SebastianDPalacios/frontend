@@ -1,4 +1,4 @@
-import { Box, Chip, Stack } from "@mui/material";
+import { Box, Chip, Grid } from "@mui/material";
 import SectionHeader from "components/atoms/SectionHeader";
 import DashboardSignalCard from "components/molecules/dashboard/DashboardSignalCard";
 
@@ -14,11 +14,13 @@ const DashboardOperationalSignals = ({ signals }) => {
         subtitle="Revisa primero lo que puede detener ventas, producción o inventario."
         action={<Chip label={`${signals.length} por revisar`} color="warning" variant="outlined" />}
       />
-      <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+      <Grid container spacing={1.5} sx={{ mt: 0.25 }}>
         {signals.map((signal) => (
-          <DashboardSignalCard {...signal} key={signal.title} />
+          <Grid item xs={12} sm={6} lg={signals.length > 3 ? 4 : 12 / signals.length} key={signal.title}>
+            <DashboardSignalCard {...signal} />
+          </Grid>
         ))}
-      </Stack>
+      </Grid>
     </Box>
   );
 };

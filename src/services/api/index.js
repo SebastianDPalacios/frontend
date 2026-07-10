@@ -9,6 +9,9 @@ const endpoints = {
     list: "/users",
     byId: (id) => `/users/${id}`,
   },
+  dashboard: {
+    monthly: "/dashboard/monthly",
+  },
   employees: {
     list: "/employees",
     create: "/employees",
@@ -107,6 +110,9 @@ const endpoints = {
   },
   reports: {
     audit: "/reports/audit",
+  },
+  settings: {
+    posTicket: "/settings/pos-ticket",
   },
   adminAuth: {
     users: "/admin-auth/users",

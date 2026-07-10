@@ -1,24 +1,23 @@
-import { Box, Grid, Paper, Stack, Typography } from "@mui/material";
+import { Box, Chip, Grid, LinearProgress, Paper, Stack, Typography } from "@mui/material";
 import PeopleIcon from "@mui/icons-material/People";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
-import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import WarehouseIcon from "@mui/icons-material/Warehouse";
-import SyncAltIcon from "@mui/icons-material/SyncAlt";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import PaymentsIcon from "@mui/icons-material/Payments";
-import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
-import DashboardActionCard from "components/molecules/dashboard/DashboardActionCard";
 import DashboardMetricCard from "components/molecules/dashboard/DashboardMetricCard";
-import DashboardActionSection from "components/organisms/dashboard/DashboardActionSection";
 import DashboardOperationalSignals from "components/organisms/dashboard/DashboardOperationalSignals";
 import DashboardWelcomePanel from "components/organisms/dashboard/DashboardWelcomePanel";
+
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
+const moneyFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 0,
+  style: "currency",
+  currency: "COP",
+});
 
 const hasPermission = (user, permission) => {
   const roles = Array.isArray(user?.roles) ? user.roles : [];
@@ -28,82 +27,81 @@ const hasPermission = (user, permission) => {
 
 const getUserLabel = (user) => user?.full_name || user?.username || "Usuario";
 
+const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
+
+const MonthlyRankingCard = ({ title, subtitle, rows = [], valueKey, helperKey, formatter = formatNumber, emptyText }) => {
+  const topRows = rows.slice(0, 3);
+  const maxValue = topRows.reduce((max, row) => Math.max(max, Number(row[valueKey] || 0)), 0);
+
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.25 }, height: "100%" }}>
+      <Stack spacing={1.75}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
+            {title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {subtitle}
+          </Typography>
+        </Box>
+
+        {topRows.length === 0 ? (
+          <Box sx={{ borderRadius: 3, bgcolor: "rgba(59,130,246,0.08)", px: 1.5, py: 1.25 }}>
+            <Typography variant="body2" color="text.secondary">
+              {emptyText || "Sin datos para este mes."}
+            </Typography>
+          </Box>
+        ) : (
+          <Stack spacing={1.35}>
+            {topRows.map((row, index) => {
+              const value = Number(row[valueKey] || 0);
+              const percent = maxValue > 0 ? Math.max((value / maxValue) * 100, 4) : 0;
+
+              return (
+                <Box key={`${row.name}-${index}`}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "baseline", justifyContent: "space-between", minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                      {index + 1}. {row.name}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 900, flexShrink: 0 }}>
+                      {formatter(value)}
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={percent}
+                    color={index === 0 ? "secondary" : "primary"}
+                    sx={{
+                      height: 8,
+                      borderRadius: 999,
+                      mt: 0.65,
+                      bgcolor: "rgba(17,24,39,0.08)",
+                      "& .MuiLinearProgress-bar": { borderRadius: 999 },
+                    }}
+                  />
+                  {helperKey ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {formatNumber(row[helperKey])} {helperKey === "orders_count" ? "pedido(s)" : "bulto(s)"}
+                    </Typography>
+                  ) : null}
+                </Box>
+              );
+            })}
+          </Stack>
+        )}
+      </Stack>
+    </Paper>
+  );
+};
+
 const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
   const canManageUsers = hasPermission(currentUser, "users.manage");
-  const canManageRoles = hasPermission(currentUser, "roles.manage");
   const canManageCustomers = hasPermission(currentUser, "customers.manage");
   const canManageProducts = hasPermission(currentUser, "products.manage");
-  const canManageMaterials = hasPermission(currentUser, "materials.manage");
-  const canManageRecipes = hasPermission(currentUser, "recipes.manage");
   const canManageOrders = hasPermission(currentUser, "orders.manage");
   const canManageProduction = hasPermission(currentUser, "production.manage");
   const canManageInventory = hasPermission(currentUser, "inventory.manage");
-
-  const salesActions = [
-    canManageOrders
-      ? { title: "Crear pedido", description: "Captura pedidos para tus clientes asignados.", href: "/orders/count", label: "Crear", icon: <ShoppingCartIcon />, primary: true }
-      : null,
-    canManageOrders
-      ? { title: "Gestionar pedidos", description: "Confirma, despacha, registra entregas o cancela pedidos.", href: "/orders/history", label: "Gestionar", icon: <ReceiptLongIcon /> }
-      : null,
-    canManageOrders
-      ? { title: "Liquidación diaria", description: "Consulta ventas entregadas, comisión y dinero por entregar.", href: "/orders/daily-settlement", label: "Ver liquidación", icon: <PaymentsIcon /> }
-      : null,
-    canManageOrders
-      ? { title: "Cambios y devoluciones", description: "Registra y autoriza solicitudes sobre pedidos entregados.", href: "/orders/returns", label: "Gestionar", icon: <AssignmentReturnIcon /> }
-      : null,
-    canManageCustomers
-      ? { title: "Clientes", description: "Consulta, crea y actualiza clientes activos.", href: "/catalogo/clientes", label: "Ver clientes", icon: <StorefrontIcon /> }
-      : null,
-    canManageRoles
-      ? { title: "Clientes por vendedor", description: "Asigna y reasigna clientes a vendedores externos.", href: "/orders/customer-assignments", label: "Asignar clientes", icon: <PeopleIcon /> }
-      : null,
-  ].filter(Boolean);
-
-  const productionActions = [
-    canManageProduction
-      ? { title: "Lotes y empaque", description: "Crea lotes con la receta vigente y registra lo empacado o dañado.", href: "/production/packaging", label: "Gestionar lotes", icon: <FactCheckIcon />, primary: true }
-      : null,
-    canManageProduction
-      ? { title: "Resumen del día", description: "Revisa lotes, productos listos, daños y pendientes del día.", href: "/production/day", label: "Ver diario", icon: <ReceiptLongIcon /> }
-      : null,
-    canManageProduction
-      ? { title: "Reporte mensual", description: "Consulta producción, costos, panaderos y empacadores del mes.", href: "/production/month", label: "Ver mensual", icon: <SyncAltIcon /> }
-      : null,
-    canManageRecipes
-      ? { title: "Recetas", description: "Gestiona recetas, productos finales y nuevas versiones.", href: "/recipes", label: "Ver recetas", icon: <RestaurantMenuIcon /> }
-      : null,
-  ].filter(Boolean);
-
-  const inventoryActions = [
-    canManageInventory
-      ? { title: "Stock", description: "Consulta existencias y productos críticos.", href: "/inventory/overview", label: "Ver stock", icon: <WarehouseIcon />, primary: true }
-      : null,
-    canManageInventory
-      ? { title: "Movimientos", description: "Registra entradas, salidas y ajustes manuales.", href: "/inventory/movements", label: "Mover stock", icon: <SyncAltIcon /> }
-      : null,
-    canManageInventory
-      ? { title: "Compras", description: "Crea y recibe órdenes de compra.", href: "/inventory/purchase-orders", label: "Ver compras", icon: <ReceiptLongIcon /> }
-      : null,
-    canManageMaterials
-      ? { title: "Materias primas", description: "Gestiona insumos y base de recetas.", href: "/catalogo/materias-primas", label: "Ver insumos", icon: <Inventory2Icon /> }
-      : null,
-  ].filter(Boolean);
-
-  const adminActions = [
-    canManageUsers
-      ? { title: "Usuarios", description: "Administra usuarios, estado y sesiones.", href: "/users/list", label: "Ver usuarios", icon: <PeopleIcon />, primary: true }
-      : null,
-    canManageRoles
-      ? { title: "Roles y permisos", description: "Configura permisos visibles por rol.", href: "/users/roles", label: "Permisos", icon: <AdminPanelSettingsIcon /> }
-      : null,
-    canManageProducts
-      ? { title: "Productos", description: "Administra productos disponibles para venta.", href: "/catalogo/productos", label: "Ver productos", icon: <Inventory2Icon /> }
-      : null,
-    canManageMaterials
-      ? { title: "Proveedores", description: "Mantiene proveedores para compras e insumos.", href: "/catalogo/proveedores", label: "Ver proveedores", icon: <StorefrontIcon /> }
-      : null,
-  ].filter(Boolean);
 
   const signals = [
     canManageOrders && insights.orders
@@ -163,23 +161,7 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
       : null,
   ].filter(Boolean);
 
-  const primaryActions = [
-    canManageOrders
-      ? { title: "Crear pedido", description: "Captura una venta para clientes asignados.", href: "/orders/count", label: "Crear pedido", icon: <ShoppingCartIcon />, primary: true }
-      : null,
-    canManageOrders
-      ? { title: "Gestion diaria", description: "Confirma, despacha y entrega pedidos de hoy.", href: "/orders/history", label: "Abrir gestion", icon: <ReceiptLongIcon />, primary: true }
-      : null,
-    canManageInventory
-      ? { title: "Salida a puerta", description: "Descuenta productos terminados del inventario.", href: "/inventory/door-exit", label: "Registrar salida", icon: <WarehouseIcon />, primary: true }
-      : null,
-    canManageProduction
-      ? { title: "Lotes y empaque", description: "Registra fabricados, empacados y faltantes.", href: "/production/packaging", label: "Abrir lotes", icon: <FactCheckIcon />, primary: true }
-      : null,
-  ].filter(Boolean);
-
-  const isPrimaryAction = (action) => primaryActions.some((primary) => primary.href === action.href);
-
+  const monthly = insights.monthly || {};
   return (
     <>
       <DashboardWelcomePanel
@@ -188,6 +170,51 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
         canManageProduction={canManageProduction}
         canManageInventory={canManageInventory}
       />
+
+      <Box sx={{ mb: 3 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 1.5 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Comportamiento del mes
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Vendedores, productos y recetas con mayor movimiento en {monthly.month || "el mes actual"}.
+            </Typography>
+          </Box>
+          <Chip label={monthly.date_from && monthly.date_to ? `${monthly.date_from} / ${monthly.date_to}` : "Mes actual"} color="secondary" variant="outlined" />
+        </Stack>
+        <Grid container spacing={2}>
+          <Grid item xs={12} lg={4}>
+            <MonthlyRankingCard
+              title="Vendedores con mas ventas"
+              subtitle="Total vendido por vendedor."
+              rows={monthly.top_sellers || []}
+              valueKey="total_sales"
+              helperKey="orders_count"
+              formatter={formatMoney}
+            />
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <MonthlyRankingCard
+              title="Producto mas vendido"
+              subtitle="Unidades solicitadas en pedidos."
+              rows={monthly.top_products || []}
+              valueKey="quantity"
+              formatter={(value) => `${formatNumber(value)} und`}
+            />
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <MonthlyRankingCard
+              title="Receta mas hecha"
+              subtitle="Bultos registrados en produccion."
+              rows={monthly.top_recipes || []}
+              valueKey="batch_quantity"
+              helperKey="batches_count"
+              formatter={(value) => `${formatNumber(value)} bulto(s)`}
+            />
+          </Grid>
+        </Grid>
+      </Box>
 
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
         {canManageOrders && insights.orders ? (
@@ -220,39 +247,10 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
         ) : null}
       </Grid>
 
-      <Grid container spacing={2.5} sx={{ alignItems: "stretch", mb: 3 }}>
-        <Grid item xs={12} lg={7}>
-          <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                  Acciones rapidas
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Las tareas que mas se usan durante el dia.
-                </Typography>
-              </Box>
-              <Grid container spacing={1.5}>
-                {primaryActions.map((action) => (
-                  <Grid item xs={12} sm={6} key={action.href}>
-                    <DashboardActionCard {...action} />
-                  </Grid>
-                ))}
-              </Grid>
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} lg={5}>
-          <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
-            <DashboardOperationalSignals signals={signals} />
-          </Paper>
-        </Grid>
-      </Grid>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, mb: 3 }}>
+        <DashboardOperationalSignals signals={signals} />
+      </Paper>
 
-      <DashboardActionSection title="Mas opciones de ventas" subtitle="Liquidaciones, clientes y devoluciones." actions={salesActions.filter((action) => !isPrimaryAction(action))} />
-      <DashboardActionSection title="Produccion" subtitle="Reportes, recetas y resumen diario." actions={productionActions.filter((action) => !isPrimaryAction(action))} />
-      <DashboardActionSection title="Inventario" subtitle="Stock, movimientos, compras e insumos." actions={inventoryActions.filter((action) => !isPrimaryAction(action))} />
-      <DashboardActionSection title="Administracion" subtitle="Usuarios, permisos y catalogos." actions={adminActions} />
     </>
   );
 };

@@ -6,6 +6,7 @@ import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
 import productionService from "services/production/production-service";
 import inventoryService from "services/inventory/inventory-service";
+import dashboardService from "services/dashboard/dashboard-service";
 import DashboardView from "views/dashboard/DashboardView";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
@@ -37,6 +38,7 @@ const AnalyticsPage = () => {
     production: null,
     shortages: null,
     inventory: null,
+    monthly: null,
   });
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -70,9 +72,12 @@ const AnalyticsPage = () => {
           inventory: hasPermission(user, "inventory.manage")
             ? inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 80 })
             : Promise.resolve(null),
+          monthly: hasPermission(user, "reports.view")
+            ? dashboardService.getMonthly({ month: new Date().toISOString().slice(0, 7) })
+            : Promise.resolve(null),
         };
 
-        const [users, customers, products, orders, production, shortages, inventory] = await Promise.allSettled([
+        const [users, customers, products, orders, production, shortages, inventory, monthly] = await Promise.allSettled([
           requests.users,
           requests.customers,
           requests.products,
@@ -80,6 +85,7 @@ const AnalyticsPage = () => {
           requests.production,
           requests.shortages,
           requests.inventory,
+          requests.monthly,
         ]);
 
         const getTotal = (result) => {
@@ -148,6 +154,9 @@ const AnalyticsPage = () => {
                   return stock <= 0 || (min > 0 && stock < min);
                 }).length,
               }
+            : null,
+          monthly: requests.monthly && monthly.status === "fulfilled" && monthly.value?.code === 1
+            ? monthly.value.data
             : null,
         });
       } catch (err) {
