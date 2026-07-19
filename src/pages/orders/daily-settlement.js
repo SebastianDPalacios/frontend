@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -82,12 +82,37 @@ const Metric = ({ label, value, helper }) => (
 const buildSettlementReceipt = (data) => {
   const summary = data.summary || {};
   const dailyOrderNumbers = getDailyOrderNumbers(data.items || []);
-  const rows = (data.items || []).map((item) => `
-    <div class="row">
-      <div class="customer">${escapeHtml(item.customer_name)}</div>
+  const rows = (data.items || []).map((item) => {
+    const orderNumber = dailyOrderNumbers[String(item.order_id)] || Number(item.order_id);
+    const grossSale = Number(item.delivered_sales_total || 0);
+    const creditUsed = Number(item.credit_redeemed_amount || 0);
+    const collectedSale = Number(item.collected_sales_total ?? Math.max(grossSale - creditUsed, 0));
+
+    return `
+      <div class="row">
+        <div class="customer">${escapeHtml(item.customer_name)}</div>
+        <div class="values">
+          <span>Pedido #${orderNumber}</span>
+          <strong>${money.format(collectedSale)}</strong>
+        </div>
+        <div class="values muted">
+          <span>Venta bruta</span>
+          <span>${money.format(grossSale)}</span>
+        </div>
+        ${creditUsed > 0 ? `<div class="values muted"><span>Saldo aplicado</span><span>-${money.format(creditUsed)}</span></div>` : ""}
+        <div class="values muted">
+          <span>Venta cobrada</span>
+          <span>${money.format(collectedSale)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  const giftRows = (data.gifts || []).map((gift) => `
+    <div class="row gift-row">
+      <div class="customer">${escapeHtml(gift.customer_name)}</div>
       <div class="values">
-        <span>Pedido #${dailyOrderNumbers[String(item.order_id)] || Number(item.order_id)}</span>
-        <strong>${money.format(Number(item.delivered_sales_total || 0))}</strong>
+        <span>${escapeHtml(gift.products_summary || "Obsequio")}</span>
+        <strong>${money.format(Number(gift.total_commercial_value || 0))}</strong>
       </div>
     </div>
   `).join("");
@@ -109,6 +134,7 @@ const buildSettlementReceipt = (data) => {
         .row { padding: 5px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
         .customer { font-size: 11.5px; font-weight: 900; }
         .values { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+        .muted { color: #444; font-size: 10px; }
         .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 8px; font-size: 11.5px; }
         .totals strong { text-align: right; }
         .deliver { padding-top: 5px; border-top: 2px solid #111; font-size: 15px; font-weight: 900; }
@@ -126,9 +152,14 @@ const buildSettlementReceipt = (data) => {
       </div>
       <div class="rule"></div>
       ${rows || "<div>Sin ventas entregadas en esta fecha.</div>"}
+      ${giftRows ? `<div class="rule"></div><strong>OBSEQUIOS REGISTRADOS</strong>${giftRows}` : ""}
       <div class="totals">
-        <span>VENTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>
-        <span>DEVOLUCIONES</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>
+        <span>VENTA BRUTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>
+        <span>SALDO APLICADO</span><strong>-${money.format(Number(summary.credit_redeemed_amount || 0))}</strong>
+        <span>VENTA COBRADA</span><strong>${money.format(Number(summary.collected_sales_total ?? Math.max(Number(summary.delivered_sales_total || 0) - Number(summary.credit_redeemed_amount || 0), 0)))}</strong>
+        <span>CAMBIOS</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>
+        <span>SALDO GENERADO</span><strong>${money.format(Number(summary.credit_generated_total || 0))}</strong>
+        <span>OBSEQUIOS</span><strong>${money.format(Number(summary.gift_total || 0))}</strong>
         <span>COMISION</span><strong>${money.format(Number(summary.commission_amount || 0))}</strong>
         <span class="deliver">ENTREGAR</span><strong class="deliver">${money.format(Number(summary.amount_to_deliver || 0))}</strong>
       </div>
@@ -180,8 +211,8 @@ const DailySettlementPage = () => {
   }, [date, sellerId]);
 
   const printSettlement = () => {
-    if (!data?.seller || !(data?.items || []).length) {
-      toast.error("No hay ventas entregadas para imprimir");
+    if (!data?.seller || (!(data?.items || []).length && !(data?.gifts || []).length)) {
+      toast.error("No hay ventas u obsequios para imprimir");
       return;
     }
 
@@ -200,7 +231,14 @@ const DailySettlementPage = () => {
   const summary = data?.summary || {};
   const sellers = useMemo(() => (Array.isArray(data?.sellers) ? data.sellers : []), [data?.sellers]);
   const items = useMemo(() => (Array.isArray(data?.items) ? data.items : []), [data?.items]);
+  const gifts = useMemo(() => (Array.isArray(data?.gifts) ? data.gifts : []), [data?.gifts]);
+  const creditsGenerated = useMemo(() => (Array.isArray(data?.credits_generated) ? data.credits_generated : []), [data?.credits_generated]);
   const dailyOrderNumbers = useMemo(() => getDailyOrderNumbers(items), [items]);
+  const grossSalesTotal = Number(summary.delivered_sales_total || 0);
+  const creditAppliedTotal = Number(summary.credit_redeemed_amount || 0);
+  const collectedSalesTotal = Number(
+    summary.collected_sales_total ?? Math.max(grossSalesTotal - creditAppliedTotal, 0)
+  );
 
   return (
     <FlowPageLayout
@@ -239,7 +277,7 @@ const DailySettlementPage = () => {
             color="secondary"
             startIcon={<PrintRoundedIcon />}
             onClick={printSettlement}
-            disabled={loading || !items.length}
+            disabled={loading || (!items.length && !gifts.length)}
           >
             Imprimir cierre
           </Button>
@@ -250,23 +288,31 @@ const DailySettlementPage = () => {
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Calculando liquidacion...</Alert> : null}
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6} md={2.4}>
-          <Metric label="Pedidos" value={Number(summary.order_count || 0)} />
+        <Grid item xs={6} md={3}>
+          <Metric label="Pedidos" value={Number(summary.order_count || 0)} helper="Entregados del dia" />
         </Grid>
-        <Grid item xs={6} md={2.4}>
-          <Metric label="Ventas entregadas" value={money.format(Number(summary.delivered_sales_total || 0))} />
+        <Grid item xs={6} md={3}>
+          <Metric label="Venta bruta" value={money.format(grossSalesTotal)} helper="Antes de saldos" />
         </Grid>
-        <Grid item xs={6} md={2.4}>
-          <Metric label="Devoluciones" value={money.format(Number(summary.returned_sales_total || 0))} />
+        <Grid item xs={6} md={3}>
+          <Metric label="Saldo aplicado" value={money.format(creditAppliedTotal)} helper="Reduce efectivo" />
         </Grid>
-        <Grid item xs={6} md={2.4}>
-          <Metric label="Comision" value={money.format(Number(summary.commission_amount || 0))} helper="Segun porcentaje registrado" />
+        <Grid item xs={6} md={3}>
+          <Metric label="Venta cobrada" value={money.format(collectedSalesTotal)} helper="Venta bruta menos saldo" />
         </Grid>
-        <Grid item xs={12} md={2.4}>
-          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper="Venta menos comision" />
+        <Grid item xs={6} md={3}>
+          <Metric label="Comision" value={money.format(Number(summary.commission_amount || 0))} helper="Solo sobre venta" />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper="Venta cobrada menos comision" />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Metric label="Cambios" value={money.format(Number(summary.returned_sales_total || 0))} helper={`Saldo generado: ${money.format(Number(summary.credit_generated_total || 0))}`} />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Metric label="Obsequios" value={money.format(Number(summary.gift_total || 0))} helper={`${Number(summary.gift_count || 0)} registro(s), no comisiona`} />
         </Grid>
       </Grid>
-
       <Paper variant="outlined" sx={{ borderRadius: 2, p: { xs: 2, md: 3 } }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", mb: 2 }}>
           <Box>
@@ -304,6 +350,18 @@ const DailySettlementPage = () => {
                     <Typography variant="body2">Venta</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 800 }}>{money.format(Number(item.delivered_sales_total || 0))}</Typography>
                   </Stack>
+                  {Number(item.credit_redeemed_amount || 0) > 0 ? (
+                    <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                      <Typography variant="body2">Saldo aplicado</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>-{money.format(Number(item.credit_redeemed_amount || 0))}</Typography>
+                    </Stack>
+                  ) : null}
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="body2">Venta cobrada</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                      {money.format(Number(item.collected_sales_total ?? Math.max(Number(item.delivered_sales_total || 0) - Number(item.credit_redeemed_amount || 0), 0)))}
+                    </Typography>
+                  </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography variant="body2">Comision ({Number(item.commission_percent || 0)}%)</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 800 }}>{money.format(Number(item.commission_amount || 0))}</Typography>
@@ -318,8 +376,99 @@ const DailySettlementPage = () => {
           ))}
         </Grid>
       </Paper>
+
+      <Paper variant="outlined" sx={{ borderRadius: 2, p: { xs: 2, md: 3 }, mt: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Saldos a favor generados
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Cambios autorizados que quedan disponibles para el cliente.
+            </Typography>
+          </Box>
+          <Chip label={`${creditsGenerated.length} saldo(s)`} variant="outlined" color="success" />
+        </Stack>
+        {!loading && !creditsGenerated.length ? (
+          <Alert severity="info">No hay saldos generados para esta fecha.</Alert>
+        ) : null}
+        <Grid container spacing={2}>
+          {creditsGenerated.map((credit) => (
+            <Grid item xs={12} md={6} xl={4} key={credit.id}>
+              <Paper variant="outlined" sx={{ borderRadius: 2, p: 2, height: "100%", borderColor: "success.light" }}>
+                <Stack spacing={1}>
+                  <Typography sx={{ fontWeight: 900 }}>{credit.customer_name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Pedido #{dailyOrderNumbers[String(credit.order_id)] || credit.order_id} - {credit.sales_agent_name || "Sin vendedor"}
+                  </Typography>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="body2">Saldo generado</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{money.format(Number(credit.amount || 0))}</Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">Saldo cliente: {money.format(Number(credit.balance_after || 0))}</Typography>
+                </Stack>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
+      <Paper variant="outlined" sx={{ borderRadius: 2, p: { xs: 2, md: 3 }, mt: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Obsequios registrados
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pan entregado como obsequio. No suma a venta, vendaje ni comision.
+            </Typography>
+          </Box>
+          <Chip label={`${gifts.length} obsequio(s)`} variant="outlined" color="success" />
+        </Stack>
+        {!loading && !gifts.length ? (
+          <Alert severity="info">No hay obsequios registrados para esta fecha.</Alert>
+        ) : null}
+        <Grid container spacing={2}>
+          {gifts.map((gift) => (
+            <Grid item xs={12} md={6} xl={4} key={gift.sales_gift_id}>
+              <Paper variant="outlined" sx={{ borderRadius: 2, p: 2, height: "100%", borderColor: "success.light" }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 900 }}>{gift.customer_name}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {gift.sales_agent_name || "Sin vendedor"} - {formatDate(gift.gift_date)}
+                      </Typography>
+                    </Box>
+                    <Chip size="small" color="success" variant="outlined" label="Obsequio" />
+                  </Stack>
+                  <Typography variant="body2" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                    {gift.products_summary || "Sin productos"}
+                  </Typography>
+                  {gift.notes ? <Typography variant="body2" color="text.secondary">{gift.notes}</Typography> : null}
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="body2">Valor comercial</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{money.format(Number(gift.total_commercial_value || 0))}</Typography>
+                  </Stack>
+                </Stack>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
     </FlowPageLayout>
   );
 };
 
 export default DailySettlementPage;
+
+
+
+
+
+
+
+
+
+
+
+

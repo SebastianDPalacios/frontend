@@ -40,7 +40,16 @@ import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
 import productionService from "services/production/production-service";
 import navigationItems from "configs/navigation";
-import { isSalesOnlyUser, salesOnlyPaths } from "configs/access";
+import {
+  bakerOnlyPaths,
+  canAccessPath,
+  hasPermission,
+  isBakerOnlyUser,
+  isPackagingOnlyUser,
+  isSalesOnlyUser,
+  packagingOnlyPaths,
+  salesOnlyPaths,
+} from "configs/access";
 
 const drawerWidth = 280;
 const mobileDrawerWidth = "84vw";
@@ -60,18 +69,17 @@ const getUserInitials = (user) => {
   return displayName.slice(0, 2).toUpperCase();
 };
 
-const hasPermission = (user, permission) => {
-  if (!permission) {
-    return true;
-  }
-
-  const roles = Array.isArray(user?.roles) ? user.roles : [];
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return roles.includes("ADMIN") || roles.includes("SUPER_ADMIN") || permissions.includes(permission);
-};
-
 const filterNavigationByUser = (items, user) => {
   const salesOnly = isSalesOnlyUser(user);
+  const bakerOnly = isBakerOnlyUser(user);
+  const packagingOnly = isPackagingOnlyUser(user);
+  const focusedPaths = salesOnly
+    ? salesOnlyPaths
+    : packagingOnly
+      ? packagingOnlyPaths
+      : bakerOnly
+        ? bakerOnlyPaths
+        : null;
 
   return items
     .map((section) => {
@@ -87,7 +95,7 @@ const filterNavigationByUser = (items, user) => {
                 return false;
               }
 
-              if (salesOnly && !salesOnlyPaths.includes(child.path)) {
+              if (focusedPaths && !focusedPaths.includes(child.path)) {
                 return false;
               }
 
@@ -96,7 +104,7 @@ const filterNavigationByUser = (items, user) => {
             return children.length ? { ...item, children } : null;
           }
 
-          if (salesOnly && !salesOnlyPaths.includes(item.path)) {
+          if (focusedPaths && !focusedPaths.includes(item.path)) {
             return null;
           }
 
@@ -108,6 +116,32 @@ const filterNavigationByUser = (items, user) => {
     })
     .filter(Boolean);
 };
+
+
+const flattenNavigationPaths = (items) => {
+  const paths = [];
+
+  items.forEach((section) => {
+    section.items.forEach((item) => {
+      if (item.children?.length) {
+        item.children.forEach((child) => {
+          if (child.path) {
+            paths.push(child);
+          }
+        });
+        return;
+      }
+
+      if (item.path) {
+        paths.push(item);
+      }
+    });
+  });
+
+  return paths;
+};
+
+const protectedNavigationPaths = flattenNavigationPaths(navigationItems);
 
 const iconMap = {
   dashboard: DashboardRoundedIcon,
@@ -156,6 +190,13 @@ const UserLayout = ({ children }) => {
     () => filterNavigationByUser(navigationItems, currentUser),
     [currentUser]
   );
+
+  const activeRoute = useMemo(
+    () => protectedNavigationPaths.find((item) => router.pathname === item.path || router.pathname.startsWith(item.path + "/")),
+    [router.pathname]
+  );
+  const routeAllowed = canAccessPath(currentUser, router.pathname)
+    && (!activeRoute || hasPermission(currentUser, activeRoute.permission));
 
   const activeGroups = useMemo(() => {
     const groups = {};
@@ -251,6 +292,28 @@ const UserLayout = ({ children }) => {
 
     return <IconComponent fontSize={size} />;
   };
+
+
+  const guardedChildren = routeAllowed ? children : (
+    <Container maxWidth={false} sx={{ py: { xs: 3, md: 4 } }}>
+      <Box
+        sx={{
+          p: { xs: 3, md: 4 },
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 4,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 900, mb: 1 }}>
+          Acceso no permitido
+        </Typography>
+        <Typography color="text.secondary">
+          Tu usuario no tiene permiso para abrir esta vista. Si necesitas entrar, solicita el permiso al administrador.
+        </Typography>
+      </Box>
+    </Container>
+  );
 
   const drawer = (
     <Box
@@ -570,7 +633,7 @@ const UserLayout = ({ children }) => {
         <Box component="main" sx={{ flexGrow: 1, width: "100%", minWidth: 0 }}>
           <Toolbar />
           <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 1.5, sm: 2, md: 3 } }}>
-            {children}
+            {guardedChildren}
           </Container>
         </Box>
       </Box>

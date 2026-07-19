@@ -1,4 +1,4 @@
-import { Alert, Box, Divider, LinearProgress, Stack, Typography } from "@mui/material";
+﻿import { Alert, Box, Divider, LinearProgress, Stack, Typography } from "@mui/material";
 import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 
 const MoneyRow = ({ label, value, strong = false }) => (
@@ -12,10 +12,12 @@ const MoneyRow = ({ label, value, strong = false }) => (
   </Stack>
 );
 
-const OrderDraftSummary = ({ summary, settings }) => {
+const OrderDraftSummary = ({ summary, settings, creditAvailable = 0, creditRedeemed = 0 }) => {
   const allowed = Number(summary.allowedBonus || 0);
   const used = Number(summary.bonusTotal || 0);
   const progress = allowed > 0 ? Math.min((used / allowed) * 100, 100) : 0;
+  const finalTotal = Math.max(Number(summary.saleTotal || 0) - Number(creditRedeemed || 0), 0);
+  const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
 
   return (
     <Stack spacing={1.5}>
@@ -24,10 +26,30 @@ const OrderDraftSummary = ({ summary, settings }) => {
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} />
       <MoneyRow label="Vendaje seleccionado" value={summary.bonusTotal} />
-      <MoneyRow label="Obsequios" value={summary.giftTotal} />
-      <MoneyRow label="Cambios" value={summary.exchangeTotal} />
+
+      {creditAvailable > 0 ? (
+        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "success.lighter", border: "1px solid", borderColor: "success.light" }}>
+          <Stack spacing={1}>
+            <MoneyRow label="Saldo a favor disponible" value={creditAvailable} />
+            {Number(creditRedeemed || 0) > 0 ? (
+              <>
+                <MoneyRow label="Saldo aplicado automaticamente" value={creditRedeemed} />
+                <MoneyRow label="Saldo restante estimado" value={remainingCredit} />
+                <Typography variant="caption" color="text.secondary">
+                  Se descuenta automaticamente al entregar el pedido. No se imprime en el ticket POS.
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                El saldo se descontara automaticamente cuando agregues productos de venta.
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+      ) : null}
+
       <Divider />
-      <MoneyRow label="Total a cobrar" value={summary.saleTotal} strong />
+      <MoneyRow label="Total a cobrar" value={finalTotal} strong />
 
       <Box>
         <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>

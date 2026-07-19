@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Alert,
   Box,
@@ -57,6 +57,15 @@ const defaultTicketSettings = {
   showSeller: true,
   showDeliveryDate: true,
   customerTitle: "CLIENTE",
+  showCustomerName: true,
+  showCustomerIdentification: true,
+  showCustomerAddress: true,
+  showCustomerNeighborhood: true,
+  showCustomerPhone: true,
+  customerIdentificationLabel: "Identificacion",
+  customerAddressLabel: "Direccion",
+  customerNeighborhoodLabel: "Barrio/Zona",
+  customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
   policyTitle: "POLITICA DE CAMBIOS",
   policyText:
@@ -67,6 +76,10 @@ const defaultTicketSettings = {
   headerFontSize: 24,
   customerFontSize: 20,
   customerContactFontSize: 16,
+  customerIdentificationFontSize: 13,
+  customerAddressFontSize: 16,
+  customerNeighborhoodFontSize: 15,
+  customerPhoneFontSize: 16,
   productFontSize: 13,
   quantityFontSize: 20,
   totalFontSize: 17,
@@ -88,7 +101,10 @@ const getTicketFontScale = (settings) => {
       branch: 15,
       section: 15,
       customer: numberOrFallback(settings.customerFontSize, 25),
-      address: numberOrFallback(settings.customerContactFontSize, 19),
+      identification: numberOrFallback(settings.customerIdentificationFontSize, settings.customerContactFontSize || 13),
+      address: numberOrFallback(settings.customerAddressFontSize, settings.customerContactFontSize || 19),
+      neighborhood: numberOrFallback(settings.customerNeighborhoodFontSize, settings.customerContactFontSize || 15),
+      phone: numberOrFallback(settings.customerPhoneFontSize, settings.customerContactFontSize || 19),
       item: numberOrFallback(settings.productFontSize, 15),
       qty: numberOrFallback(settings.quantityFontSize, 24),
       total: numberOrFallback(settings.totalFontSize, 20),
@@ -102,7 +118,10 @@ const getTicketFontScale = (settings) => {
       branch: 14,
       section: 14,
       customer: numberOrFallback(settings.customerFontSize, 23),
-      address: numberOrFallback(settings.customerContactFontSize, 18),
+      identification: numberOrFallback(settings.customerIdentificationFontSize, settings.customerContactFontSize || 13),
+      address: numberOrFallback(settings.customerAddressFontSize, settings.customerContactFontSize || 18),
+      neighborhood: numberOrFallback(settings.customerNeighborhoodFontSize, settings.customerContactFontSize || 15),
+      phone: numberOrFallback(settings.customerPhoneFontSize, settings.customerContactFontSize || 18),
       item: numberOrFallback(settings.productFontSize, 14),
       qty: numberOrFallback(settings.quantityFontSize, 22),
       total: numberOrFallback(settings.totalFontSize, 19),
@@ -115,7 +134,10 @@ const getTicketFontScale = (settings) => {
     branch: 13,
     section: 12,
     customer: numberOrFallback(settings.customerFontSize, 20),
-    address: numberOrFallback(settings.customerContactFontSize, 16),
+    identification: numberOrFallback(settings.customerIdentificationFontSize, settings.customerContactFontSize || 13),
+    address: numberOrFallback(settings.customerAddressFontSize, settings.customerContactFontSize || 16),
+    neighborhood: numberOrFallback(settings.customerNeighborhoodFontSize, settings.customerContactFontSize || 15),
+    phone: numberOrFallback(settings.customerPhoneFontSize, settings.customerContactFontSize || 16),
     item: numberOrFallback(settings.productFontSize, 13),
     qty: numberOrFallback(settings.quantityFontSize, 20),
     total: numberOrFallback(settings.totalFontSize, 17),
@@ -195,9 +217,10 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         .meta strong { font-size: 15px; }
         .customer-meta { gap: 3px; font-size: 13px; line-height: 1.25; }
         .customer-meta strong { font-size: ${scale.customer}px; line-height: 1.05; text-transform: uppercase; }
+        .customer-id { font-size: ${scale.identification}px; line-height: 1.18; overflow-wrap: anywhere; }
         .customer-address { font-size: ${scale.address}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
-        .customer-zone { font-size: 14px; font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
-        .customer-phone { font-size: ${scale.address}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-zone { font-size: ${scale.neighborhood}px; font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
+        .customer-phone { font-size: ${scale.phone}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
         .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: 16px; font-weight: 900; }
         .category-block { margin-top: 7px; break-inside: avoid; }
         .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; }
@@ -240,11 +263,11 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       <div class="rule"></div>
       <div class="section-title">${escapeHtml(ticketSettings.customerTitle || defaultTicketSettings.customerTitle)}</div>
       <div class="meta customer-meta">
-        <strong>${escapeHtml(order.customer_name)}</strong>
-        <span>Identificacion: ${escapeHtml(order.customer_identification || "Sin identificacion")}</span>
-        <span class="customer-address">Direccion: ${escapeHtml(order.customer_address || "Sin direccion")}</span>
-        <span class="customer-zone">Barrio/Zona: ${escapeHtml(order.customer_neighborhood || "Sin barrio/zona")}</span>
-        <span class="customer-phone">Tel: ${escapeHtml(order.customer_phone || "Sin telefono")}</span>
+        ${ticketSettings.showCustomerName ? `<strong>${escapeHtml(order.customer_name)}</strong>` : ""}
+        ${ticketSettings.showCustomerIdentification ? `<span class="customer-id">${escapeHtml(ticketSettings.customerIdentificationLabel || defaultTicketSettings.customerIdentificationLabel)}: ${escapeHtml(order.customer_identification || "Sin identificacion")}</span>` : ""}
+        ${ticketSettings.showCustomerAddress ? `<span class="customer-address">${escapeHtml(ticketSettings.customerAddressLabel || defaultTicketSettings.customerAddressLabel)}: ${escapeHtml(order.customer_address || "Sin direccion")}</span>` : ""}
+        ${ticketSettings.showCustomerNeighborhood ? `<span class="customer-zone">${escapeHtml(ticketSettings.customerNeighborhoodLabel || defaultTicketSettings.customerNeighborhoodLabel)}: ${escapeHtml(order.customer_neighborhood || "Sin barrio/zona")}</span>` : ""}
+        ${ticketSettings.showCustomerPhone ? `<span class="customer-phone">${escapeHtml(ticketSettings.customerPhoneLabel || defaultTicketSettings.customerPhoneLabel)}: ${escapeHtml(order.customer_phone || "Sin telefono")}</span>` : ""}
       </div>
       <div class="rule"></div>
       <div class="section-title">${escapeHtml(ticketSettings.detailTitle || defaultTicketSettings.detailTitle)}</div>
@@ -393,3 +416,4 @@ const OrderPrintManager = ({ order, onConfirmed }) => {
 };
 
 export default OrderPrintManager;
+

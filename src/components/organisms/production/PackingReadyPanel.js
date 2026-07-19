@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+﻿import { Alert, Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 
@@ -6,7 +6,6 @@ const PackingReadyPanel = ({
   clearPackingRow,
   createPackingReport,
   formatUnits,
-  getPendingQty,
   markOutputReady,
   packers,
   packingForm,
@@ -15,6 +14,7 @@ const PackingReadyPanel = ({
   selectedBatch,
   selectedItems,
   setPackingForm,
+  totalCounted,
   totalDamaged,
   totalMissing,
   totalPacked,
@@ -23,10 +23,10 @@ const PackingReadyPanel = ({
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
     <Stack spacing={0.5} sx={{ mb: 2 }}>
       <Typography variant="h6" sx={{ fontWeight: 900 }}>
-        Registrar empaque del lote
+        Registrar conteo y empaque
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Marca los productos que ya salieron buenos. Lo listo entra a inventario de producto terminado; los daños quedan reportados.
+        Primero cuenta el producto real. Solo lo empacado entra a inventario; danados y faltantes quedan como control operativo.
       </Typography>
     </Stack>
 
@@ -35,7 +35,7 @@ const PackingReadyPanel = ({
         <TextField
           select
           fullWidth
-          label="Empaquetador"
+          label="Contador / empaquetador"
           value={packingForm.packerId}
           onChange={(event) => setPackingForm((current) => ({ ...current, packerId: event.target.value }))}
         >
@@ -48,7 +48,7 @@ const PackingReadyPanel = ({
       </Grid>
       <Grid item xs={12} md={3}>
         <BalanceDatePicker
-          label="Fecha empaque"
+          label="Fecha conteo"
           value={packingForm.packedDate}
           onChange={(value) => setPackingForm((current) => ({ ...current, packedDate: value }))}
           fullWidth
@@ -57,28 +57,29 @@ const PackingReadyPanel = ({
       <Grid item xs={12} md={5}>
         <TextField
           fullWidth
-          label="Notas de empaque"
+          label="Notas del conteo"
           value={packingForm.notes}
           onChange={(event) => setPackingForm((current) => ({ ...current, notes: event.target.value }))}
         />
       </Grid>
     </Grid>
 
-    {!selectedBatch ? <Alert severity="info">Selecciona un lote pendiente para registrar su empaque.</Alert> : null}
-    {selectedBatch && selectedItems.length === 0 ? <Alert severity="info">Este lote no tiene productos pendientes para registrar.</Alert> : null}
+    {!selectedBatch ? <Alert severity="info">Selecciona un lote pendiente para registrar su conteo.</Alert> : null}
+    {selectedBatch && selectedItems.length === 0 ? <Alert severity="info">Este lote no tiene productos para contar.</Alert> : null}
 
     <Grid container spacing={1.5}>
       {selectedItems.map((item) => {
         const key = item.production_batch_output_id;
         const row = packingRows[key] || {};
-        const pendingQty = getPendingQty(item);
+        const countedQty = Number(row.counted_quantity || 0);
         const packedQty = Number(row.packed_quantity || 0);
         const damagedQty = Number(row.damaged_quantity || 0);
         const missingQty = Number(row.missing_quantity || 0);
-        const rowTotal = packedQty + damagedQty + missingQty;
-        const exceedsPending = rowTotal > pendingQty;
+        const controlledQty = packedQty + damagedQty;
+        const exceedsCounted = countedQty > 0 && controlledQty > countedQty;
         const hasDamage = damagedQty > 0;
         const hasMissing = missingQty > 0;
+        const hasMovement = countedQty > 0 || packedQty > 0 || damagedQty > 0 || missingQty > 0;
 
         return (
           <Grid item xs={12} md={6} key={key}>
@@ -88,35 +89,28 @@ const PackingReadyPanel = ({
                 borderRadius: 2,
                 p: 1.5,
                 height: "100%",
-                borderColor: exceedsPending ? "error.main" : rowTotal > 0 ? "secondary.main" : "divider",
-                bgcolor: rowTotal > 0 ? "rgba(216, 88, 30, 0.04)" : "background.paper",
+                borderColor: exceedsCounted ? "error.main" : hasMovement ? "secondary.main" : "divider",
+                bgcolor: hasMovement ? "rgba(216, 88, 30, 0.04)" : "background.paper",
               }}
             >
               <Stack spacing={1.5}>
-                <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "flex-start" } }}>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 900 }} noWrap>
                       {item.product_name || `Producto ${item.product_id}`}
                     </Typography>
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mt: 0.75, gap: 0.75 }}>
-                      <Chip size="small" label={`${formatUnits(pendingQty)} pendientes`} color="warning" variant="outlined" />
-                      <Chip size="small" label={`${formatUnits(item.packed_quantity)} empacados previamente`} color="success" variant="outlined" />
-                      {Number(item.direct_delivered_quantity || 0) > 0 ? (
-                        <Chip size="small" label={`${formatUnits(item.direct_delivered_quantity)} vendidos directo`} color="info" variant="outlined" />
-                      ) : null}
-                      {Number(item.reserved_quantity || 0) > 0 ? (
-                        <Chip size="small" label={`${formatUnits(item.reserved_quantity)} reservados`} color="warning" variant="outlined" />
-                      ) : null}
-                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.product_sku || "Sin SKU"}
+                    </Typography>
                   </Box>
                   <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0 }}>
                     <AppButton
                       color="secondary"
                       onClick={() => markOutputReady(item)}
-                      disabled={pendingQty <= 0}
+                      disabled={countedQty <= 0}
                       sx={{ minHeight: 34, px: 1.5, fontSize: 12 }}
                     >
-                      Empacar todo
+                      Empacar conteo
                     </AppButton>
                     <AppButton color="inherit" onClick={() => clearPackingRow(item)} sx={{ minHeight: 34, px: 1.5, fontSize: 12 }}>
                       Limpiar
@@ -125,37 +119,48 @@ const PackingReadyPanel = ({
                 </Stack>
 
                 <Grid container spacing={1.25}>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      type="number"
+                      fullWidth
+                      label="Conteo real"
+                      value={row.counted_quantity || ""}
+                      onChange={(event) => updatePackingRow(key, { counted_quantity: event.target.value })}
+                      inputProps={{ min: 0, step: 0.001 }}
+                      helperText="Cantidad contada fisicamente"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       type="number"
                       fullWidth
                       label="Empacados"
                       value={row.packed_quantity || ""}
                       onChange={(event) => updatePackingRow(key, { packed_quantity: event.target.value })}
-                      inputProps={{ min: 0, max: pendingQty, step: 0.001 }}
-                      helperText="Bueno para vender"
+                      inputProps={{ min: 0, step: 0.001 }}
+                      helperText="Entra a inventario"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       type="number"
                       fullWidth
-                      label="Dañado"
+                      label="Danado"
                       value={row.damaged_quantity || ""}
                       onChange={(event) => updatePackingRow(key, { damaged_quantity: event.target.value })}
-                      inputProps={{ min: 0, max: pendingQty, step: 0.001 }}
+                      inputProps={{ min: 0, step: 0.001 }}
                       helperText={hasDamage ? "No entra a inventario" : "Opcional"}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       type="number"
                       fullWidth
                       label="Faltante"
                       value={row.missing_quantity || ""}
                       onChange={(event) => updatePackingRow(key, { missing_quantity: event.target.value })}
-                      inputProps={{ min: 0, max: pendingQty, step: 0.001 }}
-                      helperText={hasMissing ? "Requiere explicación" : "Opcional"}
+                      inputProps={{ min: 0, step: 0.001 }}
+                      helperText={hasMissing ? "Requiere explicacion" : "Opcional"}
                     />
                   </Grid>
                   {hasDamage ? (
@@ -163,7 +168,7 @@ const PackingReadyPanel = ({
                       <TextField
                         select
                         fullWidth
-                        label="Motivo daño"
+                        label="Motivo dano"
                         value={row.damage_reason || "packaging"}
                         onChange={(event) => updatePackingRow(key, { damage_reason: event.target.value })}
                       >
@@ -183,8 +188,8 @@ const PackingReadyPanel = ({
                         onChange={(event) => updatePackingRow(key, { missing_reason: event.target.value })}
                       >
                         <MenuItem value="count_difference">Diferencia de conteo</MenuItem>
-                        <MenuItem value="handling_loss">Pérdida en manipulación</MenuItem>
-                        <MenuItem value="suspected_theft">Posible extravío</MenuItem>
+                        <MenuItem value="handling_loss">Perdida en manipulacion</MenuItem>
+                        <MenuItem value="suspected_theft">Posible extravio</MenuItem>
                         <MenuItem value="other">Otro</MenuItem>
                       </TextField>
                     </Grid>
@@ -193,25 +198,25 @@ const PackingReadyPanel = ({
                     <TextField
                       fullWidth
                       required={hasMissing}
-                      label={hasMissing ? "Explicación del faltante" : "Notas"}
+                      label={hasMissing ? "Explicacion del faltante" : "Notas"}
                       value={row.notes || ""}
                       onChange={(event) => updatePackingRow(key, { notes: event.target.value })}
                       error={hasMissing && !String(row.notes || "").trim()}
-                      helperText={hasMissing && !String(row.notes || "").trim() ? "Explica qué ocurrió" : " "}
+                      helperText={hasMissing && !String(row.notes || "").trim() ? "Explica que ocurrio" : " "}
                     />
                   </Grid>
                 </Grid>
 
                 <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" color={exceedsPending ? "error.main" : "text.secondary"} sx={{ fontWeight: 800 }}>
-                    Captura: {formatUnits(rowTotal)} / {formatUnits(pendingQty)}
+                  <Typography variant="caption" color={exceedsCounted ? "error.main" : "text.secondary"} sx={{ fontWeight: 800 }}>
+                    Controlado: {formatUnits(controlledQty)} / Conteo: {formatUnits(countedQty)}
                   </Typography>
-                  {exceedsPending ? (
-                    <Chip size="small" color="error" label="Supera pendiente" />
-                  ) : rowTotal > 0 ? (
-                    <Chip size="small" color="secondary" label="Listo para agregar" />
+                  {exceedsCounted ? (
+                    <Chip size="small" color="error" label="Supera conteo" />
+                  ) : hasMovement ? (
+                    <Chip size="small" color="secondary" label="Listo para registrar" />
                   ) : (
-                    <Chip size="small" label="Sin cambios" variant="outlined" />
+                    <Chip size="small" label="Sin conteo" variant="outlined" />
                   )}
                 </Stack>
               </Stack>
@@ -226,13 +231,14 @@ const PackingReadyPanel = ({
       spacing={2}
       sx={{ mt: 2, justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
     >
-      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-        <Chip label={`A registrar: ${formatUnits(totalPacked)} empacados`} color="success" variant="outlined" />
-        <Chip label={`${formatUnits(totalMissing)} faltantes justificados`} color="warning" variant="outlined" />
-        <Chip label={`${formatUnits(totalDamaged)} dañados`} color="error" variant="outlined" />
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+        <Chip label={`Conteo: ${formatUnits(totalCounted)}`} color="info" variant="outlined" />
+        <Chip label={`Inventario: ${formatUnits(totalPacked)}`} color="success" variant="outlined" />
+        <Chip label={`${formatUnits(totalDamaged)} danados`} color="error" variant="outlined" />
+        <Chip label={`${formatUnits(totalMissing)} faltantes`} color="warning" variant="outlined" />
       </Stack>
       <AppButton color="secondary" onClick={createPackingReport} disabled={savingPacking || !selectedBatch}>
-        {savingPacking ? "Registrando..." : "Registrar empaque"}
+        {savingPacking ? "Registrando..." : "Registrar conteo"}
       </AppButton>
     </Stack>
   </Paper>

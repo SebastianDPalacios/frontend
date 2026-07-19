@@ -1,4 +1,4 @@
-import { DeleteEndpoint, GetEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
+﻿import { DeleteEndpoint, GetEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 
 class OrdersService {
@@ -54,12 +54,28 @@ class OrdersService {
     return PostEndpoint(endpoints.orders.deliver(orderId), {});
   }
 
+  async updateDeliveryDate(orderId, payload) {
+    return PutEndpoint(endpoints.orders.deliveryDate(orderId), payload);
+  }
+
   async getSalesCommissions(params = {}) {
     return GetEndpoint(endpoints.orders.commissions, { params });
   }
 
   async getDailySettlement(params = {}) {
     return GetEndpoint(endpoints.orders.dailySettlement, { params });
+  }
+
+  async getSalesGifts(params = {}) {
+    return GetEndpoint(endpoints.orders.gifts, { params });
+  }
+
+  async createSalesGift(payload) {
+    return PostEndpoint(endpoints.orders.gifts, payload);
+  }
+
+  async getCustomerCredit(customerId) {
+    return GetEndpoint(endpoints.orders.customerCredit(customerId));
   }
 
   async getSellerCustomerAssignments() {
@@ -150,3 +166,7 @@ class OrdersService {
 const ordersService = new OrdersService();
 
 export default ordersService;
+
+
+
+

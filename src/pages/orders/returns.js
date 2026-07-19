@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -30,7 +30,7 @@ const reasonOptions = [
 
 const statusConfig = {
   pending_authorization: { label: "Pendiente de autorizacion", color: "warning" },
-  completed: { label: "Autorizada y entregada", color: "success" },
+  completed: { label: "Autorizada con saldo", color: "success" },
   rejected: { label: "Rechazada", color: "error" },
 };
 
@@ -49,6 +49,12 @@ const formatDate = (value) => {
 
 const formatNumber = (value) =>
   Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 3 });
+
+const money = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
 
 const getDailyOrderNumbers = (orders) => {
   const dayMap = new Map();
@@ -79,7 +85,6 @@ const isReturnReportOpen = (order) => {
 const initialForm = {
   orderId: "",
   orderItemId: "",
-  replacementProductId: "",
   quantity: "",
   reason: "expired",
   notes: "",
@@ -190,10 +195,9 @@ const SalesReturnsPage = () => {
     if (
       !selectedOrder ||
       !selectedItem ||
-      !form.replacementProductId ||
       Number(form.quantity || 0) <= 0
     ) {
-      toast.error("Completa pedido, producto devuelto, reemplazo y cantidad");
+      toast.error("Completa pedido, producto devuelto y cantidad");
       return;
     }
     setSaving(true);
@@ -204,7 +208,6 @@ const SalesReturnsPage = () => {
         p_items: [
           {
             order_item_id: Number(selectedItem.order_item_id),
-            replacement_product_id: Number(form.replacementProductId),
             quantity: Number(form.quantity),
             reason: form.reason,
             notes: form.notes.trim() || null,
@@ -282,7 +285,7 @@ const SalesReturnsPage = () => {
                 Registrar solicitud
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Selecciona el pedido entregado, el producto que vuelve y el producto de reemplazo.
+                Selecciona el pedido entregado, el producto que vuelve y la cantidad para generar saldo a favor.
               </Typography>
             </Box>
             <Grid container spacing={2}>
@@ -400,31 +403,11 @@ const SalesReturnsPage = () => {
                   </Paper>
                 </Grid>
               ) : null}
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="3. Producto de reemplazo"
-                  value={form.replacementProductId}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      replacementProductId: event.target.value,
-                    }))
-                  }
-                >
-                  {options.products.map((product) => (
-                    <MenuItem key={product.id} value={String(product.id)}>
-                      {product.name} | ${Number(product.base_price || 0).toLocaleString("es-CO")}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   type="number"
-                  label="4. Cantidad"
+                  label="3. Cantidad"
                   value={form.quantity}
                   inputProps={{
                     min: 0,
@@ -440,7 +423,7 @@ const SalesReturnsPage = () => {
                 <TextField
                   select
                   fullWidth
-                  label="5. Motivo"
+                  label="4. Motivo"
                   value={form.reason}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, reason: event.target.value }))
@@ -539,7 +522,7 @@ const SalesReturnsPage = () => {
                             {item.returned_product_name} x {formatNumber(item.quantity)}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Reemplazo: {item.replacement_product_name} | Motivo:{" "}
+                            Saldo a favor: {money.format(Number(item.credit_amount || item.returned_commercial_value || 0))} | Motivo:{" "}
                             {reasonOptions.find((reason) => reason.value === item.reason)?.label ||
                               item.reason}
                           </Typography>
@@ -560,7 +543,7 @@ const SalesReturnsPage = () => {
                           >
                             {processingId === salesReturn.id
                               ? "Procesando..."
-                              : "Autorizar cambio y entregar reemplazo"}
+                              : "Autorizar y generar saldo"}
                           </Button>
                           <TextField
                             size="small"
@@ -600,3 +583,5 @@ const SalesReturnsPage = () => {
 };
 
 export default SalesReturnsPage;
+
+

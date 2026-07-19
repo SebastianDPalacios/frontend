@@ -62,6 +62,9 @@ class ProductionService {
     return GetEndpoint(endpoints.production.monthReport, { params });
   }
 
+  async getRawMaterialUsageByProductReport(params = {}) {
+    return GetEndpoint(endpoints.production.rawMaterialUsageByProductReport, { params });
+  }
   async getPlans(params = {}) {
     return GetEndpoint(endpoints.production.plans, { params });
   }
@@ -74,12 +77,20 @@ class ProductionService {
     return GetEndpoint(endpoints.production.myPlans, { params });
   }
 
+  async getMyProductionBaseData(params = {}) {
+    return GetEndpoint(endpoints.production.myBaseData, { params });
+  }
+
+  async registerMyBatch(payload) {
+    return PostEndpoint(endpoints.production.myBatches, payload);
+  }
+
   async startPlanItem(productionPlanItemId) {
     return PostEndpoint(endpoints.production.startPlanItem(productionPlanItemId), {});
   }
 
-  async finishPlanItem(productionPlanItemId) {
-    return PostEndpoint(endpoints.production.finishPlanItem(productionPlanItemId), {});
+  async finishPlanItem(productionPlanItemId, payload = {}) {
+    return PostEndpoint(endpoints.production.finishPlanItem(productionPlanItemId), payload);
   }
 
   async getNotifications(params = {}) {
@@ -102,3 +113,4 @@ class ProductionService {
 const productionService = new ProductionService();
 
 export default productionService;
+

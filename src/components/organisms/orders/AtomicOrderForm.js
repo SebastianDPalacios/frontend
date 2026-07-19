@@ -36,22 +36,18 @@ const orderModes = [
   { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
   { value: "bonus", label: "Solo vendaje" },
-  { value: "gift", label: "Obsequio" },
-  { value: "exchange", label: "Cambio" },
 ];
 
 const lineLabels = {
   sale: "Venta",
   bonus: "Vendaje",
-  gift: "Obsequio",
-  exchange: "Cambio",
 };
 
 const preferredCategoryOrder = [
   "Pan de sal",
   "Pan de dulce",
   "Pasteleria",
-  "Pastelería",
+  "Pasteleria",
   "Integral",
   "Tostados",
 ];
@@ -140,6 +136,7 @@ const AtomicOrderForm = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedLines, setSelectedLines] = useState([]);
+  const [customerCredit, setCustomerCredit] = useState({ balance_amount: 0, ledger: [] });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -208,13 +205,10 @@ const AtomicOrderForm = () => {
   }, [products]);
 
   const availableProducts = useMemo(() => {
-    const selectedIds = new Set(selectedLines.map((line) => Number(line.productId)));
     return products.filter((product) => {
-      const belongsToCategory = !selectedCategoryId
-        || String(product.category_id || "") === String(selectedCategoryId);
-      return !selectedIds.has(Number(product.id)) && belongsToCategory;
+      return !selectedCategoryId || String(product.category_id || "") === String(selectedCategoryId);
     });
-  }, [products, selectedCategoryId, selectedLines]);
+  }, [products, selectedCategoryId]);
 
   const preparedOrder = useMemo(() => {
     const preparedRows = selectedLines.map((entry) => {
@@ -281,11 +275,9 @@ const AtomicOrderForm = () => {
       (acc, line) => {
         if (line.lineType === "sale") acc.saleTotal += line.commercialValue;
         if (line.lineType === "bonus") acc.bonusTotal += line.commercialValue;
-        if (line.lineType === "gift") acc.giftTotal += line.commercialValue;
-        if (line.lineType === "exchange") acc.exchangeTotal += line.commercialValue;
         return acc;
       },
-      { saleTotal: 0, bonusTotal: 0, giftTotal: 0, exchangeTotal: 0 }
+      { saleTotal: 0, bonusTotal: 0 }
     );
     summary.allowedBonus = bonusEnabled ? bonusEligibleSaleTotal * (percent / 100) : 0;
     summary.bonusExceeded = summary.bonusTotal > summary.allowedBonus + 0.01;
@@ -294,6 +286,36 @@ const AtomicOrderForm = () => {
   }, [productsById, selectedLines, settings]);
 
   const selectedCustomer = customers.find((customer) => String(customer.id) === String(customerId));
+  const creditAvailable = Number(customerCredit?.balance_amount || 0);
+  const creditRedeemedAmount = Math.min(creditAvailable, Number(preparedOrder.summary.saleTotal || 0));
+
+  useEffect(() => {
+    let active = true;
+    const loadCredit = async () => {
+      if (!customerId) {
+        setCustomerCredit({ balance_amount: 0, ledger: [] });
+        return;
+      }
+      try {
+        const response = await ordersService.getCustomerCredit(customerId);
+        if (active && response?.code === 1) {
+          setCustomerCredit(response.data || { balance_amount: 0, ledger: [] });
+          return;
+        }
+        if (active) {
+          setCustomerCredit({ balance_amount: 0, ledger: [] });
+        }
+      } catch (_error) {
+        if (active) {
+          setCustomerCredit({ balance_amount: 0, ledger: [] });
+        }
+      }
+    };
+    loadCredit();
+    return () => {
+      active = false;
+    };
+  }, [customerId]);
 
   const addProduct = () => {
     if (!selectedProduct?.id) {
@@ -328,7 +350,7 @@ const AtomicOrderForm = () => {
       return;
     }
     if (preparedOrder.summary.bonusExceeded) {
-      setError("El vendaje seleccionado supera el límite disponible");
+      setError("El vendaje seleccionado supera el limite disponible");
       return;
     }
     setConfirmOpen(true);
@@ -344,6 +366,7 @@ const AtomicOrderForm = () => {
         p_order_date: orderDate,
         p_delivery_date: deliveryDate,
         p_notes: notes || null,
+        p_credit_redeemed_amount: creditRedeemedAmount,
         p_items_json: preparedOrder.lines.map((line) => ({
           product_id: Number(line.product.id),
           line_type: line.lineType,
@@ -373,7 +396,7 @@ const AtomicOrderForm = () => {
     <Stack spacing={2.5} sx={{ minWidth: 0 }}>
       {error ? <Alert severity="error">{error}</Alert> : null}
       {!loading && customers.length === 0 ? (
-        <Alert severity="warning">No tienes clientes asignados. Solicita al administrador que realice la asignación.</Alert>
+        <Alert severity="warning">No tienes clientes asignados. Solicita al administrador que realice la asignacion.</Alert>
       ) : null}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
@@ -422,7 +445,7 @@ const AtomicOrderForm = () => {
                 Productos del pedido
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-                Busca un producto, agrégalo y configura cómo se entregará.
+                Busca un producto, agregalo y configura como se entregara.
               </Typography>
               {productCategories.length > 0 ? (
                 <Box sx={{ mb: 2 }}>
@@ -484,7 +507,7 @@ const AtomicOrderForm = () => {
             {loading ? <Alert severity="info" sx={{ m: 2 }}>Cargando productos...</Alert> : null}
             {!loading && selectedLines.length === 0 ? (
               <Alert severity="info" sx={{ m: 2 }}>
-                Aún no has agregado productos al pedido.
+                Aun no has agregado productos al pedido.
               </Alert>
             ) : null}
 
@@ -607,7 +630,12 @@ const AtomicOrderForm = () => {
               top: { lg: 88 },
             }}
           >
-            <OrderDraftSummary summary={preparedOrder.summary} settings={settings} />
+            <OrderDraftSummary
+              summary={preparedOrder.summary}
+              settings={settings}
+              creditAvailable={creditAvailable}
+              creditRedeemed={creditRedeemedAmount}
+            />
             <AppButton
               fullWidth
               color="secondary"
@@ -641,7 +669,7 @@ const AtomicOrderForm = () => {
                       <Chip
                         size="small"
                         color={line.lineType === "bonus" ? "success" : "default"}
-                        label={line.automatic ? "Vendaje automático" : lineLabels[line.lineType]}
+                        label={line.automatic ? "Vendaje automatico" : lineLabels[line.lineType]}
                       />
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
@@ -658,11 +686,16 @@ const AtomicOrderForm = () => {
             </Stack>
 
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <OrderDraftSummary summary={preparedOrder.summary} settings={settings} />
+              <OrderDraftSummary
+                summary={preparedOrder.summary}
+                settings={settings}
+                creditAvailable={creditAvailable}
+                creditRedeemed={creditRedeemedAmount}
+              />
             </Paper>
 
             <Alert severity="info">
-              Al confirmar se creará el pedido en estado borrador. Podrás editarlo antes de enviarlo a despacho.
+              Al confirmar se creara el pedido en estado borrador. Podras editarlo antes de enviarlo a despacho.
             </Alert>
           </Stack>
         </DialogContent>
@@ -680,3 +713,10 @@ const AtomicOrderForm = () => {
 };
 
 export default AtomicOrderForm;
+
+
+
+
+
+
+

@@ -9,13 +9,9 @@ import inventoryService from "services/inventory/inventory-service";
 import dashboardService from "services/dashboard/dashboard-service";
 import DashboardView from "views/dashboard/DashboardView";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import { hasPermission, isBakerOnlyUser, isPackagingOnlyUser } from "configs/access";
 import { normalizeRows } from "views/modules/flow-utils";
 
-const hasPermission = (user, permission) => {
-  const roles = Array.isArray(user?.roles) ? user.roles : [];
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return roles.includes("ADMIN") || roles.includes("SUPER_ADMIN") || permissions.includes(permission);
-};
 
 const getCurrentMonthRange = () => {
   const now = new Date();
@@ -45,34 +41,37 @@ const AnalyticsPage = () => {
   useEffect(() => {
     const run = async () => {
       const user = authService.getCurrentUser();
+      const bakerOnly = isBakerOnlyUser(user);
+      const packagingOnly = isPackagingOnlyUser(user);
+      const focusedProductionUser = bakerOnly || packagingOnly;
       setCurrentUser(user);
       setLoading(true);
       setError(null);
 
       try {
         const requests = {
-          users: hasPermission(user, "users.manage")
+          users: !focusedProductionUser && hasPermission(user, "users.manage")
             ? usersService.getUsers({ page: 1, pageSize: 1 })
             : Promise.resolve(null),
-          customers: hasPermission(user, "customers.manage")
+          customers: !focusedProductionUser && hasPermission(user, "customers.manage")
             ? catalogService.getCustomers({ page: 1, pageSize: 1 })
             : Promise.resolve(null),
-          products: hasPermission(user, "products.manage")
+          products: !focusedProductionUser && hasPermission(user, "products.manage")
             ? catalogService.getProducts({ page: 1, pageSize: 1 })
             : Promise.resolve(null),
-          orders: hasPermission(user, "orders.manage")
+          orders: !focusedProductionUser && hasPermission(user, "orders.manage")
             ? ordersService.getOrders({ page: 1, pageSize: 80 })
             : Promise.resolve(null),
-          production: hasPermission(user, "production.manage")
+          production: (hasPermission(user, "production.manage") || hasPermission(user, "production.packaging"))
             ? productionService.getPendingPackaging({})
             : Promise.resolve(null),
-          shortages: hasPermission(user, "production.manage")
+          shortages: !focusedProductionUser && hasPermission(user, "production.manage")
             ? productionService.getJustifiedShortages({ ...getCurrentMonthRange(), page: 1, pageSize: 1 })
             : Promise.resolve(null),
-          inventory: hasPermission(user, "inventory.manage")
+          inventory: !focusedProductionUser && hasPermission(user, "inventory.manage")
             ? inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 80 })
             : Promise.resolve(null),
-          monthly: hasPermission(user, "reports.view")
+          monthly: !focusedProductionUser && hasPermission(user, "reports.view")
             ? dashboardService.getMonthly({ month: new Date().toISOString().slice(0, 7) })
             : Promise.resolve(null),
         };
@@ -180,7 +179,7 @@ const AnalyticsPage = () => {
   return (
     <FlowPageLayout
       title="Panel principal"
-      subtitle="Ventas, entregas, producción e inventario en un solo lugar."
+      subtitle="Ventas, entregas, produccion e inventario en un solo lugar."
       breadcrumbs={[]}
     >
       {error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert> : null}

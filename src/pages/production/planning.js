@@ -56,6 +56,16 @@ const groupRecipes = (rows) => {
   });
   return Array.from(grouped.values());
 };
+const buildProductionQuantities = (item) => normalizeRows(item?.outputs).reduce((acc, output) => {
+  const expectedTotal = Math.round(Number(output.expected_quantity || 0) * Number(item?.arrobas || 1) * 1000) / 1000;
+  acc[String(output.product_id)] = String(output.produced_quantity ?? expectedTotal);
+  return acc;
+}, {});
+
+const buildProductionPayload = (item, quantities) => normalizeRows(item?.outputs).map((output) => ({
+  product_id: Number(output.product_id),
+  produced_quantity: Number(quantities[String(output.product_id)] || 0),
+}));
 
 const ProductionPlanningPage = () => {
   const currentUser = authService.getCurrentUser() || {};
@@ -66,6 +76,7 @@ const ProductionPlanningPage = () => {
   const [startingItemId, setStartingItemId] = useState("");
   const [finishingItemId, setFinishingItemId] = useState("");
   const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
+  const [productionQuantities, setProductionQuantities] = useState({});
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [bakers, setBakers] = useState([]);
@@ -97,7 +108,7 @@ const ProductionPlanningPage = () => {
       const myPlansResponse = responses[0];
 
       if (myPlansResponse?.code !== 1) {
-        setError(myPlansResponse?.message || "No se pudo cargar la planificación.");
+        setError(myPlansResponse?.message || "No se pudo cargar la planificaciÃ³n.");
         return;
       }
 
@@ -122,7 +133,7 @@ const ProductionPlanningPage = () => {
         }));
       }
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al cargar la planificación."));
+      setError(getErrorMessage(requestError, "Error de red al cargar la planificaciÃ³n."));
     } finally {
       setLoading(false);
     }
@@ -192,6 +203,7 @@ const ProductionPlanningPage = () => {
   };
 
   const openWorkDialog = (plan, item, options = {}) => {
+    setProductionQuantities(buildProductionQuantities(item));
     setWorkDialog({ plan, item, canFinish: options.canFinish !== false });
   };
 
@@ -203,11 +215,11 @@ const ProductionPlanningPage = () => {
     try {
       const response = await productionService.startPlanItem(productionPlanItemId);
       if (response?.code !== 1) {
-        setError(response?.message || "No se pudo iniciar la producción.");
+        setError(response?.message || "No se pudo iniciar la producciÃ³n.");
         return;
       }
 
-      toast.success(response.message || "Producción iniciada");
+      toast.success(response.message || "ProducciÃ³n iniciada");
       const ownerPlan = myPlans.find((plan) =>
         normalizeRows(plan.items).some((item) => String(item.id) === String(productionPlanItemId))
       );
@@ -217,7 +229,7 @@ const ProductionPlanningPage = () => {
       openWorkDialog(ownerPlan, { ...ownerItem, started_at: new Date().toISOString() });
       await loadData();
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al iniciar la producción."));
+      setError(getErrorMessage(requestError, "Error de red al iniciar la producciÃ³n."));
     } finally {
       setStartingItemId("");
     }
@@ -226,16 +238,23 @@ const ProductionPlanningPage = () => {
   const finishPlanItem = async (productionPlanItemId) => {
     if (finishingItemId) return;
 
+    const currentItem = workDialog.item;
+    const outputPayload = buildProductionPayload(currentItem, productionQuantities);
+    if (!outputPayload.length || outputPayload.some((output) => !Number.isFinite(output.produced_quantity) || output.produced_quantity <= 0)) {
+      setError("Todas las cantidades realizadas deben ser mayores a cero.");
+      return;
+    }
+
     setFinishingItemId(String(productionPlanItemId));
     setError(null);
     try {
-      const response = await productionService.finishPlanItem(productionPlanItemId);
+      const response = await productionService.finishPlanItem(productionPlanItemId, { p_outputs: outputPayload });
       if (response?.code !== 1) {
-        setError(response?.message || "No se pudo finalizar la producción.");
+        setError(response?.message || "No se pudo finalizar la produccion.");
         return;
       }
 
-      toast.success(response.message || "Producción finalizada");
+      toast.success(response.message || "Produccion finalizada");
       setWorkDialog((current) => ({
         ...current,
         plan: current.plan ? { ...current.plan, status: "completed" } : current.plan,
@@ -244,28 +263,27 @@ const ProductionPlanningPage = () => {
               ...current.item,
               finished_at: new Date().toISOString(),
               production_batch_id: response.data?.production_batch_id,
+              outputs: normalizeRows(current.item.outputs).map((output) => ({
+                ...output,
+                produced_quantity: productionQuantities[String(output.product_id)],
+              })),
             }
           : current.item,
       }));
       await loadData();
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al finalizar la producción."));
+      setError(getErrorMessage(requestError, "Error de red al finalizar la produccion."));
     } finally {
       setFinishingItemId("");
     }
   };
-
   return (
     <FlowPageLayout
-      title="Producción del día siguiente"
+      title="ProducciÃ³n del dÃ­a siguiente"
       subtitle="Asigna recetas por arrobas y consulta las unidades esperadas para cada panadero."
-      links={[
-        { label: "Lotes y empaque", href: "/production/packaging" },
-        { label: "Recetas", href: "/recipes" },
-      ]}
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificación...</Alert> : null}
+      {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificaciÃ³n...</Alert> : null}
 
       {canManage ? (
         <ProductionPlanAssignmentForm
@@ -306,6 +324,8 @@ const ProductionPlanningPage = () => {
         item={workDialog.item}
         finishing={Boolean(finishingItemId)}
         canFinish={workDialog.canFinish}
+        productionQuantities={productionQuantities}
+        onQuantityChange={(productId, value) => setProductionQuantities((current) => ({ ...current, [String(productId)]: value }))}
         onClose={() => setWorkDialog({ plan: null, item: null, canFinish: true })}
         onFinish={finishPlanItem}
       />
@@ -314,3 +334,6 @@ const ProductionPlanningPage = () => {
 };
 
 export default ProductionPlanningPage;
+
+
+

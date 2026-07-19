@@ -1,4 +1,4 @@
-const endpoints = {
+﻿const endpoints = {
   auth: {
     login: "/auth/login",
     refresh: "/auth/refresh",
@@ -49,8 +49,11 @@ const endpoints = {
     cancel: (id) => `/orders/${id}/cancel`,
     dispatch: (id) => `/orders/${id}/dispatch`,
     deliver: (id) => `/orders/${id}/deliver`,
+    deliveryDate: (id) => `/orders/${id}/delivery-date`,
     commissions: "/orders/commissions",
     dailySettlement: "/orders/commissions/daily-settlement",
+    gifts: "/orders/gifts",
+    customerCredit: (customerId) => `/orders/customer-credits/${customerId}`,
     sellerCustomerAssignments: "/orders/seller-customer-assignments",
     sellerCustomerAssignment: (customerId) => `/orders/seller-customer-assignments/${customerId}`,
     sellerCustomerPortfolio: (sellerId) => `/orders/seller-customer-assignments/seller/${sellerId}`,
@@ -81,9 +84,12 @@ const endpoints = {
     dayReport: "/production/reports/day",
     monthReport: "/production/reports/month",
     rawMaterialUsageReport: "/production/reports/raw-material-usage",
+    rawMaterialUsageByProductReport: "/production/reports/raw-material-usage-by-product",
     packingSummaryReport: "/production/reports/packing-summary",
     plans: "/production/plans",
     myPlans: "/production/my-plans",
+    myBaseData: "/production/my-base-data",
+    myBatches: "/production/my-batches",
     startPlanItem: (id) => `/production/plans/items/${id}/start`,
     finishPlanItem: (id) => `/production/plans/items/${id}/finish`,
     notifications: "/production/notifications",
@@ -129,7 +135,15 @@ const endpoints = {
     roleById: (id) => `/rbac/roles/${id}`,
     rolePermissions: (id) => `/rbac/roles/${id}/permissions`,
     permissions: "/rbac/permissions",
+    viewAccessUsers: "/rbac/view-access/users",
+    userPermissions: (id) => `/rbac/users/${id}/permissions`,
   },
 };
 
 export default endpoints;
+
+
+
+
+
+

@@ -2,7 +2,14 @@ import Link from "next/link";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 
-const DashboardWelcomePanel = ({ userLabel, canManageOrders, canManageProduction, canManageInventory }) => (
+const DashboardWelcomePanel = ({
+  userLabel,
+  canManageOrders,
+  canManageProduction,
+  canReportProduction,
+  canCountPackaging,
+  canManageInventory,
+}) => (
   <Paper
     variant="outlined"
     sx={{
@@ -45,9 +52,14 @@ const DashboardWelcomePanel = ({ userLabel, canManageOrders, canManageProduction
             Crear pedido
           </AppButton>
         ) : null}
-        {canManageProduction ? (
+        {canManageProduction || canReportProduction ? (
+          <AppButton component={Link} href="/production/performed" color="secondary" variant="outlined" sx={{ minHeight: 48 }}>
+            Produccion realizada
+          </AppButton>
+        ) : null}
+        {canManageProduction || canCountPackaging ? (
           <AppButton component={Link} href="/production/packaging" color="secondary" variant="outlined" sx={{ minHeight: 48 }}>
-            Lotes y empaque
+            Conteo y empaque
           </AppButton>
         ) : null}
         {canManageInventory ? (

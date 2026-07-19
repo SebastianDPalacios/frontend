@@ -22,7 +22,7 @@ import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
-const editableStatuses = ["draft", "confirmed", "ready", "dispatched"];
+const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
 const emptyNewLine = {
   productId: "",
   lineType: "sale",
@@ -420,7 +420,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         </Box>
       ) : (
         <Alert severity="warning">
-          Edicion bloqueada: el pedido ya fue entregado o cancelado.
+          Edicion bloqueada: el pedido esta cancelado o no permite cambios.
         </Alert>
       )}
     </Stack>

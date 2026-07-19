@@ -1,11 +1,9 @@
-import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
+﻿import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const PendingPackagingBatches = ({
   batchStatusLabels,
   formatShortDate,
-  formatUnits,
-  getPendingQty,
   loading,
   pendingBatches,
   selectedBatchId,
@@ -15,25 +13,24 @@ const PendingPackagingBatches = ({
     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>
-          2. Lotes pendientes
+          1. Lotes para contar
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Toca un lote para revisar sus productos y registrar el empaque.
+          Elige el lote. Aqui solo se muestran productos, no cantidades del panadero.
         </Typography>
       </Box>
       <Chip label={`${pendingBatches.length}`} variant="outlined" />
     </Stack>
 
-    {loading ? <Alert severity="info">Cargando pendientes...</Alert> : null}
-    {!loading && pendingBatches.length === 0 ? <Alert severity="info">No hay lotes pendientes.</Alert> : null}
+    {loading ? <Alert severity="info">Cargando lotes...</Alert> : null}
+    {!loading && pendingBatches.length === 0 ? <Alert severity="info">No hay lotes pendientes para conteo.</Alert> : null}
 
     <Stack spacing={1.25}>
       {pendingBatches.map((batch) => {
         const isSelected = String(batch.production_batch_id) === String(selectedBatchId);
         const batchItems = normalizeRows(batch.items);
-        const batchPending = batchItems.reduce((acc, item) => acc + getPendingQty(item), 0);
         const itemCount = batchItems.length;
-        const previewItems = batchItems.slice(0, 3);
+        const previewItems = batchItems.slice(0, 4);
         const hiddenItems = Math.max(itemCount - previewItems.length, 0);
 
         return (
@@ -94,38 +91,19 @@ const PendingPackagingBatches = ({
                   /
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {batch.baker_name || "Panadero"}
-                </Typography>
-              </Stack>
-
-              <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="body2" color="text.secondary">
                   {itemCount} producto{itemCount === 1 ? "" : "s"}
-                </Typography>
-                <Typography sx={{ fontWeight: 900, color: batchPending > 0 ? "secondary.main" : "success.main" }}>
-                  {formatUnits(batchPending)} pendientes
                 </Typography>
               </Stack>
 
               <Stack spacing={0.5}>
                 {previewItems.map((item) => (
-                  <Stack
-                    key={item.production_batch_output_id}
-                    direction="row"
-                    spacing={1}
-                    sx={{ justifyContent: "space-between", alignItems: "center" }}
-                  >
-                    <Typography variant="caption" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
-                      {item.product_name || `Producto ${item.product_id}`}
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 800, flexShrink: 0 }}>
-                      {formatUnits(getPendingQty(item))}
-                    </Typography>
-                  </Stack>
+                  <Typography key={item.production_batch_output_id} variant="caption" color="text.secondary" noWrap>
+                    {item.product_name || `Producto ${item.product_id}`}
+                  </Typography>
                 ))}
                 {hiddenItems > 0 ? (
                   <Typography variant="caption" color="text.secondary">
-                    +{hiddenItems} producto{hiddenItems === 1 ? "" : "s"} más
+                    +{hiddenItems} producto{hiddenItems === 1 ? "" : "s"} mas
                   </Typography>
                 ) : null}
               </Stack>

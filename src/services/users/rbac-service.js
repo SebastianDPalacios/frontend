@@ -1,4 +1,4 @@
-import { GetEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
+﻿import { GetEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 
 class RbacService {
@@ -27,8 +27,20 @@ class RbacService {
   async createPermission(payload) {
     return PostEndpoint(endpoints.rbac.permissions, payload);
   }
+
+  async getViewAccessUsers() {
+    return GetEndpoint(endpoints.rbac.viewAccessUsers);
+  }
+
+  async setUserPermissions(id, permissionMode, permissionCodes) {
+    return PutEndpoint(endpoints.rbac.userPermissions(id), {
+      p_permission_mode: permissionMode,
+      p_permission_codes_json: permissionCodes,
+    });
+  }
 }
 
 const rbacService = new RbacService();
 
 export default rbacService;
+

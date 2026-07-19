@@ -59,6 +59,8 @@ const friendlyPermissionNames = {
   "recipes.manage": "Recetas",
   "orders.manage": "Pedidos",
   "production.manage": "Produccion",
+  "production.baker": "Produccion panadero",
+  "production.packaging": "Conteo y empaque",
   "inventory.manage": "Inventario",
   "reports.view": "Reportes",
 };

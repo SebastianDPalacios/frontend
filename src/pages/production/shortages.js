@@ -156,12 +156,6 @@ const ProductionShortagesPage = () => {
     <FlowPageLayout
       title="Faltantes justificados"
       subtitle="Controla las diferencias encontradas durante el conteo y empaque."
-      links={[
-        { label: "Resumen del día", href: "/production/day" },
-        { label: "Reporte mensual", href: "/production/month" },
-        { label: "Lotes y empaque", href: "/production/packaging" },
-        { label: "Faltantes", href: "/production/shortages", active: true },
-      ]}
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {hasSuspectedTheft ? (

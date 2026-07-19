@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -529,6 +529,8 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [deliveryDateDraft, setDeliveryDateDraft] = useState("");
+  const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState("");
   const todayDate = useMemo(() => getTodayDate(), []);
@@ -538,6 +540,15 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       setSearch(String(router.query.search));
     }
   }, [router.isReady, router.query.search]);
+  useEffect(() => {
+    if (!detailOrder) {
+      setDeliveryDateDraft("");
+      return;
+    }
+
+    const currentDeliveryDate = formatDate(detailOrder.delivery_date);
+    setDeliveryDateDraft(currentDeliveryDate === "Sin fecha" ? "" : currentDeliveryDate);
+  }, [detailOrder]);
 
   useEffect(() => {
     const run = async () => {
@@ -669,6 +680,59 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       toast.error(message);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+
+  const saveDeliveryDate = async () => {
+    if (!detailOrder || deliveryDateSaving) {
+      return;
+    }
+
+    const nextDate = String(deliveryDateDraft || "").slice(0, 10);
+    const orderDate = formatDate(detailOrder.order_date);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+      toast.error("Selecciona una fecha de entrega valida");
+      return;
+    }
+
+    if (orderDate !== "Sin fecha" && nextDate < orderDate) {
+      toast.error("La fecha de entrega no puede ser menor a la fecha del pedido");
+      return;
+    }
+
+    setDeliveryDateSaving(true);
+    setError(null);
+
+    try {
+      const response = await ordersService.updateDeliveryDate(detailOrder.id, { delivery_date: nextDate });
+      if (response?.code !== 1) {
+        const message = getFriendlyOrderError(response?.message || "No se pudo actualizar la fecha de entrega");
+        setError(message);
+        toast.error(message);
+        return;
+      }
+
+      const updatedFields = {
+        delivery_date: nextDate,
+        ...(detailOrder.status === "delivered"
+          ? { actual_delivered_at: response.data?.actual_delivered_at || nextDate }
+          : {}),
+      };
+
+      setDetailOrder((current) => (current ? { ...current, ...updatedFields } : current));
+      setOrders((current) => current.map((order) => (
+        String(order.id) === String(detailOrder.id) ? { ...order, ...updatedFields } : order
+      )));
+      setRefreshKey((value) => value + 1);
+      toast.success(response?.message || "Fecha de entrega actualizada");
+    } catch (requestError) {
+      const message = getFriendlyOrderError(getErrorMessage(requestError, "Error de red al actualizar fecha de entrega"));
+      setError(message);
+      toast.error(message);
+    } finally {
+      setDeliveryDateSaving(false);
     }
   };
 
@@ -1141,8 +1205,38 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                       <Grid item xs={6}>
                         <OrderMetric label="Fecha pedido" value={formatDate(detailOrder.order_date)} />
                       </Grid>
-                      <Grid item xs={6}>
-                        <OrderMetric label="Fecha entrega" value={formatDate(detailOrder.delivery_date)} />
+                      <Grid item xs={12} sm={6}>
+                        <Stack spacing={1}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Fecha entrega"
+                            type="date"
+                            value={deliveryDateDraft}
+                            onChange={(event) => setDeliveryDateDraft(event.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{
+                              min: formatDate(detailOrder.order_date) !== "Sin fecha"
+                                ? formatDate(detailOrder.order_date)
+                                : undefined,
+                            }}
+                            disabled={deliveryDateSaving || detailOrder.status === "cancelled"}
+                          />
+                          <AppButton
+                            size="small"
+                            variant="outlined"
+                            color="secondary"
+                            onClick={saveDeliveryDate}
+                            disabled={
+                              deliveryDateSaving ||
+                              detailOrder.status === "cancelled" ||
+                              !deliveryDateDraft ||
+                              deliveryDateDraft === formatDate(detailOrder.delivery_date)
+                            }
+                          >
+                            {deliveryDateSaving ? "Guardando..." : "Guardar fecha"}
+                          </AppButton>
+                        </Stack>
                       </Grid>
                       <Grid item xs={6}>
                         <Box>
@@ -1269,3 +1363,4 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 };
 
 export default OrdersHistoryPage;
+

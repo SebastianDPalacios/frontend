@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -31,6 +31,15 @@ const initialValues = {
   showSeller: true,
   showDeliveryDate: true,
   customerTitle: "CLIENTE",
+  showCustomerName: true,
+  showCustomerIdentification: true,
+  showCustomerAddress: true,
+  showCustomerNeighborhood: true,
+  showCustomerPhone: true,
+  customerIdentificationLabel: "Identificacion",
+  customerAddressLabel: "Direccion",
+  customerNeighborhoodLabel: "Barrio/Zona",
+  customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
   policyTitle: "POLITICA DE CAMBIOS",
   policyText:
@@ -41,6 +50,10 @@ const initialValues = {
   headerFontSize: 24,
   customerFontSize: 20,
   customerContactFontSize: 16,
+  customerIdentificationFontSize: 13,
+  customerAddressFontSize: 16,
+  customerNeighborhoodFontSize: 15,
+  customerPhoneFontSize: 16,
   productFontSize: 13,
   quantityFontSize: 20,
   totalFontSize: 17,
@@ -55,6 +68,10 @@ const fontScales = {
     headerFontSize: 24,
     customerFontSize: 20,
     customerContactFontSize: 16,
+    customerIdentificationFontSize: 13,
+    customerAddressFontSize: 16,
+    customerNeighborhoodFontSize: 15,
+    customerPhoneFontSize: 16,
     productFontSize: 13,
     quantityFontSize: 20,
     totalFontSize: 17,
@@ -64,6 +81,10 @@ const fontScales = {
     headerFontSize: 27,
     customerFontSize: 23,
     customerContactFontSize: 18,
+    customerIdentificationFontSize: 14,
+    customerAddressFontSize: 18,
+    customerNeighborhoodFontSize: 17,
+    customerPhoneFontSize: 18,
     productFontSize: 14,
     quantityFontSize: 22,
     totalFontSize: 19,
@@ -73,6 +94,10 @@ const fontScales = {
     headerFontSize: 29,
     customerFontSize: 25,
     customerContactFontSize: 19,
+    customerIdentificationFontSize: 15,
+    customerAddressFontSize: 20,
+    customerNeighborhoodFontSize: 18,
+    customerPhoneFontSize: 20,
     productFontSize: 15,
     quantityFontSize: 24,
     totalFontSize: 20,
@@ -155,6 +180,10 @@ const PosTicketPreview = ({ values }) => {
     title: numberOrFallback(values.headerFontSize, preset.headerFontSize),
     customer: numberOrFallback(values.customerFontSize, preset.customerFontSize),
     important: numberOrFallback(values.customerContactFontSize, preset.customerContactFontSize),
+    identification: numberOrFallback(values.customerIdentificationFontSize, values.customerContactFontSize || 13),
+    address: numberOrFallback(values.customerAddressFontSize, values.customerContactFontSize || 16),
+    neighborhood: numberOrFallback(values.customerNeighborhoodFontSize, values.customerContactFontSize || 15),
+    phone: numberOrFallback(values.customerPhoneFontSize, values.customerContactFontSize || 16),
     product: numberOrFallback(values.productFontSize, preset.productFontSize),
     quantity: numberOrFallback(values.quantityFontSize, preset.quantityFontSize),
     total: numberOrFallback(values.totalFontSize, preset.totalFontSize),
@@ -240,19 +269,31 @@ const PosTicketPreview = ({ values }) => {
       <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: 14 }}>
         {values.customerTitle || "CLIENTE"}
       </Typography>
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.customer, lineHeight: 1.05 }}>
-        CARLOS MEN
-      </Typography>
-      <Typography sx={{ fontFamily: "Arial, sans-serif" }}>Identificacion: 123456789</Typography>
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.important }}>
-        Direccion: calle 10#10-10
-      </Typography>
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: 15 }}>
-        Barrio/Zona: Sin barrio/zona
-      </Typography>
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.important }}>
-        Tel: 12345788
-      </Typography>
+      {values.showCustomerName ? (
+        <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.customer, lineHeight: 1.05 }}>
+          CARLOS MEN
+        </Typography>
+      ) : null}
+      {values.showCustomerIdentification ? (
+        <Typography sx={{ fontFamily: "Arial, sans-serif", fontSize: scale.identification }}>
+          {values.customerIdentificationLabel || "Identificacion"}: 123456789
+        </Typography>
+      ) : null}
+      {values.showCustomerAddress ? (
+        <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.address }}>
+          {values.customerAddressLabel || "Direccion"}: calle 10#10-10
+        </Typography>
+      ) : null}
+      {values.showCustomerNeighborhood ? (
+        <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.neighborhood }}>
+          {values.customerNeighborhoodLabel || "Barrio/Zona"}: Sin barrio/zona
+        </Typography>
+      ) : null}
+      {values.showCustomerPhone ? (
+        <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.phone }}>
+          {values.customerPhoneLabel || "Tel"}: 12345788
+        </Typography>
+      ) : null}
 
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
       <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: 14 }}>
@@ -584,7 +625,11 @@ const PosTicketSettingsPage = () => {
                     ["bodyFontSize", "Texto general", 10, 18],
                     ["headerFontSize", "Encabezado", 18, 34],
                     ["customerFontSize", "Nombre cliente", 16, 30],
-                    ["customerContactFontSize", "Direccion y telefono", 12, 24],
+                    ["customerContactFontSize", "Contacto cliente", 12, 24],
+                    ["customerIdentificationFontSize", "Identificacion", 10, 24],
+                    ["customerAddressFontSize", "Direccion", 12, 28],
+                    ["customerNeighborhoodFontSize", "Barrio/Zona", 12, 26],
+                    ["customerPhoneFontSize", "Telefono", 12, 28],
                     ["productFontSize", "Productos", 11, 22],
                     ["quantityFontSize", "Cantidad", 16, 34],
                     ["totalFontSize", "Total", 15, 30],
@@ -667,6 +712,47 @@ const PosTicketSettingsPage = () => {
                 </Box>
               </EditorPanel>
 
+
+              <EditorPanel
+                title="Bloque del cliente"
+                subtitle="Parametriza que datos del cliente aparecen y como se llaman en el comprobante."
+              >
+                <Box sx={fieldGridSx}>
+                  {[
+                    ["showCustomerName", "Mostrar nombre del cliente"],
+                    ["showCustomerIdentification", "Mostrar identificacion"],
+                    ["showCustomerAddress", "Mostrar direccion"],
+                    ["showCustomerNeighborhood", "Mostrar barrio/zona"],
+                    ["showCustomerPhone", "Mostrar telefono"],
+                  ].map(([name, label]) => (
+                    <Box key={name} sx={{ minWidth: 0 }}>
+                      <FormControlLabel
+                        control={<Switch name={name} checked={Boolean(values[name])} onChange={handleSwitchChange} />}
+                        label={label}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+                <Box sx={fieldGridSx}>
+                  {[
+                    ["customerIdentificationLabel", "Etiqueta identificacion", values.showCustomerIdentification],
+                    ["customerAddressLabel", "Etiqueta direccion", values.showCustomerAddress],
+                    ["customerNeighborhoodLabel", "Etiqueta barrio/zona", values.showCustomerNeighborhood],
+                    ["customerPhoneLabel", "Etiqueta telefono", values.showCustomerPhone],
+                  ].map(([name, label, enabled]) => (
+                    <Box key={name} sx={{ minWidth: 0 }}>
+                      <TextField
+                        name={name}
+                        label={label}
+                        value={values[name]}
+                        onChange={handleInputChange}
+                        fullWidth
+                        disabled={!enabled}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </EditorPanel>
               <EditorPanel
                 title="Textos del comprobante"
                 subtitle="Edita titulos, politica y mensaje de cierre."
@@ -819,3 +905,4 @@ const PosTicketSettingsPage = () => {
 };
 
 export default PosTicketSettingsPage;
+

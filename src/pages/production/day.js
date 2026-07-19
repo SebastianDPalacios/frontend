@@ -123,6 +123,38 @@ const SmallStat = ({ label, value }) => (
   </Box>
 );
 
+const getCountGap = (row) => Math.round((Number(row.produced_quantity || 0) - Number(row.counted_quantity || 0)) * 1000) / 1000;
+
+const CountGapChip = ({ gap }) => {
+  const normalizedGap = Number(gap || 0);
+
+  if (normalizedGap > 0) {
+    return (
+      <Chip
+        size="small"
+        color="warning"
+        variant="outlined"
+        label={`Falta por explicar: ${formatUnits(normalizedGap)}`}
+        sx={{ fontWeight: 800, maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.35 } }}
+      />
+    );
+  }
+
+  if (normalizedGap < 0) {
+    return (
+      <Chip
+        size="small"
+        color="info"
+        variant="outlined"
+        label={`Contador reporto mas: ${formatUnits(Math.abs(normalizedGap))}`}
+        sx={{ fontWeight: 800, maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.35 } }}
+      />
+    );
+  }
+
+  return <Chip size="small" color="success" variant="outlined" label="Sin desfase" sx={{ fontWeight: 800 }} />;
+};
+
 const BatchCard = ({ batch }) => {
   const produced = Number(batch.produced_quantity || 0);
   const packed = Number(batch.packed_quantity || 0);
@@ -276,6 +308,13 @@ const ProductionDayPage = () => {
     () => report.raw_materials_usage.reduce((total, material) => total + Number(material.total_cost || 0), 0),
     [report.raw_materials_usage]
   );
+  const countGap = Math.round((produced - Number(summary.counted_quantity || 0)) * 1000) / 1000;
+  const productsWithCountGap = useMemo(
+    () => report.products
+      .map((product) => ({ ...product, count_gap: getCountGap(product) }))
+      .filter((product) => Math.abs(Number(product.count_gap || 0)) > 0.001),
+    [report.products]
+  );
 
   return (
     <FlowPageLayout
@@ -367,8 +406,16 @@ const ProductionDayPage = () => {
           <MetricCard
             label="Pendientes"
             value={formatUnits(pending)}
-            helper={`${formatUnits(damaged)} dañados · ${formatUnits(missing)} faltantes`}
+            helper={formatUnits(damaged) + " danados / " + formatUnits(missing) + " faltantes"}
             color={pending > 0 ? "warning" : "success"}
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <MetricCard
+            label="Desfase de conteo"
+            value={formatUnits(countGap)}
+            helper="Reportado por panadero menos conteo real"
+            color={Math.abs(countGap) > 0.001 ? "warning" : "success"}
           />
         </Grid>
       </Grid>
@@ -390,6 +437,63 @@ const ProductionDayPage = () => {
           value={progress}
           sx={{ height: 10, borderRadius: 999, "& .MuiLinearProgress-bar": { borderRadius: 999 } }}
         />
+      </Paper>
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1}
+          sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, mb: 2 }}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Comparativo de produccion
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Compara lo reportado por panadero contra el conteo real. El desfase sirve para preguntar y justificar diferencias.
+            </Typography>
+          </Box>
+          <CountGapChip gap={countGap} />
+        </Stack>
+
+        {loading ? <Alert severity="info">Cargando comparativo...</Alert> : null}
+        {!loading && report.products.length === 0 ? <Alert severity="info">No hay produccion para comparar en estos filtros.</Alert> : null}
+        {!loading && report.products.length > 0 && productsWithCountGap.length === 0 ? (
+          <Alert severity="success">No hay desfases entre lo reportado por panadero y el conteo real.</Alert>
+        ) : null}
+
+        <Stack spacing={1}>
+          {productsWithCountGap.map((product) => (
+            <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+              <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
+                <Grid item xs={12} md={3}>
+                  <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatUnits(product.batches_count)} {Number(product.batches_count || 0) === 1 ? "lote" : "lotes"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={3} md={1.5}>
+                  <SmallStat label="Panadero" value={formatUnits(product.produced_quantity)} />
+                </Grid>
+                <Grid item xs={6} sm={3} md={1.5}>
+                  <SmallStat label="Contador" value={formatUnits(product.counted_quantity)} />
+                </Grid>
+                <Grid item xs={6} sm={3} md={1.5}>
+                  <SmallStat label="Empacado" value={formatUnits(product.packed_quantity)} />
+                </Grid>
+                <Grid item xs={6} sm={3} md={1.5}>
+                  <SmallStat label="Danado" value={formatUnits(product.damaged_quantity)} />
+                </Grid>
+                <Grid item xs={6} sm={3} md={1.5}>
+                  <SmallStat label="Faltante" value={formatUnits(product.missing_quantity)} />
+                </Grid>
+                <Grid item xs={12} sm={9} md={3}>
+                  <CountGapChip gap={product.count_gap} />
+                </Grid>
+              </Grid>
+            </Paper>
+          ))}
+        </Stack>
       </Paper>
 
       <Grid container spacing={2}>
