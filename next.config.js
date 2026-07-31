@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
-const backendApiUrl = process.env.BACKEND_API_URL || "http://localhost:3001/api";
+const backendApiUrl =
+  process.env.BACKEND_API_URL || "http://localhost:3001/api";
 
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
+
   async rewrites() {
     return [
       {
