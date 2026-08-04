@@ -40,6 +40,7 @@ const orderModes = [
 
 const lineLabels = {
   sale: "Venta",
+  sale_bonus: "Venta + vendaje",
   bonus: "Vendaje",
 };
 
@@ -661,28 +662,44 @@ const AtomicOrderForm = () => {
             </Box>
 
             <Stack divider={<Divider flexItem />}>
-              {preparedOrder.lines.map((line) => (
-                <Stack key={line.key} direction="row" spacing={2} sx={{ py: 1.25, justifyContent: "space-between", alignItems: "flex-start" }}>
+              {preparedOrder.rows.map(({ entry, product, calculation }) => {
+                const orderMode = isPastryProduct(product) && ["sale_bonus", "bonus"].includes(entry.orderMode)
+                  ? "sale"
+                  : entry.orderMode;
+                const automaticBonus = orderMode === "sale_bonus" && preparedOrder.bonusEnabled
+                  ? calculateAutomaticBonus(
+                      product,
+                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100)
+                    )
+                  : { quantity: 0 };
+                const totalQuantity = calculation.quantity + automaticBonus.quantity;
+
+                return (
+                <Stack key={entry.id} direction="row" spacing={2} sx={{ py: 1.25, justifyContent: "space-between", alignItems: "flex-start" }}>
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                      <Typography sx={{ fontWeight: 800 }}>{line.product.name}</Typography>
+                      <Typography sx={{ fontWeight: 800 }}>{product.name}</Typography>
                       <Chip
                         size="small"
-                        color={line.lineType === "bonus" ? "success" : "default"}
-                        label={line.automatic ? "Vendaje automatico" : lineLabels[line.lineType]}
+                        color={orderMode === "sale_bonus" || orderMode === "bonus" ? "success" : "default"}
+                        label={lineLabels[orderMode]}
                       />
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
-                      {line.quantity} unidades
+                      {totalQuantity} unidades
+                      {orderMode === "sale_bonus" && automaticBonus.quantity > 0
+                        ? ` (${calculation.quantity} venta + ${automaticBonus.quantity} vendaje)`
+                        : ""}
                     </Typography>
                   </Box>
                   <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
-                    {line.lineType === "sale"
-                      ? `$${formatCurrencyValue(line.commercialValue, 0)}`
+                    {orderMode !== "bonus"
+                      ? `$${formatCurrencyValue(calculation.commercialValue, 0)}`
                       : "Sin cobro"}
                   </Typography>
                 </Stack>
-              ))}
+                );
+              })}
             </Stack>
 
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>

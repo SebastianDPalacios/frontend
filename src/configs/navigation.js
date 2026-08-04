@@ -82,6 +82,7 @@
           { title: "Proveedores", path: "/catalogo/proveedores", icon: "suppliers", permission: "materials.manage" },
           { title: "Reglas de venta", path: "/orders/settings", icon: "orders", permission: "roles.manage" },
           { title: "Ticket POS", path: "/settings/pos-ticket", icon: "orders", permission: "roles.manage" },
+          { title: "Ticket liquidacion", path: "/settings/daily-settlement-ticket", icon: "orders", permission: "roles.manage" },
           { title: "Acceso a vistas", path: "/settings/view-access", icon: "users", permission: "roles.manage" },
           { title: "Tasas de impuesto", path: "/catalogo/tasas-de-impuesto", icon: "tax", permission: "products.manage" },
           { title: "Categorias producto", path: "/catalogo/categorias-producto", icon: "category", permission: "products.manage" },

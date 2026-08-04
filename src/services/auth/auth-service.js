@@ -4,9 +4,9 @@ import endpoints from "services/api";
 import authConfig from "configs/auth";
 
 const setSessionData = (data) => {
-  Cookies.set(authConfig.storageTokenKeyName, data.access_token || "", { sameSite: "Lax" });
-  Cookies.set(authConfig.storageRefreshTokenKeyName, data.refresh_token || "", { sameSite: "Lax" });
-  Cookies.set(authConfig.storageSessionIdKeyName, String(data.session_id || ""), { sameSite: "Lax" });
+  Cookies.set(authConfig.storageTokenKeyName, data.access_token || "", { sameSite: "Lax", expires: 30 });
+  Cookies.set(authConfig.storageRefreshTokenKeyName, data.refresh_token || "", { sameSite: "Lax", expires: 30 });
+  Cookies.set(authConfig.storageSessionIdKeyName, String(data.session_id || ""), { sameSite: "Lax", expires: 30 });
   localStorage.setItem(authConfig.storageUserKeyName, JSON.stringify({
     ...(data.user || {}),
     roles: data.roles || [],
@@ -100,13 +100,14 @@ class AuthService {
     }
 
     const token = Cookies.get(authConfig.storageTokenKeyName);
-    if (!token) {
-      return false;
-    }
+    const refreshToken = Cookies.get(authConfig.storageRefreshTokenKeyName);
+    const sessionId = Cookies.get(authConfig.storageSessionIdKeyName);
+    const currentUser = this.getCurrentUser();
+    const hasRefreshSession = Boolean(refreshToken && sessionId && (currentUser?.user_id || currentUser?.id));
+    if (!token) return hasRefreshSession;
 
     if (isTokenExpired(token)) {
-      clearSessionData();
-      return false;
+      return hasRefreshSession;
     }
 
     return true;

@@ -120,20 +120,27 @@ const addBlankRows = (worksheet, count = 1) => {
 
 const sumBy = (rows, field) => rows.reduce((total, row) => total + Number(row?.[field] || 0), 0);
 
-const buildReturnsMatrix = (rows, valueField) => {
+const buildReturnsMatrix = (rows, valueField, salesUsers = []) => {
   const sellers = [];
   const sellerKeys = new Set();
   const products = new Map();
 
+  const addSeller = (seller) => {
+    const sellerKey = String(seller.sales_agent_user_id || seller.sales_agent_name || "");
+    if (!sellerKey || sellerKeys.has(sellerKey)) return;
+
+    sellerKeys.add(sellerKey);
+    sellers.push({
+      key: sellerKey,
+      name: seller.sales_agent_name || "Sin vendedor",
+    });
+  };
+
+  salesUsers.forEach(addSeller);
+
   rows.forEach((row) => {
     const sellerKey = String(row.sales_agent_user_id || row.sales_agent_name || "");
-    if (!sellerKeys.has(sellerKey)) {
-      sellerKeys.add(sellerKey);
-      sellers.push({
-        key: sellerKey,
-        name: row.sales_agent_name || "Sin vendedor",
-      });
-    }
+    addSeller(row);
 
     const productKey = String(row.product_id || row.product_name || "");
     if (!products.has(productKey)) {
@@ -456,8 +463,11 @@ const exportProductionMonthExcel = async ({
   );
 
   const returnsRows = Array.isArray(report.returns_summary) ? report.returns_summary : [];
+  const salesUsers = Array.isArray(report.sales_users) ? report.sales_users : [];
+  const unitReturns = buildReturnsMatrix(returnsRows, "returned_quantity", salesUsers);
+  const valueReturns = buildReturnsMatrix(returnsRows, "returned_value", salesUsers);
   const returnsWorksheet = workbook.addWorksheet(`Devoluciones ${filters.month}`);
-  const returnsSellersCount = new Set(returnsRows.map((row) => String(row.sales_agent_user_id || row.sales_agent_name || ""))).size;
+  const returnsSellersCount = Math.max(unitReturns.sellers.length, valueReturns.sellers.length);
   const returnsColumnCount = Math.max(4, returnsSellersCount + 3);
   Array.from({ length: returnsColumnCount }).forEach((_, index) => {
     returnsWorksheet.getColumn(index + 1).width = index === 0 ? 28 : index === 1 ? 18 : 16;
@@ -471,7 +481,6 @@ const exportProductionMonthExcel = async ({
   );
   addBlankRows(returnsWorksheet);
 
-  const unitReturns = buildReturnsMatrix(returnsRows, "returned_quantity");
   addSection(
     returnsWorksheet,
     `Total devoluciones de ${monthLabel(filters.month)} - En unidades`,
@@ -482,7 +491,6 @@ const exportProductionMonthExcel = async ({
 
   addBlankRows(returnsWorksheet, 2);
 
-  const valueReturns = buildReturnsMatrix(returnsRows, "returned_value");
   addSection(
     returnsWorksheet,
     `Total devoluciones de ${monthLabel(filters.month)} - En pesos`,

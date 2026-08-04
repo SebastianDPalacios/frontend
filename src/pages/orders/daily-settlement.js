@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -15,6 +15,7 @@ import PrintRoundedIcon from "@mui/icons-material/PrintRounded";
 import toast from "react-hot-toast";
 import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
+import settingsService from "services/settings/settings-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 
 const money = new Intl.NumberFormat("es-CO", {
@@ -50,6 +51,70 @@ const formatDate = (value) => {
   return String(value).slice(0, 10);
 };
 
+
+const defaultSettlementPrintSettings = {
+  pageWidthMm: 80,
+  pageMarginMm: 3,
+  bodyWidthMm: 74,
+  bodyFontSize: 10.5,
+  titleFontSize: 20,
+  metaFontSize: 12,
+  customerFontSize: 11.5,
+  mutedFontSize: 10,
+  totalsFontSize: 11.5,
+  deliverFontSize: 15,
+  footerFontSize: 9,
+  showGrossSale: true,
+  showCreditApplied: true,
+  showCollectedSale: true,
+  showReturns: true,
+  showCreditGenerated: true,
+  showGifts: true,
+  showCommission: true,
+};
+
+const settlementPrintFields = [
+  { key: "pageWidthMm", label: "Ancho papel (mm)", min: 58, max: 120, step: 1 },
+  { key: "pageMarginMm", label: "Margen (mm)", min: 0, max: 10, step: 0.5 },
+  { key: "bodyWidthMm", label: "Ancho contenido (mm)", min: 50, max: 110, step: 1 },
+  { key: "bodyFontSize", label: "Texto general", min: 8, max: 18, step: 0.5 },
+  { key: "titleFontSize", label: "Titulo", min: 14, max: 32, step: 1 },
+  { key: "metaFontSize", label: "Datos principales", min: 9, max: 20, step: 0.5 },
+  { key: "customerFontSize", label: "Cliente", min: 9, max: 22, step: 0.5 },
+  { key: "mutedFontSize", label: "Texto secundario", min: 8, max: 16, step: 0.5 },
+  { key: "totalsFontSize", label: "Totales", min: 9, max: 20, step: 0.5 },
+  { key: "deliverFontSize", label: "Valor a entregar", min: 12, max: 28, step: 1 },
+  { key: "footerFontSize", label: "Pie de cierre", min: 7, max: 14, step: 0.5 },
+];
+
+const settlementVisibilityFields = [
+  "showGrossSale",
+  "showCreditApplied",
+  "showCollectedSale",
+  "showReturns",
+  "showCreditGenerated",
+  "showGifts",
+  "showCommission",
+];
+
+const normalizeSettlementPrintSettings = (settings) => {
+  const normalized = { ...defaultSettlementPrintSettings };
+  settlementPrintFields.forEach((field) => {
+    const value = Number(settings?.[field.key]);
+    if (Number.isFinite(value)) {
+      normalized[field.key] = Math.min(Math.max(value, field.min), field.max);
+    }
+  });
+  settlementVisibilityFields.forEach((field) => {
+    if (typeof settings?.[field] === "boolean") normalized[field] = settings[field];
+  });
+  normalized.bodyWidthMm = Math.min(
+    normalized.bodyWidthMm,
+    Math.max(38, normalized.pageWidthMm - (normalized.pageMarginMm * 2))
+  );
+  return normalized;
+};
+
 const getDailyOrderNumbers = (items) => {
   const dayMap = new Map();
 
@@ -79,8 +144,9 @@ const Metric = ({ label, value, helper }) => (
   </Paper>
 );
 
-const buildSettlementReceipt = (data) => {
+const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSettings) => {
   const summary = data.summary || {};
+  const print = normalizeSettlementPrintSettings(printSettings);
   const dailyOrderNumbers = getDailyOrderNumbers(data.items || []);
   const rows = (data.items || []).map((item) => {
     const orderNumber = dailyOrderNumbers[String(item.order_id)] || Number(item.order_id);
@@ -123,22 +189,23 @@ const buildSettlementReceipt = (data) => {
       <meta charset="utf-8" />
       <title>Liquidacion ${escapeHtml(data.settlement_date)}</title>
       <style>
-        @page { size: 80mm auto; margin: 3mm; }
+        @page { size: ${print.pageWidthMm}mm auto; margin: ${print.pageMarginMm}mm; }
         * { box-sizing: border-box; }
-        body { width: 74mm; margin: 0 auto; color: #111; font-family: Arial, sans-serif; font-size: 10.5px; }
-        h1 { margin: 0; text-align: center; font-size: 20px; text-transform: uppercase; }
-        .subtitle { margin-top: 3px; text-align: center; font-weight: 800; }
+        body { width: ${print.bodyWidthMm}mm; margin: 0 auto; color: #111; font-family: Arial, sans-serif; font-size: ${print.bodyFontSize}px; }
+        h1 { margin: 0; text-align: center; font-size: ${print.titleFontSize}px; text-transform: uppercase; }
+        .subtitle { margin-top: 3px; text-align: center; font-weight: 800; font-size: ${print.metaFontSize}px; }
         .rule { margin: 7px 0; border-top: 1px dashed #111; }
-        .meta { display: grid; gap: 3px; }
-        .meta strong { font-size: 12px; }
+        .meta { display: grid; gap: 3px; font-size: ${print.metaFontSize}px; }
+        .meta strong { font-size: ${print.metaFontSize + 0.5}px; }
         .row { padding: 5px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
-        .customer { font-size: 11.5px; font-weight: 900; }
+        .customer { font-size: ${print.customerFontSize}px; font-weight: 900; }
         .values { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
-        .muted { color: #444; font-size: 10px; }
-        .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 8px; font-size: 11.5px; }
+        .muted { color: #444; font-size: ${print.mutedFontSize}px; }
+        .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 8px; font-size: ${print.totalsFontSize}px; }
         .totals strong { text-align: right; }
-        .deliver { padding-top: 5px; border-top: 2px solid #111; font-size: 15px; font-weight: 900; }
-        .footer { margin-top: 9px; text-align: center; font-size: 9px; }
+        .deliver { padding-top: 5px; border-top: 2px solid #111; font-size: ${print.deliverFontSize}px; font-weight: 900; }
+        .footer { margin-top: 9px; text-align: center; font-size: ${print.footerFontSize}px; }
+        @media print { body { width: ${print.bodyWidthMm}mm; } }
       </style>
     </head>
     <body>
@@ -154,13 +221,13 @@ const buildSettlementReceipt = (data) => {
       ${rows || "<div>Sin ventas entregadas en esta fecha.</div>"}
       ${giftRows ? `<div class="rule"></div><strong>OBSEQUIOS REGISTRADOS</strong>${giftRows}` : ""}
       <div class="totals">
-        <span>VENTA BRUTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>
-        <span>SALDO APLICADO</span><strong>-${money.format(Number(summary.credit_redeemed_amount || 0))}</strong>
-        <span>VENTA COBRADA</span><strong>${money.format(Number(summary.collected_sales_total ?? Math.max(Number(summary.delivered_sales_total || 0) - Number(summary.credit_redeemed_amount || 0), 0)))}</strong>
-        <span>CAMBIOS</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>
-        <span>SALDO GENERADO</span><strong>${money.format(Number(summary.credit_generated_total || 0))}</strong>
-        <span>OBSEQUIOS</span><strong>${money.format(Number(summary.gift_total || 0))}</strong>
-        <span>COMISION</span><strong>${money.format(Number(summary.commission_amount || 0))}</strong>
+        ${print.showGrossSale ? `<span>VENTA BRUTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>` : ""}
+        ${print.showCreditApplied ? `<span>SALDO APLICADO</span><strong>-${money.format(Number(summary.credit_redeemed_amount || 0))}</strong>` : ""}
+        ${print.showCollectedSale ? `<span>VENTA COBRADA</span><strong>${money.format(Number(summary.collected_sales_total ?? Math.max(Number(summary.delivered_sales_total || 0) - Number(summary.credit_redeemed_amount || 0), 0)))}</strong>` : ""}
+        ${print.showReturns ? `<span>CAMBIOS</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>` : ""}
+        ${print.showCreditGenerated ? `<span>SALDO GENERADO</span><strong>${money.format(Number(summary.credit_generated_total || 0))}</strong>` : ""}
+        ${print.showGifts ? `<span>OBSEQUIOS</span><strong>${money.format(Number(summary.gift_total || 0))}</strong>` : ""}
+        ${print.showCommission ? `<span>COMISION</span><strong>${money.format(Number(summary.commission_amount || 0))}</strong>` : ""}
         <span class="deliver">ENTREGAR</span><strong class="deliver">${money.format(Number(summary.amount_to_deliver || 0))}</strong>
       </div>
       <div class="footer">Generado: ${escapeHtml(formatDateTime(new Date()))}</div>
@@ -176,9 +243,18 @@ const DailySettlementPage = () => {
   );
   const [date, setDate] = useState(today());
   const [sellerId, setSellerId] = useState("");
+  const [printSettings, setPrintSettings] = useState(defaultSettlementPrintSettings);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    settingsService.getPosTicketSettings().then((response) => {
+      if (response?.code === 1) {
+        setPrintSettings(normalizeSettlementPrintSettings(response.data?.settlementPrint));
+      }
+    }).catch(() => null);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -222,7 +298,7 @@ const DailySettlementPage = () => {
       return;
     }
     popup.document.open();
-    popup.document.write(buildSettlementReceipt(data));
+    popup.document.write(buildSettlementReceipt(data, printSettings));
     popup.document.close();
     popup.focus();
     window.setTimeout(() => popup.print(), 250);
@@ -460,15 +536,3 @@ const DailySettlementPage = () => {
 };
 
 export default DailySettlementPage;
-
-
-
-
-
-
-
-
-
-
-
-

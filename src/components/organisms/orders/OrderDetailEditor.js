@@ -31,7 +31,7 @@ const emptyNewLine = {
 };
 
 const toDraft = (item) => ({
-  lineType: item.line_type || "sale",
+  lineType: item.display_line_type || item.line_type || "sale",
   originalLineType: item.line_type || "sale",
   captureMode: item.capture_mode || "quantity",
   value:
@@ -42,32 +42,58 @@ const toDraft = (item) => ({
 
 const lineTypeLabels = {
   sale: "Venta",
-  bonus: "Vendaje",
+  sale_bonus: "Venta + vendaje",
+  bonus: "Solo vendaje",
   gift: "Obsequio",
   exchange: "Cambio",
+};
+
+const mergeSaleBonusItems = (items = []) => {
+  const bonusByProduct = new Map();
+  items.forEach((item) => {
+    if (item.line_type === "bonus") bonusByProduct.set(String(item.product_id), item);
+  });
+
+  return items.reduce((rows, item) => {
+    if (item.line_type === "bonus" && items.some(
+      (candidate) => candidate.line_type === "sale" && String(candidate.product_id) === String(item.product_id)
+    )) return rows;
+
+    const bonusItem = item.line_type === "sale" ? bonusByProduct.get(String(item.product_id)) : null;
+    rows.push(bonusItem ? {
+      ...item,
+      display_line_type: "sale_bonus",
+      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
+      bonus_item: bonusItem,
+    } : item);
+    return rows;
+  }, []);
 };
 
 const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
   const [drafts, setDrafts] = useState({});
   const [products, setProducts] = useState([]);
+  const [salesSettings, setSalesSettings] = useState({ bonus_percent: 20, bonus_minimum_amount: 2000 });
   const [newLine, setNewLine] = useState(emptyNewLine);
   const [savingKey, setSavingKey] = useState("");
   const canEdit = editableStatuses.includes(order?.status);
+  const displayItems = useMemo(() => mergeSaleBonusItems(items), [items]);
 
   useEffect(() => {
     setDrafts(
-      items.reduce((acc, item) => {
+      displayItems.reduce((acc, item) => {
         acc[item.id] = toDraft(item);
         return acc;
       }, {})
     );
-  }, [items]);
+  }, [displayItems]);
 
   useEffect(() => {
     if (!canEdit) return;
     ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 200 }).then((response) => {
       if (response?.code === 1) {
         setProducts(normalizeRows(response.data?.products));
+        setSalesSettings((current) => ({ ...current, ...(response.data?.sales_settings || {}) }));
       }
     });
   }, [canEdit]);
@@ -79,11 +105,26 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
 
   const saveExisting = async (item, remove = false) => {
     const draft = drafts[item.id] || toDraft(item);
+    const requestedLineType = draft.lineType;
     setSavingKey(`item-${item.id}`);
     try {
+      if ((remove || requestedLineType !== "sale_bonus") && item.bonus_item) {
+        const bonusRemoval = await ordersService.upsertItem(order.id, {
+          p_product_id: Number(item.bonus_item.product_id),
+          p_line_type: "bonus",
+          p_previous_line_type: "bonus",
+          p_capture_mode: "quantity",
+          p_quantity: 0,
+          p_remove: true,
+        });
+        if (bonusRemoval?.code !== 1) {
+          toast.error(bonusRemoval?.message || "No se pudo retirar el vendaje asociado");
+          return;
+        }
+      }
       const result = await ordersService.upsertItem(order.id, {
         p_product_id: Number(item.product_id),
-        p_line_type: draft.lineType,
+        p_line_type: requestedLineType === "sale_bonus" ? "sale" : requestedLineType,
         p_previous_line_type: draft.originalLineType,
         p_capture_mode: draft.captureMode,
         p_requested_amount: draft.captureMode === "amount" ? Number(draft.value || 0) : null,
@@ -93,6 +134,35 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       if (result?.code !== 1) {
         toast.error(result?.message || "No se pudo actualizar el producto");
         return;
+      }
+      if (!remove && requestedLineType === "sale_bonus") {
+        const product = products.find((candidate) => String(candidate.id) === String(item.product_id));
+        const price = Number(product?.base_price || item.unit_price || 0);
+        const taxPercent = Number(product?.tax_percent || product?.rate_percent || item.tax_percent || 0);
+        const rawQuantity = draft.captureMode === "quantity" ? Number(draft.value) : Number(draft.value) / price;
+        const saleQuantity = isIntegerUnit(product?.unit || item.product_unit)
+          ? Math.floor(rawQuantity)
+          : Math.floor(rawQuantity * 1000) / 1000;
+        const bonusUnitValue = price * (1 + taxPercent / 100);
+        const rawBonusQuantity = bonusUnitValue > 0
+          ? (saleQuantity * bonusUnitValue * (Number(salesSettings.bonus_percent || 0) / 100)) / bonusUnitValue
+          : 0;
+        const bonusQuantity = isIntegerUnit(product?.unit || item.product_unit)
+          ? Math.floor(rawBonusQuantity)
+          : Math.floor(rawBonusQuantity * 1000) / 1000;
+        if (bonusQuantity > 0) {
+          const bonusResult = await ordersService.upsertItem(order.id, {
+            p_product_id: Number(item.product_id),
+            p_line_type: "bonus",
+            p_capture_mode: "quantity",
+            p_quantity: bonusQuantity,
+          });
+          if (bonusResult?.code !== 1) {
+            toast.error(bonusResult?.message || "La venta se actualizó, pero no se pudo aplicar el vendaje automático");
+            await onRefresh();
+            return;
+          }
+        }
       }
       toast.success(remove ? "Producto retirado" : "Producto actualizado");
       await onRefresh();
@@ -110,9 +180,10 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
     }
     setSavingKey("new");
     try {
+      const requestedLineType = newLine.lineType;
       const result = await ordersService.upsertItem(order.id, {
         p_product_id: Number(selectedNewProduct.id),
-        p_line_type: newLine.lineType,
+        p_line_type: requestedLineType === "sale_bonus" ? "sale" : requestedLineType,
         p_capture_mode: newLine.captureMode,
         p_requested_amount: newLine.captureMode === "amount" ? Number(newLine.value) : null,
         p_quantity: newLine.captureMode === "quantity" ? Number(newLine.value) : null,
@@ -120,6 +191,40 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       if (result?.code !== 1) {
         toast.error(result?.message || "No se pudo agregar el producto");
         return;
+      }
+      if (requestedLineType === "sale_bonus") {
+        const price = Number(selectedNewProduct.base_price || 0);
+        const taxPercent = Number(selectedNewProduct.tax_percent || selectedNewProduct.rate_percent || 0);
+        const rawSaleQuantity = newLine.captureMode === "quantity"
+          ? Number(newLine.value)
+          : Number(newLine.value) / price;
+        const saleQuantity = isIntegerUnit(selectedNewProduct.unit)
+          ? Math.floor(rawSaleQuantity)
+          : Math.floor(rawSaleQuantity * 1000) / 1000;
+        const saleCommercialValue = saleQuantity * price * (1 + taxPercent / 100);
+        const projectedSaleTotal = Number(order?.grand_total || 0) + saleCommercialValue;
+        const minimum = Number(salesSettings.bonus_minimum_amount || 0);
+        const bonusUnitValue = price * (1 + taxPercent / 100);
+        const rawBonusQuantity = projectedSaleTotal >= minimum && bonusUnitValue > 0
+          ? (saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100)) / bonusUnitValue
+          : 0;
+        const bonusQuantity = isIntegerUnit(selectedNewProduct.unit)
+          ? Math.floor(rawBonusQuantity)
+          : Math.floor(rawBonusQuantity * 1000) / 1000;
+
+        if (bonusQuantity > 0) {
+          const bonusResult = await ordersService.upsertItem(order.id, {
+            p_product_id: Number(selectedNewProduct.id),
+            p_line_type: "bonus",
+            p_capture_mode: "quantity",
+            p_quantity: bonusQuantity,
+          });
+          if (bonusResult?.code !== 1) {
+            toast.error(bonusResult?.message || "La venta se agregó, pero no se pudo aplicar el vendaje automático");
+            await onRefresh();
+            return;
+          }
+        }
       }
       toast.success("Producto agregado");
       setNewLine(emptyNewLine);
@@ -143,9 +248,9 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       </Stack>
 
       {loading ? <Alert severity="info">Cargando productos...</Alert> : null}
-      {!loading && items.length === 0 ? <Alert severity="info">No hay productos en este pedido.</Alert> : null}
+      {!loading && displayItems.length === 0 ? <Alert severity="info">No hay productos en este pedido.</Alert> : null}
 
-      {!canEdit && items.length > 0 ? (
+      {!canEdit && displayItems.length > 0 ? (
         <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflowX: "auto" }}>
           <Table sx={{ minWidth: 920 }} aria-label="Productos solicitados del pedido">
             <TableHead>
@@ -159,7 +264,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {items.map((item) => (
+              {displayItems.map((item) => (
                 <TableRow key={item.id} hover>
                   <TableCell sx={{ minWidth: 220 }}>
                     <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
@@ -171,7 +276,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 800 }}>
-                      {lineTypeLabels[item.line_type] || item.line_type || "-"}
+                      {lineTypeLabels[item.display_line_type || item.line_type] || item.line_type || "-"}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -186,7 +291,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                   </TableCell>
                   <TableCell align="center">
                     <Typography sx={{ fontWeight: 900, fontSize: 20 }}>
-                      {Number(item.quantity || 0)}
+                      {Number(item.display_quantity ?? item.quantity ?? 0)}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
@@ -209,7 +314,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         </TableContainer>
       ) : null}
 
-      {canEdit && items.length > 0 ? (
+      {canEdit && displayItems.length > 0 ? (
         <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflowX: "auto" }}>
           <Table sx={{ minWidth: 1180 }} aria-label="Productos editables del pedido">
             <TableHead>
@@ -225,7 +330,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {items.map((item) => {
+              {displayItems.map((item) => {
                 const draft = drafts[item.id] || toDraft(item);
 
                 return (
@@ -247,7 +352,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                         }
                       />
                       <Typography variant="caption" color="text.secondary">
-                        Actual: {lineTypeLabels[item.line_type] || item.line_type || "-"}
+                        Actual: {lineTypeLabels[item.display_line_type || item.line_type] || item.line_type || "-"}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 180 }}>
@@ -300,7 +405,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                     </TableCell>
                     <TableCell align="center">
                       <Typography sx={{ fontWeight: 900, fontSize: 22 }}>
-                        {Number(item.quantity || 0)}
+                        {Number(item.display_quantity ?? item.quantity ?? 0)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {item.product_unit || "und"}

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Box,
@@ -42,6 +42,7 @@ const formatDateTime = (value) => {
 
 const lineLabels = {
   sale: "Venta",
+  sale_bonus: "Venta + vendaje",
   bonus: "Vendaje",
   gift: "Obsequio",
   exchange: "Cambio",
@@ -149,14 +150,59 @@ const mergeTicketSettings = (settings) => ({
   ...(settings || {}),
 });
 
+
+const getItemProductKey = (item) => String(item.product_id || item.product_name || "");
+
+const mergeSaleBonusDisplayItems = (items = []) => {
+  const usedBonusIndexes = new Set();
+
+  return items.reduce((acc, item, index) => {
+    if (usedBonusIndexes.has(index)) return acc;
+
+    if (item.line_type !== "sale") {
+      acc.push(item);
+      return acc;
+    }
+
+    const bonusIndex = items.findIndex((candidate, candidateIndex) =>
+      candidateIndex > index &&
+      !usedBonusIndexes.has(candidateIndex) &&
+      candidate.line_type === "bonus" &&
+      getItemProductKey(candidate) === getItemProductKey(item) &&
+      (!candidate.capture_mode || !item.capture_mode || candidate.capture_mode === item.capture_mode)
+    );
+
+    if (bonusIndex === -1) {
+      acc.push(item);
+      return acc;
+    }
+
+    const bonusItem = items[bonusIndex];
+    usedBonusIndexes.add(bonusIndex);
+
+    acc.push({
+      ...item,
+      display_line_type: "sale_bonus",
+      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
+      display_value: Number(item.line_total || 0) + Number(bonusItem.commercial_value || bonusItem.line_total || 0),
+      display_request_detail:
+        item.capture_mode === "amount" && item.requested_amount
+          ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
+          : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`,
+    });
+
+    return acc;
+  }, []);
+};
 const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
   const ticketSettings = mergeTicketSettings(settings);
   const scale = getTicketFontScale(ticketSettings);
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
+  const displayItems = mergeSaleBonusDisplayItems(items);
 
-  const groupedItems = items.reduce((groups, item) => {
+  const groupedItems = displayItems.reduce((groups, item) => {
     const categoryName = item.category_name || "Sin categoria";
     if (!groups.has(categoryName)) {
       groups.set(categoryName, []);
@@ -167,21 +213,23 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
 
   const rows = Array.from(groupedItems.entries()).map(([categoryName, categoryItems]) => {
     const itemRows = categoryItems.map((item) => {
-      const value = item.line_type === "sale" ? item.line_total : item.commercial_value;
-      const requestDetail = item.capture_mode === "amount" && item.requested_amount
+      const displayLineType = item.display_line_type || item.line_type;
+      const displayQuantity = item.display_quantity ?? item.quantity;
+      const value = item.display_value ?? (item.line_type === "sale" ? item.line_total : item.commercial_value);
+      const requestDetail = item.display_request_detail || (item.capture_mode === "amount" && item.requested_amount
         ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
-        : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`;
+        : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`);
 
       return `
         <div class="item">
           <div class="item-head">
             <span class="item-name">${escapeHtml(item.product_name)}</span>
-            <span class="type type-${escapeHtml(item.line_type)}">${escapeHtml(lineLabels[item.line_type] || item.line_type)}</span>
+            <span class="type type-${escapeHtml(displayLineType)}">${escapeHtml(lineLabels[displayLineType] || displayLineType)}</span>
           </div>
           <div class="item-values">
             <span></span>
             <span class="qty-box">
-              <span class="qty">${number.format(Number(item.quantity || 0))}</span>
+              <span class="qty">${number.format(Number(displayQuantity || 0))}</span>
               <span class="qty-label">UND</span>
             </span>
             <strong>${money.format(Number(value || 0))}</strong>
@@ -416,4 +464,3 @@ const OrderPrintManager = ({ order, onConfirmed }) => {
 };
 
 export default OrderPrintManager;
-

@@ -2,8 +2,8 @@ import { MenuItem, TextField } from "@mui/material";
 
 const lineTypes = [
   { value: "sale", label: "Venta" },
-  { value: "bonus", label: "Vendaje" },
-  { value: "gift", label: "Obsequio" },
+  { value: "sale_bonus", label: "Venta + vendaje" },
+  { value: "bonus", label: "Solo vendaje" },
   { value: "exchange", label: "Cambio" },
 ];
 

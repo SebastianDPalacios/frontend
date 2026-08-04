@@ -60,6 +60,19 @@ const initialValues = {
   showExtraLegend: false,
   extraLegendTitle: "LEYENDA ADICIONAL",
   extraLegendText: "",
+  settlementPrint: {
+    pageWidthMm: 80,
+    pageMarginMm: 3,
+    bodyWidthMm: 74,
+    bodyFontSize: 10.5,
+    titleFontSize: 20,
+    metaFontSize: 12,
+    customerFontSize: 11.5,
+    mutedFontSize: 10,
+    totalsFontSize: 11.5,
+    deliverFontSize: 15,
+    footerFontSize: 9,
+  },
 };
 
 const fontScales = {
