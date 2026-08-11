@@ -35,6 +35,8 @@
     customers: "/commercial/customers",
     customerById: (id) => `/commercial/customers/${id}`,
     customerStatus: (id) => `/commercial/customers/${id}/status`,
+    customerAssignments: "/commercial/customer-assignments",
+    customerAssignment: (id) => `/commercial/customer-assignments/${id}`,
   },
   orders: {
     list: "/orders",

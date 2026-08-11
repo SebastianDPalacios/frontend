@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Alert, Box, Divider, Grid, Paper, Stack, Typography } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Box, Divider, Grid, MenuItem, Paper, Stack, Typography } from "@mui/material";
 import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import toast from "react-hot-toast";
 import catalogService from "services/catalog/catalog-service";
@@ -11,6 +11,7 @@ import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 
 const NuevoClientePage = () => {
+  const [sellers, setSellers] = useState([]);
   const flowLinks = useMemo(
     () => [
       { label: "Clientes", href: "/catalogo/clientes" },
@@ -18,6 +19,12 @@ const NuevoClientePage = () => {
     ],
     []
   );
+
+  useEffect(() => {
+    catalogService.getCustomerAssignments()
+      .then((result) => setSellers(Array.isArray(result?.data?.sellers) ? result.data.sellers : []))
+      .catch(() => setSellers([]));
+  }, []);
 
   const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit, resetForm } =
     useForm(
@@ -30,6 +37,7 @@ const NuevoClientePage = () => {
         neighborhood: "",
         status: "active",
         credit_limit: "0",
+        sales_agent_user_id: "",
       },
       async (formValues, helpers) => {
         try {
@@ -48,6 +56,17 @@ const NuevoClientePage = () => {
             toast.error(result?.message || "No se pudo crear el cliente");
             helpers.setSubmitError(result?.message || "Error al crear el cliente");
             return;
+          }
+
+          if (formValues.sales_agent_user_id) {
+            const assignment = await catalogService.assignCustomer(
+              result.data?.customer_id,
+              Number(formValues.sales_agent_user_id)
+            );
+            if (assignment?.code !== 1) {
+              helpers.setSubmitError(assignment?.message || "Cliente creado, pero no se pudo asignar el vendedor");
+              return;
+            }
           }
 
           toast.success(result?.message || "Cliente creado correctamente");
@@ -239,6 +258,24 @@ const NuevoClientePage = () => {
                     onChange={handleChange}
                     onBlur={handleBlur}
                   />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <FormField
+                    select
+                    name="sales_agent_user_id"
+                    label="Vendedor asignado"
+                    value={values.sales_agent_user_id}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    helperText="Opcional"
+                  >
+                    <MenuItem value="">Sin vendedor asignado</MenuItem>
+                    {sellers.map((seller) => (
+                      <MenuItem key={seller.id} value={String(seller.id)}>
+                        {seller.full_name || seller.username}
+                      </MenuItem>
+                    ))}
+                  </FormField>
                 </Grid>
               </Grid>
             </Box>

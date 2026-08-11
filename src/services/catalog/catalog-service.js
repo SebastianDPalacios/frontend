@@ -1,4 +1,4 @@
-import { GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
+import { DeleteEndpoint, GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 
 class CatalogService {
@@ -88,6 +88,18 @@ class CatalogService {
 
   async setCustomerStatus(id, payload = {}) {
     return PatchEndpoint(endpoints.commercial.customerStatus(id), payload);
+  }
+
+  async getCustomerAssignments() {
+    return GetEndpoint(endpoints.commercial.customerAssignments);
+  }
+
+  async assignCustomer(id, salesAgentUserId) {
+    return PutEndpoint(endpoints.commercial.customerAssignment(id), { sales_agent_user_id: salesAgentUserId });
+  }
+
+  async unassignCustomer(id) {
+    return DeleteEndpoint(endpoints.commercial.customerAssignment(id));
   }
 
 }

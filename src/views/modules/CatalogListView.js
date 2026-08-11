@@ -65,8 +65,15 @@ const CatalogListView = ({
   showProductCategory = false,
   getCategoryName,
   onAssignCategory,
+  onEdit,
+  searchValue,
+  onSearchChange,
+  totalItems,
+  pagination,
 }) => {
-  const [search, setSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
+  const search = searchValue ?? localSearch;
+  const setSearch = onSearchChange ?? setLocalSearch;
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) {
@@ -120,7 +127,7 @@ const CatalogListView = ({
           </Grid>
           <Grid item xs={12} md={5}>
             <Stack direction="row" spacing={1} justifyContent={{ xs: "flex-start", md: "flex-end" }} flexWrap="wrap">
-              <Chip label={`${items.length} registrados`} variant="outlined" />
+              <Chip label={`${totalItems ?? items.length} registrados`} variant="outlined" />
               <Chip label={`${filteredItems.length} visibles`} color="info" variant="outlined" />
             </Stack>
           </Grid>
@@ -150,7 +157,7 @@ const CatalogListView = ({
               <TableCell align="right">Valor</TableCell>
               <TableCell align="right">Stock minimo</TableCell>
               <TableCell>Estado</TableCell>
-              {showProductYield || showProductCategory ? <TableCell align="right">Accion</TableCell> : null}
+              {showProductYield || showProductCategory || onEdit ? <TableCell align="right">Accion</TableCell> : null}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -202,9 +209,14 @@ const CatalogListView = ({
                   sx={{ minWidth: 82, fontWeight: 800 }}
                 />
               </TableCell>
-              {showProductYield || showProductCategory ? (
+              {showProductYield || showProductCategory || onEdit ? (
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    {onEdit ? (
+                      <Button size="small" variant="contained" color="secondary" onClick={() => onEdit(item)}>
+                        Editar
+                      </Button>
+                    ) : null}
                     {showProductCategory ? (
                       <Button size="small" variant="outlined" color="secondary" onClick={() => onAssignCategory?.(item)}>
                         Asignar categoria
@@ -223,7 +235,7 @@ const CatalogListView = ({
             })}
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showProductYield || showProductCategory ? 9 : 6}>
+                <TableCell colSpan={showProductYield || showProductCategory || onEdit ? 9 : 6}>
                   <Typography color="text.secondary">{emptyMessage}</Typography>
                 </TableCell>
               </TableRow>
@@ -231,6 +243,7 @@ const CatalogListView = ({
           </TableBody>
         </Table>
       </TableContainer>
+      {pagination ? <Box sx={{ mt: 2 }}>{pagination}</Box> : null}
     </>
   );
 };
