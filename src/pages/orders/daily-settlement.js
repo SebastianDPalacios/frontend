@@ -152,7 +152,9 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
     const orderNumber = dailyOrderNumbers[String(item.order_id)] || Number(item.order_id);
     const grossSale = Number(item.delivered_sales_total || 0);
     const creditUsed = Number(item.credit_redeemed_amount || 0);
-    const collectedSale = Number(item.collected_sales_total ?? Math.max(grossSale - creditUsed, 0));
+    const collectedSale = Number(item.collected_sales_total ?? grossSale);
+    const exchangeTotal = Number(item.exchange_total || 0);
+    const exchangeCollected = Number(item.exchange_collected_total ?? Math.max(exchangeTotal - creditUsed, 0));
 
     return `
       <div class="row">
@@ -170,6 +172,8 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
           <span>Venta cobrada</span>
           <span>${money.format(collectedSale)}</span>
         </div>
+        ${exchangeTotal > 0 ? `<div class="values muted"><span>Cambio entregado</span><span>${money.format(exchangeTotal)}</span></div>` : ""}
+        ${exchangeCollected > 0 ? `<div class="values muted"><span>Excedente cobrado</span><span>${money.format(exchangeCollected)}</span></div>` : ""}
       </div>
     `;
   }).join("");
@@ -223,7 +227,8 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
       <div class="totals">
         ${print.showGrossSale ? `<span>VENTA BRUTA</span><strong>${money.format(Number(summary.delivered_sales_total || 0))}</strong>` : ""}
         ${print.showCreditApplied ? `<span>SALDO APLICADO</span><strong>-${money.format(Number(summary.credit_redeemed_amount || 0))}</strong>` : ""}
-        ${print.showCollectedSale ? `<span>VENTA COBRADA</span><strong>${money.format(Number(summary.collected_sales_total ?? Math.max(Number(summary.delivered_sales_total || 0) - Number(summary.credit_redeemed_amount || 0), 0)))}</strong>` : ""}
+        ${print.showCollectedSale ? `<span>VENTA COBRADA</span><strong>${money.format(Number(summary.collected_sales_total ?? summary.delivered_sales_total ?? 0))}</strong>` : ""}
+        ${Number(summary.exchange_collected_total || 0) > 0 ? `<span>EXCEDENTE CAMBIOS</span><strong>${money.format(Number(summary.exchange_collected_total || 0))}</strong>` : ""}
         ${print.showReturns ? `<span>CAMBIOS</span><strong>${money.format(Number(summary.returned_sales_total || 0))}</strong>` : ""}
         ${print.showCreditGenerated ? `<span>SALDO GENERADO</span><strong>${money.format(Number(summary.credit_generated_total || 0))}</strong>` : ""}
         ${print.showGifts ? `<span>OBSEQUIOS</span><strong>${money.format(Number(summary.gift_total || 0))}</strong>` : ""}
@@ -313,8 +318,9 @@ const DailySettlementPage = () => {
   const grossSalesTotal = Number(summary.delivered_sales_total || 0);
   const creditAppliedTotal = Number(summary.credit_redeemed_amount || 0);
   const collectedSalesTotal = Number(
-    summary.collected_sales_total ?? Math.max(grossSalesTotal - creditAppliedTotal, 0)
+    summary.collected_sales_total ?? grossSalesTotal
   );
+  const exchangeCollectedTotal = Number(summary.exchange_collected_total || 0);
 
   return (
     <FlowPageLayout
@@ -371,16 +377,16 @@ const DailySettlementPage = () => {
           <Metric label="Venta bruta" value={money.format(grossSalesTotal)} helper="Antes de saldos" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Saldo aplicado" value={money.format(creditAppliedTotal)} helper="Reduce efectivo" />
+          <Metric label="Saldo aplicado" value={money.format(creditAppliedTotal)} helper="Solo sobre cambios" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Venta cobrada" value={money.format(collectedSalesTotal)} helper="Venta bruta menos saldo" />
+          <Metric label="Venta cobrada" value={money.format(collectedSalesTotal)} helper="Las ventas no consumen saldo" />
         </Grid>
         <Grid item xs={6} md={3}>
           <Metric label="Comision" value={money.format(Number(summary.commission_amount || 0))} helper="Solo sobre venta" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper="Venta cobrada menos comision" />
+          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper={`Venta + excedente de cambios (${money.format(exchangeCollectedTotal)}) - comision`} />
         </Grid>
         <Grid item xs={6} md={3}>
           <Metric label="Cambios" value={money.format(Number(summary.returned_sales_total || 0))} helper={`Saldo generado: ${money.format(Number(summary.credit_generated_total || 0))}`} />
@@ -432,10 +438,18 @@ const DailySettlementPage = () => {
                       <Typography variant="body2" sx={{ fontWeight: 800 }}>-{money.format(Number(item.credit_redeemed_amount || 0))}</Typography>
                     </Stack>
                   ) : null}
+                  {Number(item.exchange_total || 0) > 0 ? (
+                    <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                      <Typography variant="body2">Cambio / excedente</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                        {money.format(Number(item.exchange_total || 0))} / {money.format(Number(item.exchange_collected_total || 0))}
+                      </Typography>
+                    </Stack>
+                  ) : null}
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography variant="body2">Venta cobrada</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {money.format(Number(item.collected_sales_total ?? Math.max(Number(item.delivered_sales_total || 0) - Number(item.credit_redeemed_amount || 0), 0)))}
+                      {money.format(Number(item.collected_sales_total ?? item.delivered_sales_total ?? 0))}
                     </Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>

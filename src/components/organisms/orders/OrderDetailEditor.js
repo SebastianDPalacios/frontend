@@ -73,7 +73,7 @@ const mergeSaleBonusItems = (items = []) => {
 const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
   const [drafts, setDrafts] = useState({});
   const [products, setProducts] = useState([]);
-  const [salesSettings, setSalesSettings] = useState({ bonus_percent: 20, bonus_minimum_amount: 2000 });
+  const [salesSettings, setSalesSettings] = useState({ bonus_percent: 20, bonus_minimum_amount: 2000, bonus_max_company_loss_amount: 1500 });
   const [newLine, setNewLine] = useState(emptyNewLine);
   const [savingKey, setSavingKey] = useState("");
   const canEdit = editableStatuses.includes(order?.status);
@@ -144,11 +144,14 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
           ? Math.floor(rawQuantity)
           : Math.floor(rawQuantity * 1000) / 1000;
         const bonusUnitValue = price * (1 + taxPercent / 100);
+        const bonusAllowance = saleQuantity * bonusUnitValue * (Number(salesSettings.bonus_percent || 0) / 100);
         const rawBonusQuantity = bonusUnitValue > 0
-          ? (saleQuantity * bonusUnitValue * (Number(salesSettings.bonus_percent || 0) / 100)) / bonusUnitValue
+          ? bonusAllowance / bonusUnitValue
           : 0;
         const bonusQuantity = isIntegerUnit(product?.unit || item.product_unit)
-          ? Math.floor(rawBonusQuantity)
+          ? (Math.ceil(rawBonusQuantity) * bonusUnitValue - bonusAllowance <= Number(salesSettings.bonus_max_company_loss_amount || 0)
+              ? Math.ceil(rawBonusQuantity)
+              : Math.floor(rawBonusQuantity))
           : Math.floor(rawBonusQuantity * 1000) / 1000;
         if (bonusQuantity > 0) {
           const bonusResult = await ordersService.upsertItem(order.id, {
@@ -205,11 +208,14 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const projectedSaleTotal = Number(order?.grand_total || 0) + saleCommercialValue;
         const minimum = Number(salesSettings.bonus_minimum_amount || 0);
         const bonusUnitValue = price * (1 + taxPercent / 100);
+        const bonusAllowance = saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100);
         const rawBonusQuantity = projectedSaleTotal >= minimum && bonusUnitValue > 0
-          ? (saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100)) / bonusUnitValue
+          ? bonusAllowance / bonusUnitValue
           : 0;
         const bonusQuantity = isIntegerUnit(selectedNewProduct.unit)
-          ? Math.floor(rawBonusQuantity)
+          ? (Math.ceil(rawBonusQuantity) * bonusUnitValue - bonusAllowance <= Number(salesSettings.bonus_max_company_loss_amount || 0)
+              ? Math.ceil(rawBonusQuantity)
+              : Math.floor(rawBonusQuantity))
           : Math.floor(rawBonusQuantity * 1000) / 1000;
 
         if (bonusQuantity > 0) {

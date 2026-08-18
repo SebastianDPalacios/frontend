@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Box, Chip, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Checkbox, Chip, FormControlLabel, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
@@ -10,7 +10,11 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const oneDecimalFormatter = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+const formatOneDecimalTruncated = (value) => oneDecimalFormatter.format(
+  Math.trunc(Number(value || 0) * 10) / 10
+);
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
 const buildProductionQuantities = (item) => normalizeRows(item?.outputs).reduce((acc, output) => {
@@ -30,10 +34,24 @@ const buildProductionPayload = (item, quantities) => normalizeRows(item?.outputs
   produced_quantity: Number(quantities[String(output.product_id)] || 0),
 }));
 
-const buildManualPayload = (recipe, quantities) => normalizeRows(recipe?.outputs).map((output) => ({
-  product_id: Number(output.product_id),
-  produced_quantity: Number(quantities[String(output.product_id)] || 0),
-}));
+const buildManualPayload = (recipe, quantities, selectedOutputIds) => normalizeRows(recipe?.outputs)
+  .filter((output) => selectedOutputIds.includes(String(output.product_id)))
+  .map((output) => ({
+    product_id: Number(output.product_id),
+    produced_quantity: Number(quantities[String(output.product_id)] || 0),
+  }));
+
+const calculateEquivalentArrobas = (recipe, quantities, selectedOutputIds) => {
+  const equivalents = normalizeRows(recipe?.outputs)
+    .filter((output) => selectedOutputIds.includes(String(output.product_id)))
+    .map((output) => {
+      const expected = Number(output.expected_quantity || 0);
+      const produced = Number(quantities[String(output.product_id)] || 0);
+      return expected > 0 && produced > 0 ? produced / expected : 0;
+    });
+
+  return equivalents.length ? Math.max(...equivalents) : 0;
+};
 
 const ProductionPerformedPage = () => {
   const [loading, setLoading] = useState(true);
@@ -48,17 +66,23 @@ const ProductionPerformedPage = () => {
   const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
   const [productionQuantities, setProductionQuantities] = useState({});
   const [manualQuantities, setManualQuantities] = useState({});
+  const [selectedOutputIds, setSelectedOutputIds] = useState([]);
   const [manualForm, setManualForm] = useState({
     branchId: "",
     recipeId: "",
     arrobas: "1",
     producedDate: toDateInputValue(),
     notes: "",
+    registrationMode: "arrobas",
   });
 
   const selectedRecipe = useMemo(
     () => recipes.find((recipe) => String(recipe.id) === String(manualForm.recipeId)) || null,
     [manualForm.recipeId, recipes]
+  );
+  const equivalentArrobas = useMemo(
+    () => calculateEquivalentArrobas(selectedRecipe, manualQuantities, selectedOutputIds),
+    [manualQuantities, selectedOutputIds, selectedRecipe]
   );
 
   const loadData = useCallback(async () => {
@@ -103,8 +127,15 @@ const ProductionPerformedPage = () => {
   }, [loadData]);
 
   useEffect(() => {
-    setManualQuantities(buildManualQuantities(selectedRecipe, manualForm.arrobas));
-  }, [manualForm.arrobas, selectedRecipe]);
+    const outputIds = normalizeRows(selectedRecipe?.outputs).map((output) => String(output.product_id));
+    setSelectedOutputIds(outputIds);
+  }, [selectedRecipe]);
+
+  useEffect(() => {
+    if (manualForm.registrationMode === "arrobas") {
+      setManualQuantities(buildManualQuantities(selectedRecipe, manualForm.arrobas));
+    }
+  }, [manualForm.arrobas, manualForm.registrationMode, selectedRecipe]);
 
   const openWorkDialog = (plan, item, options = {}) => {
     setProductionQuantities(buildProductionQuantities(item));
@@ -183,8 +214,10 @@ const ProductionPerformedPage = () => {
   const registerManualProduction = async () => {
     if (savingManual) return;
 
-    const arrobas = Number(manualForm.arrobas || 0);
-    const outputs = buildManualPayload(selectedRecipe, manualQuantities);
+    const arrobas = manualForm.registrationMode === "units"
+      ? calculateEquivalentArrobas(selectedRecipe, manualQuantities, selectedOutputIds)
+      : Number(manualForm.arrobas || 0);
+    const outputs = buildManualPayload(selectedRecipe, manualQuantities, selectedOutputIds);
 
     if (!baker) {
       setError("Tu usuario debe tener un empleado panadero activo para registrar produccion manual.");
@@ -197,7 +230,12 @@ const ProductionPerformedPage = () => {
     }
 
     if (!Number.isFinite(arrobas) || arrobas <= 0) {
-      setError("Las arrobas deben ser mayores a cero.");
+      setError("Ingresa arrobas o unidades válidas para calcular la producción.");
+      return;
+    }
+
+    if (!selectedOutputIds.length) {
+      setError("Selecciona al menos un producto creado.");
       return;
     }
 
@@ -286,13 +324,35 @@ const ProductionPerformedPage = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
+              select
               fullWidth
-              type="number"
-              label="Arrobas"
-              value={manualForm.arrobas}
-              inputProps={{ min: 0, step: 0.01 }}
-              onChange={(event) => setManualForm((current) => ({ ...current, arrobas: event.target.value }))}
-            />
+              label="Tipo de registro"
+              value={manualForm.registrationMode}
+              onChange={(event) => setManualForm((current) => ({ ...current, registrationMode: event.target.value }))}
+            >
+              <MenuItem value="arrobas">Por arrobas</MenuItem>
+              <MenuItem value="units">Por unidades</MenuItem>
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            {manualForm.registrationMode === "arrobas" ? (
+              <TextField
+                fullWidth
+                type="number"
+                label="Arrobas realizadas"
+                value={manualForm.arrobas}
+                inputProps={{ min: 0, step: 0.01 }}
+                onChange={(event) => setManualForm((current) => ({ ...current, arrobas: event.target.value }))}
+              />
+            ) : (
+              <TextField
+                fullWidth
+                disabled
+                label="Arrobas equivalentes"
+                value={formatOneDecimalTruncated(equivalentArrobas)}
+                helperText="Calculadas según el rendimiento"
+              />
+            )}
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
@@ -320,27 +380,49 @@ const ProductionPerformedPage = () => {
         </Grid>
 
         <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "action.hover" }}>
-          <Typography sx={{ fontWeight: 800, mb: 1 }}>Productos que saldran de la receta</Typography>
+          <Typography sx={{ fontWeight: 800 }}>Productos creados con la receta</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Marca únicamente los productos que realmente fueron elaborados.
+          </Typography>
           {normalizeRows(selectedRecipe?.outputs).length ? (
             <Grid container spacing={2}>
-              {normalizeRows(selectedRecipe?.outputs).map((output) => (
-                <Grid item xs={12} md={6} key={output.product_id}>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }} justifyContent="space-between">
-                    <Box>
-                      <Typography sx={{ fontWeight: 800 }}>{output.product_name}</Typography>
-                      <Typography variant="body2" color="text.secondary">Base: {formatNumber(output.expected_quantity)} por arroba</Typography>
+              {normalizeRows(selectedRecipe?.outputs).map((output) => {
+                const outputId = String(output.product_id);
+                const selected = selectedOutputIds.includes(outputId);
+                return (
+                  <Grid item xs={12} md={6} key={output.product_id}>
+                    <Box sx={{ p: 1.5, border: "1px solid", borderColor: selected ? "secondary.main" : "divider", borderRadius: 2, bgcolor: selected ? "secondary.lighter" : "background.paper" }}>
+                      <FormControlLabel
+                        control={(
+                          <Checkbox
+                            color="secondary"
+                            checked={selected}
+                            onChange={(event) => setSelectedOutputIds((current) => event.target.checked
+                              ? [...current, outputId]
+                              : current.filter((id) => id !== outputId))}
+                          />
+                        )}
+                        label={<Typography sx={{ fontWeight: 900 }}>{output.product_name}</Typography>}
+                      />
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Rendimiento: {formatNumber(output.expected_quantity)} unidades por arroba
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        disabled={!selected}
+                        type="number"
+                        label={manualForm.registrationMode === "units" ? "Unidades realizadas" : "Cantidad realizada"}
+                        value={selected ? manualQuantities[outputId] || "" : ""}
+                        inputProps={{ min: 0, step: 0.001 }}
+                        onChange={(event) => setManualQuantities((current) => ({ ...current, [outputId]: event.target.value }))}
+                        helperText={manualForm.registrationMode === "units" && selected
+                          ? `${formatOneDecimalTruncated(Number(manualQuantities[outputId] || 0) / Number(output.expected_quantity || 1))} arroba(s) equivalentes`
+                          : ""}
+                      />
                     </Box>
-                    <TextField
-                      type="number"
-                      label="Cantidad hecha"
-                      value={manualQuantities[String(output.product_id)] || ""}
-                      inputProps={{ min: 0, step: 0.001 }}
-                      onChange={(event) => setManualQuantities((current) => ({ ...current, [String(output.product_id)]: event.target.value }))}
-                      sx={{ width: { xs: "100%", sm: 180 } }}
-                    />
-                  </Stack>
-                </Grid>
-              ))}
+                  </Grid>
+                );
+              })}
             </Grid>
           ) : (
             <Alert severity="info">Selecciona una receta vigente para ver sus productos.</Alert>

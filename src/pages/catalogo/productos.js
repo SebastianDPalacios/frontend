@@ -82,6 +82,7 @@ const ProductsPage = () => {
       unit: product.unit || "unit", base_price: String(product.base_price ?? ""),
       min_stock: String(product.min_stock ?? ""), units_per_bag: String(product.units_per_bag ?? ""),
       is_active: String(product.is_active ?? 1),
+      includes_bonus: String(product.includes_bonus ?? 0),
     },
     error: null,
     saving: false,
@@ -102,6 +103,7 @@ const ProductsPage = () => {
         p_category_id: Number(values.category_id), p_tax_rate_id: values.tax_rate_id ? Number(values.tax_rate_id) : null,
         p_unit: values.unit, p_base_price: Number(values.base_price || 0), p_min_stock: Number(values.min_stock || 0),
         p_units_per_bag: values.units_per_bag ? Number(values.units_per_bag) : null, p_is_active: Number(values.is_active),
+        p_includes_bonus: Number(values.includes_bonus || 0),
       });
       if (result?.code !== 1) throw new Error(result?.message || "No se pudo actualizar el producto");
       toast.success("Producto actualizado");
@@ -193,6 +195,7 @@ const ProductsPage = () => {
         p_min_stock: Number(product.min_stock || 0),
         p_units_per_bag: product.units_per_bag ? Number(product.units_per_bag) : null,
         p_is_active: Number(product.is_active ?? 1),
+        p_includes_bonus: Number(product.includes_bonus || 0),
       });
 
       if (result?.code !== 1) {
@@ -297,6 +300,7 @@ const ProductsPage = () => {
               <TextField fullWidth type="number" label="Stock minimo" value={editDialog.values.min_stock || ""} onChange={(e) => setEditValue("min_stock", e.target.value)} inputProps={{ min: 0 }} />
               <TextField fullWidth type="number" label="Unidades por bulto" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 0.001, step: 0.001 }} />
               <TextField select fullWidth label="Estado" value={editDialog.values.is_active || "1"} onChange={(e) => setEditValue("is_active", e.target.value)}><MenuItem value="1">Activo</MenuItem><MenuItem value="0">Inactivo</MenuItem></TextField>
+              <TextField select fullWidth label="Incluye vendaje" value={editDialog.values.includes_bonus || "0"} onChange={(e) => setEditValue("includes_bonus", e.target.value)}><MenuItem value="0">No</MenuItem><MenuItem value="1">Si</MenuItem></TextField>
             </Stack>
             </Box>
           </Stack>

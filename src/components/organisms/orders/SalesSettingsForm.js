@@ -12,6 +12,7 @@ import ordersService from "services/orders/orders-service";
 const initialValues = {
   bonus_percent: "20",
   bonus_minimum_amount: "2000",
+  bonus_max_company_loss_amount: "1500",
   external_seller_commission_percent: "15",
 };
 
@@ -38,6 +39,7 @@ const SalesSettingsForm = () => {
       setValues({
         bonus_percent: String(response.data.bonus_percent ?? 20),
         bonus_minimum_amount: String(response.data.bonus_minimum_amount ?? 2000),
+        bonus_max_company_loss_amount: String(response.data.bonus_max_company_loss_amount ?? 1500),
         external_seller_commission_percent: String(
           response.data.external_seller_commission_percent ?? 15
         ),
@@ -61,7 +63,12 @@ const SalesSettingsForm = () => {
   const validate = () => {
     const bonusPercent = Number(values.bonus_percent);
     const bonusMinimum = Number(values.bonus_minimum_amount);
+    const bonusMaxLoss = Number(values.bonus_max_company_loss_amount);
     const commissionPercent = Number(values.external_seller_commission_percent);
+
+    if (!Number.isFinite(bonusMaxLoss) || bonusMaxLoss < 0) {
+      return "El margen maximo de perdida no puede ser negativo";
+    }
 
     if (!Number.isFinite(bonusPercent) || bonusPercent < 0 || bonusPercent > 100) {
       return "El porcentaje de vendaje debe estar entre 0 y 100";
@@ -88,6 +95,7 @@ const SalesSettingsForm = () => {
       const response = await ordersService.updateSalesSettings({
         bonus_percent: Number(values.bonus_percent),
         bonus_minimum_amount: Number(values.bonus_minimum_amount),
+        bonus_max_company_loss_amount: Number(values.bonus_max_company_loss_amount),
         external_seller_commission_percent: Number(values.external_seller_commission_percent),
       });
 
@@ -142,6 +150,14 @@ const SalesSettingsForm = () => {
                 helperText="El vendaje estará disponible desde este valor, inclusive."
                 required
               />
+              <ColombianCurrencyField
+                label="Margen máximo de pérdida por producto"
+                name="bonus_max_company_loss_amount"
+                value={values.bonus_max_company_loss_amount}
+                onChange={handleChange}
+                helperText="Completa una unidad de vendaje si el valor adicional no supera este margen."
+                required
+              />
               <PercentageField
                 label="Comisión de vendedor externo"
                 name="external_seller_commission_percent"
@@ -157,6 +173,7 @@ const SalesSettingsForm = () => {
             <SalesRulesSummary
               bonusPercent={values.bonus_percent}
               bonusMinimumAmount={values.bonus_minimum_amount}
+              bonusMaxCompanyLossAmount={values.bonus_max_company_loss_amount}
               commissionPercent={values.external_seller_commission_percent}
             />
           </Grid>

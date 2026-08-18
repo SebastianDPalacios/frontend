@@ -321,7 +321,7 @@ const orderMatchesSearch = (order, searchValue, dailyNumberById) => {
     statusLabels[order.status],
     formatDate(order.order_date),
     formatDate(order.delivery_date),
-    formatMoney(order.grand_total),
+    formatMoney(order.amount_to_collect ?? order.grand_total),
   ]
     .filter(Boolean)
     .join(" ")
@@ -631,7 +631,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
   const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
-  const totalAmount = filteredOrders.reduce((acc, order) => acc + Number(order.grand_total || 0), 0);
+  const totalAmount = filteredOrders.reduce((acc, order) => acc + Number(order.amount_to_collect ?? order.grand_total ?? 0), 0);
   const selectedDailyNumber = selectedOrder ? dailyOrderNumberById[String(selectedOrder.id)] : null;
   const selectedProgress = selectedOrder ? getOrderProgress(selectedOrder) : 0;
   const selectedNextStep = getOrderNextStep(selectedOrder);
@@ -956,7 +956,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
               <OrderMetric label="Vendedor" value={selectedOrder?.sales_agent_name || "Sin vendedor"} />
             </Grid>
             <Grid item xs={6} md={2}>
-              <OrderMetric label="Total" value={formatMoney(selectedOrder?.grand_total)} />
+              <OrderMetric label="Total a cobrar" value={formatMoney(selectedOrder?.amount_to_collect ?? selectedOrder?.grand_total)} />
             </Grid>
           </Grid>
         </Stack>
@@ -1110,7 +1110,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                           <Typography sx={{ fontWeight: 800 }}>{formatDate(order.delivery_date)}</Typography>
                         </TableCell>
                         <TableCell align="right">
-                          <Typography sx={{ fontWeight: 900, fontSize: 17 }}>{formatMoney(order.grand_total)}</Typography>
+                          <Typography sx={{ fontWeight: 900, fontSize: 17 }}>{formatMoney(order.amount_to_collect ?? order.grand_total)}</Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -1249,7 +1249,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                         </Box>
                       </Grid>
                       <Grid item xs={6}>
-                        <OrderMetric label="Total" value={formatMoney(detailOrder.grand_total)} />
+                        <OrderMetric label="Total a cobrar" value={formatMoney(detailOrder.amount_to_collect ?? detailOrder.grand_total)} />
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <OrderMetric label="Sucursal" value={detailOrder.branch_name} />

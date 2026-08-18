@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Box, Chip, CircularProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
 import recipesService from "services/recipes/recipes-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
@@ -18,6 +19,7 @@ const RecipesPage = () => {
   const [error, setError] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [search, setSearch] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, recipe: null, saving: false, error: null });
 
   const loadRecipes = useCallback(async () => {
     setLoading(true);
@@ -55,6 +57,22 @@ const RecipesPage = () => {
     if (!term) return recipes;
     return recipes.filter((recipe) => [getRecipeName(recipe), recipe.products.join(" "), recipe.version_no].join(" ").toLowerCase().includes(term));
   }, [recipes, search]);
+
+  const confirmDelete = async () => {
+    setDeleteDialog((current) => ({ ...current, saving: true, error: null }));
+    try {
+      const response = await recipesService.remove(deleteDialog.recipe.id);
+      if (response?.code !== 1) {
+        setDeleteDialog((current) => ({ ...current, saving: false, error: response?.message || "No se pudo eliminar la receta" }));
+        return;
+      }
+      toast.success(response.message || "Receta eliminada");
+      setDeleteDialog({ open: false, recipe: null, saving: false, error: null });
+      await loadRecipes();
+    } catch (requestError) {
+      setDeleteDialog((current) => ({ ...current, saving: false, error: getErrorMessage(requestError, "Error al eliminar la receta") }));
+    }
+  };
 
   return (
     <FlowPageLayout title="Recetas" subtitle="Gestiona recetas activas y crea nuevas versiones cuando necesites cambiar cantidades.">
@@ -120,9 +138,10 @@ const RecipesPage = () => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <AppButton component={Link} href={`/recipes/${recipe.id}/edit`} color="secondary" variant="outlined">
-                        Editar
-                      </AppButton>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <AppButton component={Link} href={`/recipes/${recipe.id}/edit`} color="secondary" variant="outlined">Editar</AppButton>
+                        <AppButton color="error" variant="outlined" onClick={() => setDeleteDialog({ open: true, recipe, saving: false, error: null })}>Eliminar</AppButton>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -138,6 +157,20 @@ const RecipesPage = () => {
           </TableContainer>
         ) : null}
       </Paper>
+      <Dialog open={deleteDialog.open} onClose={deleteDialog.saving ? undefined : () => setDeleteDialog({ open: false, recipe: null, saving: false, error: null })} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 900 }}>Eliminar receta</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {deleteDialog.error ? <Alert severity="error">{deleteDialog.error}</Alert> : null}
+            <Typography>¿Deseas eliminar definitivamente <strong>{getRecipeName(deleteDialog.recipe)}</strong> y todas sus versiones?</Typography>
+            <Alert severity="warning">Esta accion no se puede deshacer. Se bloqueara si la receta ya tiene registros de produccion.</Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <AppButton variant="outlined" color="secondary" disabled={deleteDialog.saving} onClick={() => setDeleteDialog({ open: false, recipe: null, saving: false, error: null })}>Cancelar</AppButton>
+          <AppButton color="error" loading={deleteDialog.saving} loadingLabel="Eliminando..." onClick={confirmDelete}>Eliminar definitivamente</AppButton>
+        </DialogActions>
+      </Dialog>
     </FlowPageLayout>
   );
 };

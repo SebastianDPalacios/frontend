@@ -57,6 +57,7 @@ const NuevoProductoPage = () => {
         min_stock: "",
         units_per_bag: "",
         is_active: "1",
+        includes_bonus: "0",
       },
       async (formValues, helpers) => {
         try {
@@ -71,6 +72,7 @@ const NuevoProductoPage = () => {
             p_min_stock: formValues.min_stock ? Number(formValues.min_stock) : null,
             p_units_per_bag: formValues.units_per_bag ? Number(formValues.units_per_bag) : null,
             p_is_active: Number(formValues.is_active),
+            p_includes_bonus: Number(formValues.includes_bonus),
           });
 
           if (result?.code !== 1) {
@@ -224,6 +226,20 @@ const NuevoProductoPage = () => {
                     {category.name}
                   </MenuItem>
                 ))}
+              </FormField>
+            </Grid>
+                <Grid item xs={12} md={4}>
+              <FormField
+                select
+                name="includes_bonus"
+                label="Incluye vendaje"
+                value={values.includes_bonus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                helperText="Define si la venta genera vendaje automaticamente"
+              >
+                <MenuItem value="0">No</MenuItem>
+                <MenuItem value="1">Si</MenuItem>
               </FormField>
             </Grid>
                 <Grid item xs={12} md={4}>

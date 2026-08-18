@@ -17,6 +17,7 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -27,6 +28,9 @@ import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import ColombianCurrencyField, { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import CaptureModeSwitch from "components/atoms/CaptureModeSwitch";
 import OrderDraftSummary from "components/molecules/OrderDraftSummary";
+import SellerPosOrderForm from "components/organisms/orders/SellerPosOrderForm";
+import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
+import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
@@ -36,12 +40,14 @@ const orderModes = [
   { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
   { value: "bonus", label: "Solo vendaje" },
+  { value: "exchange", label: "Cambio" },
 ];
 
 const lineLabels = {
   sale: "Venta",
   sale_bonus: "Venta + vendaje",
   bonus: "Vendaje",
+  exchange: "Cambio",
 };
 
 const preferredCategoryOrder = [
@@ -58,6 +64,13 @@ const isPastryProduct = (product) => {
 };
 
 const getOrderModesForProduct = (product) => {
+  if (Number(product?.includes_bonus || 0) === 1) {
+    return [
+      { value: "sale_bonus", label: "Venta con vendaje incluido" },
+      { value: "bonus", label: "Solo vendaje" },
+      { value: "exchange", label: "Cambio" },
+    ];
+  }
   if (!isPastryProduct(product)) {
     return orderModes;
   }
@@ -89,7 +102,7 @@ const calculateEntry = (product, entry) => {
   return { quantity, commercialValue };
 };
 
-const calculateAutomaticBonus = (product, allowance) => {
+const calculateAutomaticBonus = (product, allowance, maxCompanyLoss = 0) => {
   const commercialUnitPrice = getCommercialUnitPrice(product);
   if (commercialUnitPrice <= 0 || allowance <= 0) {
     return { quantity: 0, commercialValue: 0 };
@@ -97,7 +110,9 @@ const calculateAutomaticBonus = (product, allowance) => {
 
   const raw = allowance / commercialUnitPrice;
   const quantity = isIntegerUnit(product.unit)
-    ? Math.floor(raw)
+    ? (Math.ceil(raw) * commercialUnitPrice - allowance <= Number(maxCompanyLoss || 0)
+        ? Math.ceil(raw)
+        : Math.floor(raw))
     : Math.floor(raw * 1000) / 1000;
 
   if (quantity <= 0) {
@@ -110,15 +125,19 @@ const calculateAutomaticBonus = (product, allowance) => {
   };
 };
 
-const createSelectedLine = (productId) => ({
-  id: `${productId}-${Date.now()}`,
-  productId: Number(productId),
-  orderMode: "sale",
+const createSelectedLine = (product) => ({
+  id: `${product.id}-${Date.now()}`,
+  productId: Number(product.id),
+  orderMode: Number(product.includes_bonus || 0) === 1 ? "sale_bonus" : "sale",
   captureMode: "amount",
   value: "",
 });
 
 const AtomicOrderForm = () => {
+  const currentUser = authService.getCurrentUser();
+  const sellerPosMode = useMediaQuery("(max-width:1024px)", { noSsr: true })
+    && isSalesOnlyUser(currentUser);
+  const showCreditDetails = isAdministrativeUser(currentUser);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -128,6 +147,7 @@ const AtomicOrderForm = () => {
   const [settings, setSettings] = useState({
     bonus_percent: 20,
     bonus_minimum_amount: 2000,
+    bonus_max_company_loss_amount: 1500,
   });
   const [branchId, setBranchId] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -163,6 +183,7 @@ const AtomicOrderForm = () => {
           orderData.data?.sales_settings || {
             bonus_percent: 20,
             bonus_minimum_amount: 2000,
+            bonus_max_company_loss_amount: 1500,
           }
         );
         setCustomerId(nextCustomers[0]?.id ? String(nextCustomers[0].id) : "");
@@ -214,10 +235,13 @@ const AtomicOrderForm = () => {
   const preparedOrder = useMemo(() => {
     const preparedRows = selectedLines.map((entry) => {
       const product = productsById.get(Number(entry.productId));
+      const normalizedEntry = Number(product?.includes_bonus || 0) === 1 && entry.orderMode === "sale"
+        ? { ...entry, orderMode: "sale_bonus" }
+        : entry;
       return {
-        entry,
+        entry: normalizedEntry,
         product,
-        calculation: calculateEntry(product, entry),
+        calculation: calculateEntry(product, normalizedEntry),
       };
     });
 
@@ -255,7 +279,8 @@ const AtomicOrderForm = () => {
       if (orderMode === "sale_bonus" && bonusEnabled && !isPastryProduct(product)) {
         const automaticBonus = calculateAutomaticBonus(
           product,
-          calculation.commercialValue * (percent / 100)
+          calculation.commercialValue * (percent / 100),
+          settings.bonus_max_company_loss_amount
         );
         if (automaticBonus.quantity > 0) {
           lines.push({
@@ -276,11 +301,16 @@ const AtomicOrderForm = () => {
       (acc, line) => {
         if (line.lineType === "sale") acc.saleTotal += line.commercialValue;
         if (line.lineType === "bonus") acc.bonusTotal += line.commercialValue;
+        if (line.lineType === "exchange") acc.exchangeTotal += line.commercialValue;
         return acc;
       },
-      { saleTotal: 0, bonusTotal: 0 }
+      { saleTotal: 0, bonusTotal: 0, exchangeTotal: 0 }
     );
-    summary.allowedBonus = bonusEnabled ? bonusEligibleSaleTotal * (percent / 100) : 0;
+    const bonusLineCount = lines.filter((line) => line.lineType === "bonus").length;
+    summary.allowedBonus = bonusEnabled
+      ? bonusEligibleSaleTotal * (percent / 100)
+        + bonusLineCount * Number(settings.bonus_max_company_loss_amount || 0)
+      : 0;
     summary.bonusExceeded = summary.bonusTotal > summary.allowedBonus + 0.01;
 
     return { rows: preparedRows, lines, summary, bonusEnabled };
@@ -288,7 +318,7 @@ const AtomicOrderForm = () => {
 
   const selectedCustomer = customers.find((customer) => String(customer.id) === String(customerId));
   const creditAvailable = Number(customerCredit?.balance_amount || 0);
-  const creditRedeemedAmount = Math.min(creditAvailable, Number(preparedOrder.summary.saleTotal || 0));
+  const creditRedeemedAmount = Math.min(creditAvailable, Number(preparedOrder.summary.exchangeTotal || 0));
 
   useEffect(() => {
     let active = true;
@@ -322,8 +352,15 @@ const AtomicOrderForm = () => {
     if (!selectedProduct?.id) {
       return;
     }
-    setSelectedLines((current) => [...current, createSelectedLine(selectedProduct.id)]);
+    setSelectedLines((current) => [...current, createSelectedLine(selectedProduct)]);
     setSelectedProduct(null);
+  };
+
+  const addConfiguredProduct = (product, configuration) => {
+    setSelectedLines((current) => [
+      ...current,
+      { ...createSelectedLine(product), ...configuration },
+    ]);
   };
 
   const updateLine = (lineId, changes) => {
@@ -342,8 +379,8 @@ const AtomicOrderForm = () => {
       setError("Selecciona sucursal y cliente");
       return;
     }
-    if (!preparedOrder.lines.some((line) => line.lineType === "sale")) {
-      setError("Agrega al menos un producto de venta");
+    if (!preparedOrder.lines.some((line) => ["sale", "exchange"].includes(line.lineType))) {
+      setError("Agrega al menos un producto de venta o cambio");
       return;
     }
     if (preparedOrder.rows.some((row) => row.calculation.quantity <= 0)) {
@@ -392,6 +429,38 @@ const AtomicOrderForm = () => {
       setSaving(false);
     }
   };
+
+  if (sellerPosMode) {
+    return (
+      <SellerPosOrderForm
+        loading={loading}
+        saving={saving}
+        error={error}
+        customers={customers}
+        products={products}
+        productCategories={productCategories}
+        selectedCategoryId={selectedCategoryId}
+        setSelectedCategoryId={setSelectedCategoryId}
+        customerId={customerId}
+        setCustomerId={setCustomerId}
+        notes={notes}
+        setNotes={setNotes}
+        selectedLines={selectedLines}
+        preparedOrder={preparedOrder}
+        settings={settings}
+        creditAvailable={creditAvailable}
+        creditRedeemedAmount={creditRedeemedAmount}
+        getModes={getOrderModesForProduct}
+        addConfiguredProduct={addConfiguredProduct}
+        removeLine={removeLine}
+        onReview={validateBeforeConfirmation}
+        confirmOpen={confirmOpen}
+        setConfirmOpen={setConfirmOpen}
+        selectedCustomer={selectedCustomer}
+        onSave={save}
+      />
+    );
+  }
 
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0 }}>
@@ -517,11 +586,12 @@ const AtomicOrderForm = () => {
                 const rowOrderModes = getOrderModesForProduct(product);
                 const orderModeValue = rowOrderModes.some((mode) => mode.value === entry.orderMode)
                   ? entry.orderMode
-                  : "sale";
+                  : rowOrderModes[0]?.value || "sale";
                 const automaticBonus = orderModeValue === "sale_bonus" && preparedOrder.bonusEnabled && !isPastryProduct(product)
                   ? calculateAutomaticBonus(
                       product,
-                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100)
+                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100),
+                      settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0, commercialValue: 0 };
 
@@ -636,6 +706,7 @@ const AtomicOrderForm = () => {
               settings={settings}
               creditAvailable={creditAvailable}
               creditRedeemed={creditRedeemedAmount}
+              showCreditDetails={showCreditDetails}
             />
             <AppButton
               fullWidth
@@ -669,7 +740,8 @@ const AtomicOrderForm = () => {
                 const automaticBonus = orderMode === "sale_bonus" && preparedOrder.bonusEnabled
                   ? calculateAutomaticBonus(
                       product,
-                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100)
+                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100),
+                      settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0 };
                 const totalQuantity = calculation.quantity + automaticBonus.quantity;
@@ -708,6 +780,7 @@ const AtomicOrderForm = () => {
                 settings={settings}
                 creditAvailable={creditAvailable}
                 creditRedeemed={creditRedeemedAmount}
+                showCreditDetails={showCreditDetails}
               />
             </Paper>
 

@@ -260,7 +260,7 @@ const OrdersPeriodTable = ({ orders }) => {
               <TableCell>{order.sales_agent_name || "Sin vendedor"}</TableCell>
               <TableCell>{formatDate(order.delivery_date)}</TableCell>
               <TableCell align="right">
-                <Typography sx={{ fontWeight: 900 }}>{formatMoney(order.grand_total)}</Typography>
+                <Typography sx={{ fontWeight: 900 }}>{formatMoney(order.amount_to_collect ?? order.grand_total)}</Typography>
               </TableCell>
               <TableCell align="right">
                 <Button component={Link} href={`/orders/history?search=${encodeURIComponent(dailyNumber)}`} color="secondary" variant="outlined">
@@ -359,7 +359,7 @@ const OrdersDayPage = () => {
   const dispatchedOrders = periodOrders.filter((order) => ["dispatched", "delivered"].includes(order.status)).length;
   const cancelledOrders = periodOrders.filter((order) => order.status === "cancelled").length;
   const activeOrders = periodOrders.length - cancelledOrders;
-  const periodAmount = periodOrders.reduce((acc, order) => acc + Number(order.grand_total || 0), 0);
+  const periodAmount = periodOrders.reduce((acc, order) => acc + Number(order.amount_to_collect ?? order.grand_total ?? 0), 0);
   const averageTicket = activeOrders > 0 ? periodAmount / activeOrders : 0;
   const completedFlow = activeOrders > 0 ? Math.round((dispatchedOrders / activeOrders) * 100) : 0;
 
@@ -369,7 +369,7 @@ const OrdersDayPage = () => {
       const key = order.customer_name || "Cliente sin nombre";
       const current = totals.get(key) || { name: key, orders: 0, amount: 0 };
       current.orders += 1;
-      current.amount += Number(order.grand_total || 0);
+      current.amount += Number(order.amount_to_collect ?? order.grand_total ?? 0);
       totals.set(key, current);
     });
     return Array.from(totals.values())
@@ -383,7 +383,7 @@ const OrdersDayPage = () => {
       const key = order.sales_agent_name || "Sin vendedor";
       const current = totals.get(key) || { name: key, orders: 0, amount: 0 };
       current.orders += 1;
-      current.amount += Number(order.grand_total || 0);
+      current.amount += Number(order.amount_to_collect ?? order.grand_total ?? 0);
       totals.set(key, current);
     });
     return Array.from(totals.values())

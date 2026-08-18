@@ -12,11 +12,18 @@ const MoneyRow = ({ label, value, strong = false }) => (
   </Stack>
 );
 
-const OrderDraftSummary = ({ summary, settings, creditAvailable = 0, creditRedeemed = 0 }) => {
+const OrderDraftSummary = ({
+  summary,
+  settings,
+  creditAvailable = 0,
+  creditRedeemed = 0,
+  showCreditDetails = true,
+}) => {
   const allowed = Number(summary.allowedBonus || 0);
   const used = Number(summary.bonusTotal || 0);
   const progress = allowed > 0 ? Math.min((used / allowed) * 100, 100) : 0;
-  const finalTotal = Math.max(Number(summary.saleTotal || 0) - Number(creditRedeemed || 0), 0);
+  const exchangeTotal = Number(summary.exchangeTotal || 0);
+  const finalTotal = Math.max(Number(summary.saleTotal || 0) + exchangeTotal - Number(creditRedeemed || 0), 0);
   const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
 
   return (
@@ -26,8 +33,9 @@ const OrderDraftSummary = ({ summary, settings, creditAvailable = 0, creditRedee
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} />
       <MoneyRow label="Vendaje seleccionado" value={summary.bonusTotal} />
+      {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} /> : null}
 
-      {creditAvailable > 0 ? (
+      {showCreditDetails && creditAvailable > 0 ? (
         <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "success.lighter", border: "1px solid", borderColor: "success.light" }}>
           <Stack spacing={1}>
             <MoneyRow label="Saldo a favor disponible" value={creditAvailable} />
@@ -36,12 +44,12 @@ const OrderDraftSummary = ({ summary, settings, creditAvailable = 0, creditRedee
                 <MoneyRow label="Saldo aplicado automaticamente" value={creditRedeemed} />
                 <MoneyRow label="Saldo restante estimado" value={remainingCredit} />
                 <Typography variant="caption" color="text.secondary">
-                  Se descuenta automaticamente al entregar el pedido. No se imprime en el ticket POS.
+                  Se descuenta al entregar los productos marcados como Cambio.
                 </Typography>
               </>
             ) : (
               <Typography variant="caption" color="text.secondary">
-                El saldo se descontara automaticamente cuando agregues productos de venta.
+                El saldo solo se utiliza al agregar productos de tipo Cambio.
               </Typography>
             )}
           </Stack>
@@ -63,13 +71,13 @@ const OrderDraftSummary = ({ summary, settings, creditAvailable = 0, creditRedee
         <LinearProgress variant="determinate" value={progress} color={summary.bonusExceeded ? "error" : "success"} />
       </Box>
 
-      {summary.saleTotal < Number(settings.bonus_minimum_amount || 0) ? (
+      {summary.saleTotal > 0 && summary.saleTotal < Number(settings.bonus_minimum_amount || 0) ? (
         <Alert severity="info">
           El vendaje se habilita desde ${formatCurrencyValue(settings.bonus_minimum_amount, 0)}.
         </Alert>
       ) : null}
       {summary.bonusExceeded ? (
-        <Alert severity="error">El vendaje seleccionado supera el {Number(settings.bonus_percent || 0)}% permitido.</Alert>
+        <Alert severity="error">El vendaje supera el porcentaje y el margen máximo permitido por producto.</Alert>
       ) : null}
     </Stack>
   );

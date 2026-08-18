@@ -12,7 +12,7 @@ const SummaryRow = ({ label, value, strong = false }) => (
   </Stack>
 );
 
-const SalesRulesSummary = ({ bonusPercent, bonusMinimumAmount, commissionPercent }) => {
+const SalesRulesSummary = ({ bonusPercent, bonusMinimumAmount, bonusMaxCompanyLossAmount, commissionPercent }) => {
   const minimum = Number(bonusMinimumAmount || 0);
   const exampleSale = Math.max(minimum, 10000);
   const exampleBonus = exampleSale * (Number(bonusPercent || 0) / 100);
@@ -30,6 +30,7 @@ const SalesRulesSummary = ({ bonusPercent, bonusMinimumAmount, commissionPercent
           label={`Comisión externa (${Number(commissionPercent || 0)}%)`}
           value={`$${formatCurrencyValue(exampleCommission, 0)}`}
         />
+        <SummaryRow label="Margen máximo por producto" value={`$${formatCurrencyValue(bonusMaxCompanyLossAmount, 0)}`} />
         <Divider />
         <SummaryRow
           label="Compra mínima para vendaje"

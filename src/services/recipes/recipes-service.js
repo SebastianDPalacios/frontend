@@ -1,4 +1,4 @@
-import { GetEndpoint, PostEndpoint } from "services/api/api-base";
+import { DeleteEndpoint, GetEndpoint, PostEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 
 class RecipesService {
@@ -40,6 +40,10 @@ class RecipesService {
 
   async publish(recipeId) {
     return PostEndpoint(`${endpoints.recipes.list}/${recipeId}/publish`, {});
+  }
+
+  async remove(recipeId) {
+    return DeleteEndpoint(endpoints.recipes.byId(recipeId));
   }
 }
 
