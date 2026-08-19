@@ -22,7 +22,6 @@ const OrderDraftSummary = ({
   const allowed = Number(summary.allowedBonus || 0);
   const used = Number(summary.bonusTotal || 0);
   const generated = Number(summary.bonusGenerated || 0);
-  const companyDifference = Number(summary.bonusCompanyDifference || 0);
   const progress = allowed > 0 ? Math.min((used / allowed) * 100, 100) : 0;
   const exchangeTotal = Number(summary.exchangeTotal || 0);
   const finalTotal = Math.max(Number(summary.saleTotal || 0) + exchangeTotal - Number(creditRedeemed || 0), 0);
@@ -35,8 +34,6 @@ const OrderDraftSummary = ({
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} />
       <MoneyRow label={`Vendaje generado (${Number(settings.bonus_percent || 0)}%)`} value={generated} />
-      {used > 0 ? <MoneyRow label="Vendaje entregado (valor)" value={used} /> : null}
-      {companyDifference > 0 ? <MoneyRow label="Diferencia cubierta por la empresa" value={companyDifference} /> : null}
       {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} /> : null}
 
       {showCreditDetails && creditAvailable > 0 ? (
