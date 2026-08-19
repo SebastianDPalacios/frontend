@@ -144,7 +144,10 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
           ? Math.floor(rawQuantity)
           : Math.floor(rawQuantity * 1000) / 1000;
         const bonusUnitValue = price * (1 + taxPercent / 100);
-        const bonusAllowance = saleQuantity * bonusUnitValue * (Number(salesSettings.bonus_percent || 0) / 100);
+        const saleCommercialValue = draft.captureMode === "amount"
+          ? Number(draft.value || 0)
+          : saleQuantity * bonusUnitValue;
+        const bonusAllowance = saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100);
         const rawBonusQuantity = bonusUnitValue > 0
           ? bonusAllowance / bonusUnitValue
           : 0;
@@ -204,7 +207,9 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const saleQuantity = isIntegerUnit(selectedNewProduct.unit)
           ? Math.floor(rawSaleQuantity)
           : Math.floor(rawSaleQuantity * 1000) / 1000;
-        const saleCommercialValue = saleQuantity * price * (1 + taxPercent / 100);
+        const saleCommercialValue = newLine.captureMode === "amount"
+          ? Number(newLine.value || 0)
+          : saleQuantity * price * (1 + taxPercent / 100);
         const projectedSaleTotal = Number(order?.grand_total || 0) + saleCommercialValue;
         const minimum = Number(salesSettings.bonus_minimum_amount || 0);
         const bonusUnitValue = price * (1 + taxPercent / 100);

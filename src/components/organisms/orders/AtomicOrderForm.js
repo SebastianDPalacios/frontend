@@ -94,12 +94,13 @@ const calculateEntry = (product, entry) => {
   }
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { quantity: 0, commercialValue: 0 };
+    return { quantity: 0, commercialValue: 0, requestedValue: 0 };
   }
 
   const subtotal = quantity * price;
   const commercialValue = Math.round(subtotal * (1 + taxPercent / 100) * 100) / 100;
-  return { quantity, commercialValue };
+  const requestedValue = entry?.captureMode === "amount" ? Number(entry.value || 0) : commercialValue;
+  return { quantity, commercialValue, requestedValue };
 };
 
 const calculateAutomaticBonus = (product, allowance, maxCompanyLoss = 0) => {
@@ -247,7 +248,7 @@ const AtomicOrderForm = () => {
 
     const bonusEligibleSaleTotal = preparedRows.reduce((total, row) => {
       return ["sale", "sale_bonus"].includes(row.entry.orderMode) && !isPastryProduct(row.product)
-        ? total + row.calculation.commercialValue
+        ? total + row.calculation.requestedValue
         : total;
     }, 0);
     const minimum = Number(settings.bonus_minimum_amount || 0);
@@ -273,13 +274,16 @@ const AtomicOrderForm = () => {
         requestedAmount: entry.captureMode === "amount" ? Number(entry.value) : null,
         quantity: calculation.quantity,
         commercialValue: calculation.commercialValue,
+        transactionValue: ["sale", "exchange"].includes(primaryType)
+          ? calculation.requestedValue
+          : calculation.commercialValue,
         automatic: false,
       });
 
       if (orderMode === "sale_bonus" && bonusEnabled && !isPastryProduct(product)) {
         const automaticBonus = calculateAutomaticBonus(
           product,
-          calculation.commercialValue * (percent / 100),
+          calculation.requestedValue * (percent / 100),
           settings.bonus_max_company_loss_amount
         );
         if (automaticBonus.quantity > 0) {
@@ -299,9 +303,9 @@ const AtomicOrderForm = () => {
 
     const summary = lines.reduce(
       (acc, line) => {
-        if (line.lineType === "sale") acc.saleTotal += line.commercialValue;
+        if (line.lineType === "sale") acc.saleTotal += line.transactionValue;
         if (line.lineType === "bonus") acc.bonusTotal += line.commercialValue;
-        if (line.lineType === "exchange") acc.exchangeTotal += line.commercialValue;
+        if (line.lineType === "exchange") acc.exchangeTotal += line.transactionValue;
         return acc;
       },
       { saleTotal: 0, bonusTotal: 0, exchangeTotal: 0 }
@@ -590,7 +594,7 @@ const AtomicOrderForm = () => {
                 const automaticBonus = orderModeValue === "sale_bonus" && preparedOrder.bonusEnabled && !isPastryProduct(product)
                   ? calculateAutomaticBonus(
                       product,
-                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100),
+                      calculation.requestedValue * (Number(settings.bonus_percent || 0) / 100),
                       settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0, commercialValue: 0 };
@@ -740,7 +744,7 @@ const AtomicOrderForm = () => {
                 const automaticBonus = orderMode === "sale_bonus" && preparedOrder.bonusEnabled
                   ? calculateAutomaticBonus(
                       product,
-                      calculation.commercialValue * (Number(settings.bonus_percent || 0) / 100),
+                      calculation.requestedValue * (Number(settings.bonus_percent || 0) / 100),
                       settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0 };
