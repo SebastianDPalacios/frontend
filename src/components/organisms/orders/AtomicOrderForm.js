@@ -311,10 +311,14 @@ const AtomicOrderForm = () => {
       { saleTotal: 0, bonusTotal: 0, exchangeTotal: 0 }
     );
     const bonusLineCount = lines.filter((line) => line.lineType === "bonus").length;
-    summary.allowedBonus = bonusEnabled
+    summary.bonusGenerated = bonusEnabled
       ? bonusEligibleSaleTotal * (percent / 100)
+      : 0;
+    summary.allowedBonus = bonusEnabled
+      ? summary.bonusGenerated
         + bonusLineCount * Number(settings.bonus_max_company_loss_amount || 0)
       : 0;
+    summary.bonusCompanyDifference = Math.max(summary.bonusTotal - summary.bonusGenerated, 0);
     summary.bonusExceeded = summary.bonusTotal > summary.allowedBonus + 0.01;
 
     return { rows: preparedRows, lines, summary, bonusEnabled };
