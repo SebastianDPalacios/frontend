@@ -11,7 +11,9 @@ import {
   DialogTitle,
   Grid,
   FormControlLabel,
+  IconButton,
   LinearProgress,
+  Menu,
   Paper,
   Stack,
   Table,
@@ -35,6 +37,7 @@ import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
 import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
+import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -555,6 +558,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [showCancelled, setShowCancelled] = useState(false);
+  const [actionMenu, setActionMenu] = useState({ anchorEl: null, order: null });
   const todayDate = useMemo(() => getTodayDate(), []);
 
   useEffect(() => {
@@ -846,6 +850,24 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     }
 
     await openOrderDetail(order);
+  };
+
+  const closeActionMenu = () => setActionMenu({ anchorEl: null, order: null });
+
+  const openRowDetail = async () => {
+    const order = actionMenu.order;
+    closeActionMenu();
+    if (order) await openOrderDetail(order);
+  };
+
+  const openRowDelete = () => {
+    const order = actionMenu.order;
+    closeActionMenu();
+    if (!order) return;
+    setOrderId(String(order.id));
+    setCancelReason("");
+    setFieldErrors({});
+    setCancelDialogOpen(true);
   };
 
   return (
@@ -1189,17 +1211,19 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                             >
                               {nextStep.label}
                             </AppButton>
-                            <Button
+                            <IconButton
                               size="small"
-                              variant="outlined"
                               color="secondary"
+                              aria-label={`Mas acciones del pedido ${dailyNumber}`}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                openOrderDetail(order);
+                                setOrderId(String(order.id));
+                                setActionMenu({ anchorEl: event.currentTarget, order });
                               }}
+                              sx={{ border: 1, borderColor: "secondary.light", borderRadius: 2 }}
                             >
-                              Detalle
-                            </Button>
+                              <MoreVertRoundedIcon />
+                            </IconButton>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1211,6 +1235,19 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
           </Table>
         </TableContainer>
       </Paper>
+
+      <Menu
+        anchorEl={actionMenu.anchorEl}
+        open={Boolean(actionMenu.anchorEl)}
+        onClose={closeActionMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem onClick={openRowDetail}>Ver detalle</MenuItem>
+        {isAdministrator && ["draft", "confirmed"].includes(actionMenu.order?.status) ? (
+          <MenuItem onClick={openRowDelete} sx={{ color: "error.main" }}>Eliminar pedido</MenuItem>
+        ) : null}
+      </Menu>
 
       <Dialog open={cancelDialogOpen} onClose={() => !actionLoading && setCancelDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Eliminar pedido {selectedOrder ? `del dia #${selectedDailyNumber || "-"}` : ""}</DialogTitle>
