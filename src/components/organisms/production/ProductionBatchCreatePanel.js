@@ -24,7 +24,7 @@ const ProductionBatchCreatePanel = ({
         1. Crear lote de producción
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Elige la receta, el panadero y cuantas arrobas se hicieron. Una arroba equivale a un moje.
+        Elige la receta, el panadero y cuantos bultos se hicieron. Un bulto estimado equivale a un moje.
       </Typography>
     </Stack>
 
@@ -78,7 +78,7 @@ const ProductionBatchCreatePanel = ({
         <TextField
           fullWidth
           type="number"
-          label="Arrobas"
+          label="Bultos realizados"
           value={batchForm.batchQuantity}
           onChange={(event) => setBatchForm((current) => ({ ...current, batchQuantity: event.target.value }))}
           inputProps={{ min: 0.001, step: 0.001 }}

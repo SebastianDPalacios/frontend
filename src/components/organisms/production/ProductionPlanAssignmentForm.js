@@ -38,10 +38,10 @@ const ProductionPlanAssignmentForm = ({
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>Nueva asignación</Typography>
         <Typography variant="body2" color="text.secondary">
-          Una arroba equivale a un moje. Puedes incluir varias recetas en el mismo plan.
+          Un bulto estimado equivale a un moje. Puedes incluir varias recetas en el mismo plan.
         </Typography>
       </Box>
-      <Chip label={`${formatNumber(totalArrobas)} arroba(s)`} color="secondary" variant="outlined" />
+      <Chip label={`${formatNumber(totalArrobas)} bulto(s) estimado(s)`} color="secondary" variant="outlined" />
     </Stack>
 
     <Grid container spacing={2} sx={{ mb: 2 }}>

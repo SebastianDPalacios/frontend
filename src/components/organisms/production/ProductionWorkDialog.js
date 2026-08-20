@@ -103,7 +103,7 @@ const ProductionWorkDialog = ({
                     {item.recipe_name} - Version {item.recipe_version}
                   </Typography>
                   <Typography color="text.secondary">
-                    {formatNumber(item.arrobas)} arroba(s) - {plan?.branch_name}
+                    {formatNumber(item.arrobas)} bulto(s) estimado(s) - {plan?.branch_name}
                   </Typography>
                 </Box>
                 <Chip

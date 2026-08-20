@@ -18,7 +18,7 @@ const ProductionPlanRecipeTable = ({
           <TableRow sx={{ "& th": { bgcolor: "background.default", fontWeight: 900 } }}>
             <TableCell width={70}>Orden</TableCell>
             <TableCell width={300}>Receta vigente</TableCell>
-            <TableCell width={150}>Arrobas</TableCell>
+            <TableCell width={180}>Bultos estimados</TableCell>
             <TableCell>Productos a fabricar</TableCell>
             <TableCell width={150} align="right">Acciones</TableCell>
           </TableRow>
@@ -58,7 +58,7 @@ const ProductionPlanRecipeTable = ({
                     fullWidth
                     size="small"
                     type="number"
-                    label="Arrobas"
+                    label="Bultos estimados"
                     value={row.arrobas}
                     onChange={(event) => onChange(index, { arrobas: event.target.value })}
                     inputProps={{ min: 0.001, step: "0.001" }}

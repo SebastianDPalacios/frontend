@@ -50,7 +50,7 @@ const ProductionPlanCard = ({ plan, formatNumber, onViewItem }) => (
           >
             <Box>
               <Typography sx={{ fontWeight: 900 }}>
-                {item.recipe_name} - V{item.recipe_version} - {formatNumber(item.arrobas)} arroba(s)
+                {item.recipe_name} - V{item.recipe_version} - {formatNumber(item.arrobas)} bulto(s) estimado(s)
               </Typography>
               <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75, mt: 1 }}>
                 {(Array.isArray(item.outputs) ? item.outputs : []).map((output) => (

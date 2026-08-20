@@ -169,7 +169,7 @@ const ProductionPlanningPage = () => {
       return;
     }
     if (!rows.every((row) => row.recipeId && Number(row.arrobas || 0) > 0 && row.productIds.length > 0)) {
-      setError("Completa cada receta, sus arrobas y al menos un producto final.");
+      setError("Completa cada receta, sus bultos estimados y al menos un producto final.");
       return;
     }
 
@@ -280,7 +280,7 @@ const ProductionPlanningPage = () => {
   return (
     <FlowPageLayout
       title="ProducciÃ³n del dÃ­a siguiente"
-      subtitle="Asigna recetas por arrobas y consulta las unidades esperadas para cada panadero."
+      subtitle="Asigna recetas por bultos estimados y consulta las unidades esperadas para cada panadero."
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificaciÃ³n...</Alert> : null}

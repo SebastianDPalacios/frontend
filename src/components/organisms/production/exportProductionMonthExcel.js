@@ -283,8 +283,8 @@ const exportProductionMonthExcel = async ({
     "Resumen",
     ["Indicador", "Valor"],
     [
-      ["Bultos", Number(summary.batches_count || 0)],
-      ["Arrobas", Number(summary.batch_quantity || 0)],
+      ["Lotes de producción", Number(summary.batches_count || 0)],
+      ["Bultos realizados", Number(summary.batch_quantity || 0)],
       ["Fabricados", produced],
       ["Empacados", packed],
       ["Danados", damaged],
@@ -302,7 +302,7 @@ const exportProductionMonthExcel = async ({
   addSection(
     worksheet,
     "Productos",
-    ["Producto", "Bultos", "Fabricados", "Empacados", "Danados", "Faltantes", "Pendientes"],
+    ["Producto", "Lotes de producción", "Fabricados", "Empacados", "Danados", "Faltantes", "Pendientes"],
     report.products.map((product) => [
       product.product_name || "",
       Number(product.batches_count || 0),
@@ -333,7 +333,7 @@ const exportProductionMonthExcel = async ({
   addSection(
     worksheet,
     "Panaderos",
-    ["Panadero", "Bultos", "Arrobas", "Fabricados", "Empacados", "Danados", "Faltantes"],
+    ["Panadero", "Lotes de producción", "Bultos realizados", "Fabricados", "Empacados", "Danados", "Faltantes"],
     bakerSummary.map((baker) => [
       baker.baker_name || "",
       Number(baker.batches_count || 0),

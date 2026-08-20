@@ -230,7 +230,7 @@ const ProductionPerformedPage = () => {
     }
 
     if (!Number.isFinite(arrobas) || arrobas <= 0) {
-      setError("Ingresa arrobas o unidades válidas para calcular la producción.");
+      setError("Ingresa bultos o unidades válidas para calcular la producción.");
       return;
     }
 
@@ -330,7 +330,7 @@ const ProductionPerformedPage = () => {
               value={manualForm.registrationMode}
               onChange={(event) => setManualForm((current) => ({ ...current, registrationMode: event.target.value }))}
             >
-              <MenuItem value="arrobas">Por arrobas</MenuItem>
+              <MenuItem value="arrobas">Por bultos</MenuItem>
               <MenuItem value="units">Por unidades</MenuItem>
             </TextField>
           </Grid>
@@ -339,7 +339,7 @@ const ProductionPerformedPage = () => {
               <TextField
                 fullWidth
                 type="number"
-                label="Arrobas realizadas"
+                label="Bultos realizados"
                 value={manualForm.arrobas}
                 inputProps={{ min: 0, step: 0.01 }}
                 onChange={(event) => setManualForm((current) => ({ ...current, arrobas: event.target.value }))}
@@ -348,7 +348,7 @@ const ProductionPerformedPage = () => {
               <TextField
                 fullWidth
                 disabled
-                label="Arrobas equivalentes"
+                label="Bultos estimados"
                 value={formatOneDecimalTruncated(equivalentArrobas)}
                 helperText="Calculadas según el rendimiento"
               />
@@ -405,7 +405,7 @@ const ProductionPerformedPage = () => {
                         label={<Typography sx={{ fontWeight: 900 }}>{output.product_name}</Typography>}
                       />
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Rendimiento: {formatNumber(output.expected_quantity)} unidades por arroba
+                        Rendimiento: {formatNumber(output.expected_quantity)} unidades por bulto
                       </Typography>
                       <TextField
                         fullWidth
@@ -416,7 +416,7 @@ const ProductionPerformedPage = () => {
                         inputProps={{ min: 0, step: 0.001 }}
                         onChange={(event) => setManualQuantities((current) => ({ ...current, [outputId]: event.target.value }))}
                         helperText={manualForm.registrationMode === "units" && selected
-                          ? `${formatOneDecimalTruncated(Number(manualQuantities[outputId] || 0) / Number(output.expected_quantity || 1))} arroba(s) equivalentes`
+                          ? `${formatOneDecimalTruncated(Number(manualQuantities[outputId] || 0) / Number(output.expected_quantity || 1))} bulto(s) estimado(s)`
                           : ""}
                       />
                     </Box>

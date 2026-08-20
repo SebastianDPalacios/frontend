@@ -122,7 +122,7 @@ const ProductionWorkPage = () => {
                   {item.recipe_name} · V{item.recipe_version}
                 </Typography>
                 <Typography color="text.secondary">
-                  {formatNumber(item.arrobas)} arroba(s) · {plan.branch_name}
+                  {formatNumber(item.arrobas)} bulto(s) estimado(s) · {plan.branch_name}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mt: 1.5 }}>
                   {normalizeRows(item.outputs).map((output) => (
