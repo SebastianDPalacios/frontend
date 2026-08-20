@@ -3,12 +3,14 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
+  FormControlLabel,
   LinearProgress,
   Paper,
   Stack,
@@ -26,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 import ordersService from "services/orders/orders-service";
+import authService from "services/auth/auth-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
@@ -48,6 +51,16 @@ const formatDate = (value) => {
 };
 
 const getTodayDate = () => toDateInputValue();
+const getCurrentMonth = () => getTodayDate().slice(0, 7);
+const getMonthRange = (monthValue) => {
+  const [year, month] = String(monthValue || "").split("-").map(Number);
+  if (!year || !month) return { dateFrom: "", dateTo: "" };
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    dateFrom: `${year}-${String(month).padStart(2, "0")}-01`,
+    dateTo: `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+  };
+};
 
 const formatMoney = (value) => currencyFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => {
@@ -516,6 +529,11 @@ const getOperationalInsight = (order, items) => {
 export const OrdersHistoryPage = ({ mode = "today" }) => {
   const router = useRouter();
   const isTodayMode = mode === "today";
+  const currentUser = authService.getCurrentUser() || {};
+  const roleCodes = Array.isArray(currentUser.roles)
+    ? currentUser.roles.map((role) => String(typeof role === "string" ? role : role?.code || "").toUpperCase())
+    : [];
+  const isAdministrator = roleCodes.some((role) => ["ADMIN", "SUPER_ADMIN", "ADMINISTRATIVO", "ADMINISTRATIVE"].includes(role));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
@@ -532,7 +550,11 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [deliveryDateDraft, setDeliveryDateDraft] = useState("");
   const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [dateMode, setDateMode] = useState("month");
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth);
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
+  const [showCancelled, setShowCancelled] = useState(false);
   const todayDate = useMemo(() => getTodayDate(), []);
 
   useEffect(() => {
@@ -555,12 +577,18 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       setLoading(true);
       setError(null);
       try {
-        const effectiveDate = isTodayMode ? todayDate : selectedDate;
+        const monthRange = getMonthRange(selectedMonth);
+        const dateFrom = isTodayMode
+          ? todayDate
+          : dateMode === "month" ? monthRange.dateFrom : customDateFrom;
+        const dateTo = isTodayMode
+          ? todayDate
+          : dateMode === "month" ? monthRange.dateTo : customDateTo;
         const response = await ordersService.getOrders({
           page: 1,
           pageSize: isTodayMode ? 200 : 500,
-          dateFrom: effectiveDate || undefined,
-          dateTo: effectiveDate || undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
         });
         if (response?.code !== 1) {
           setError(response?.message || "No se pudo cargar historico de pedidos");
@@ -585,15 +613,11 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 
     const timer = setTimeout(run, 250);
     return () => clearTimeout(timer);
-  }, [isTodayMode, selectedDate, refreshKey, todayDate]);
+  }, [customDateFrom, customDateTo, dateMode, isTodayMode, refreshKey, selectedMonth, todayDate]);
 
-  const availableDates = useMemo(
-    () => Array.from(new Set(orders.map((order) => formatDate(order.order_date)))).filter((date) => date !== "Sin fecha"),
-    [orders]
-  );
   const dateScopedOrders = useMemo(
-    () => selectedDate ? orders.filter((order) => formatDate(order.order_date) === selectedDate) : orders,
-    [orders, selectedDate]
+    () => showCancelled ? orders : orders.filter((order) => order.status !== "cancelled"),
+    [orders, showCancelled]
   );
   const orderDayGroups = useMemo(() => buildOrderDayGroups(dateScopedOrders), [dateScopedOrders]);
   const dailyOrderNumberById = useMemo(
@@ -627,7 +651,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     selectedOrder?.status === "confirmed" ||
     isReadyToDispatch(selectedOrder);
   const canDeliver = selectedOrder?.status === "dispatched";
-  const canCancel = selectedOrder?.status === "draft" || selectedOrder?.status === "confirmed";
+  const canCancel = isAdministrator && (selectedOrder?.status === "draft" || selectedOrder?.status === "confirmed");
   const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
   const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
@@ -840,7 +864,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         }}
       >
         <Grid container spacing={2} sx={{ alignItems: "center" }}>
-          <Grid item xs={12} md={isTodayMode ? 7 : 5}>
+          <Grid item xs={12} md={isTodayMode ? 7 : 4}>
             <TextField
               fullWidth
               label="Buscar pedido, cliente o vendedor"
@@ -849,26 +873,66 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             />
           </Grid>
           {!isTodayMode ? (
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <TextField
                 select
                 fullWidth
-                label="Fecha"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
+                label="Consultar por"
+                value={dateMode}
+                onChange={(event) => setDateMode(event.target.value)}
               >
-                <MenuItem value="">Todas las fechas</MenuItem>
-                {availableDates.map((date) => (
-                  <MenuItem key={date} value={date}>
-                    {date}
-                  </MenuItem>
-                ))}
+                <MenuItem value="month">Mes</MenuItem>
+                <MenuItem value="range">Rango personalizado</MenuItem>
               </TextField>
             </Grid>
           ) : null}
-          <Grid item xs={12} md={isTodayMode ? 5 : 4}>
+          {!isTodayMode && dateMode === "month" ? (
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                type="month"
+                label="Mes"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          ) : null}
+          {!isTodayMode && dateMode === "range" ? (
+            <>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Desde"
+                  value={customDateFrom}
+                  onChange={(event) => setCustomDateFrom(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Hasta"
+                  value={customDateTo}
+                  onChange={(event) => setCustomDateTo(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} md={3}>
+              <FormControlLabel
+                control={<Checkbox checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />}
+                label="Mostrar eliminados"
+              />
+            </Grid>
+          ) : null}
+          <Grid item xs={12} md={isTodayMode ? 5 : 12}>
             <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: "flex-start", md: "flex-end" }, flexWrap: "wrap" }}>
-              <Chip color="secondary" label={isTodayMode ? todayDate : selectedDate || "Todas las fechas"} />
+              <Chip color="secondary" label={isTodayMode ? todayDate : dateMode === "month" ? selectedMonth : `${customDateFrom || "Inicio"} a ${customDateTo || "Hoy"}`} />
               <Chip variant="outlined" label={`${filteredOrders.length} pedido(s)`} />
               <Chip variant="outlined" color={draftOrders ? "warning" : "success"} label={`${draftOrders} borrador`} />
             </Stack>
@@ -920,7 +984,9 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
               <AppButton color="secondary" onClick={() => runOrderAction("confirm")} disabled={actionLoading || !canConfirm}>Confirmar</AppButton>
               <AppButton color="secondary" variant="outlined" onClick={() => runOrderAction("dispatch")} disabled={actionLoading || !canDispatch}>Despachar</AppButton>
               <AppButton color="secondary" onClick={() => runOrderAction("deliver")} disabled={actionLoading || !canDeliver}>Confirmar entrega</AppButton>
-              <AppButton color="error" variant="outlined" onClick={() => setCancelDialogOpen(true)} disabled={actionLoading || !canCancel}>Cancelar</AppButton>
+              {isAdministrator ? (
+                <AppButton color="error" variant="outlined" onClick={() => setCancelDialogOpen(true)} disabled={actionLoading || !canCancel}>Eliminar</AppButton>
+              ) : null}
             </Stack>
           </Stack>
 
@@ -1147,15 +1213,15 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       </Paper>
 
       <Dialog open={cancelDialogOpen} onClose={() => !actionLoading && setCancelDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Cancelar pedido {selectedOrder ? `del dia #${selectedDailyNumber || "-"}` : ""}</DialogTitle>
+        <DialogTitle>Eliminar pedido {selectedOrder ? `del dia #${selectedDailyNumber || "-"}` : ""}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
-              Solo se pueden cancelar pedidos en borrador o confirmados. Si ya fue despachado, debe manejarse como ajuste o devolucion.
+              El pedido quedara eliminado de la vista habitual, pero se conservara en auditoria. Solo aplica para pedidos en borrador o confirmados; si ya fue despachado debe manejarse como ajuste o devolucion.
             </Alert>
             <TextField
               fullWidth
-              label="Motivo de cancelacion"
+              label="Motivo de eliminacion"
               value={cancelReason}
               onChange={(event) => {
                 setFieldErrors((prev) => ({ ...prev, cancelReason: null }));
@@ -1171,7 +1237,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             Volver
           </AppButton>
           <AppButton color="error" onClick={() => runOrderAction("cancel")} disabled={actionLoading || !canCancel}>
-            {actionLoading ? "Cancelando..." : "Confirmar cancelacion"}
+            {actionLoading ? "Eliminando..." : "Confirmar eliminacion"}
           </AppButton>
         </DialogActions>
       </Dialog>
