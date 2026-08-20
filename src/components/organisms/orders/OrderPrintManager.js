@@ -184,10 +184,7 @@ const mergeSaleBonusDisplayItems = (items = []) => {
       display_line_type: "sale_bonus",
       display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
       display_value: Number(item.line_total || 0),
-      display_request_detail:
-        item.capture_mode === "amount" && item.requested_amount
-          ? `Solicitado: ${money.format(Number(item.requested_amount || 0))} · Incluye ${number.format(Number(bonusItem.quantity || 0))} UND de vendaje`
-          : `Precio unitario: ${money.format(Number(item.unit_price || 0))} · Incluye ${number.format(Number(bonusItem.quantity || 0))} UND de vendaje`,
+      display_request_detail: "",
     });
 
     return acc;
@@ -215,7 +212,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       const displayLineType = item.display_line_type || item.line_type;
       const displayQuantity = item.display_quantity ?? item.quantity;
       const value = item.display_value ?? (item.line_type === "sale" ? item.line_total : item.commercial_value);
-      const requestDetail = item.display_request_detail || (item.capture_mode === "amount" && item.requested_amount
+      const requestDetail = item.display_request_detail ?? (item.capture_mode === "amount" && item.requested_amount
         ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
         : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`);
 
@@ -233,7 +230,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
             </span>
             <strong>${money.format(Number(value || 0))}</strong>
           </div>
-          <div class="item-detail">${escapeHtml(requestDetail)}</div>
+          ${requestDetail ? `<div class="item-detail">${escapeHtml(requestDetail)}</div>` : ""}
         </div>`;
     }).join("");
 
