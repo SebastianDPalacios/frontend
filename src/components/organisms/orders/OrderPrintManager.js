@@ -168,8 +168,7 @@ const mergeSaleBonusDisplayItems = (items = []) => {
       candidateIndex > index &&
       !usedBonusIndexes.has(candidateIndex) &&
       candidate.line_type === "bonus" &&
-      getItemProductKey(candidate) === getItemProductKey(item) &&
-      (!candidate.capture_mode || !item.capture_mode || candidate.capture_mode === item.capture_mode)
+      getItemProductKey(candidate) === getItemProductKey(item)
     );
 
     if (bonusIndex === -1) {
@@ -183,12 +182,12 @@ const mergeSaleBonusDisplayItems = (items = []) => {
     acc.push({
       ...item,
       display_line_type: "sale_bonus",
-      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
-      display_value: Number(item.line_total || 0) + Number(bonusItem.commercial_value || bonusItem.line_total || 0),
+      display_quantity: Number(item.quantity || 0),
+      display_value: Number(item.line_total || 0),
       display_request_detail:
         item.capture_mode === "amount" && item.requested_amount
-          ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
-          : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`,
+          ? `Solicitado: ${money.format(Number(item.requested_amount || 0))} · Incluye ${number.format(Number(bonusItem.quantity || 0))} UND de vendaje`
+          : `Precio unitario: ${money.format(Number(item.unit_price || 0))} · Incluye ${number.format(Number(bonusItem.quantity || 0))} UND de vendaje`,
     });
 
     return acc;
