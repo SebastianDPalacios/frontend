@@ -182,7 +182,7 @@ const mergeSaleBonusDisplayItems = (items = []) => {
     acc.push({
       ...item,
       display_line_type: "sale_bonus",
-      display_quantity: Number(item.quantity || 0),
+      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
       display_value: Number(item.line_total || 0),
       display_request_detail:
         item.capture_mode === "amount" && item.requested_amount
