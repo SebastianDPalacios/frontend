@@ -30,7 +30,12 @@
           { title: "Resumen", path: "/production/day", icon: "dashboard", permission: "production.manage" },
           { title: "Reporte mensual", path: "/production/month", icon: "dashboard", permission: "production.manage" },
           { title: "Materias primas usadas", path: "/production/material-usage", icon: "materials", permission: "production.manage" },
-          { title: "Plan del panadero", path: "/production/planning", icon: "production", permission: "production.manage" },
+          {
+            title: "Plan del panadero",
+            path: "/production/planning",
+            icon: "production",
+            permission: ["production.manage", "production.baker"],
+          },
           { title: "Produccion realizada", path: "/production/performed", icon: "production", permission: "production.baker" },
           { title: "Recetas", path: "/recipes", icon: "recipes", permission: "recipes.manage" },
           { title: "Conteo y empaque", path: "/production/packaging", icon: "production", permission: "production.packaging" },

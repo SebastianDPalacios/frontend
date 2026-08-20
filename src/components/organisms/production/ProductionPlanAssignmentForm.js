@@ -28,6 +28,8 @@ const ProductionPlanAssignmentForm = ({
   onRemoveRow,
   onAddRow,
   onSubmit,
+  editing = false,
+  onCancelEdit,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
     <Stack
@@ -36,7 +38,7 @@ const ProductionPlanAssignmentForm = ({
       sx={{ justifyContent: "space-between", mb: 2 }}
     >
       <Box>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>Nueva asignación</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>{editing ? "Editar asignación" : "Nueva asignación"}</Typography>
         <Typography variant="body2" color="text.secondary">
           Un bulto estimado equivale a un moje. Puedes incluir varias recetas en el mismo plan.
         </Typography>
@@ -117,8 +119,13 @@ const ProductionPlanAssignmentForm = ({
         Agregar otra receta
       </AppButton>
       <AppButton color="secondary" onClick={onSubmit} loading={saving} disabled={saving || loading}>
-        Enviar plan al panadero
+        {editing ? "Guardar cambios" : "Enviar plan al panadero"}
       </AppButton>
+      {editing ? (
+        <AppButton variant="text" color="secondary" onClick={onCancelEdit} disabled={saving}>
+          Cancelar edición
+        </AppButton>
+      ) : null}
     </Stack>
   </Paper>
 );

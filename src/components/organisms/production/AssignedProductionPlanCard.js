@@ -27,6 +27,7 @@ const AssignedProductionPlanCard = ({
   onViewItem,
   startingItemId,
   formatNumber,
+  onEditPlan,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
     <Stack
@@ -46,6 +47,11 @@ const AssignedProductionPlanCard = ({
         color={plan.status === "assigned" ? "warning" : "success"}
         variant="outlined"
       />
+      {onEditPlan ? (
+        <AppButton variant="outlined" color="secondary" onClick={() => onEditPlan(plan)}>
+          Editar plan
+        </AppButton>
+      ) : null}
     </Stack>
 
     <Stack spacing={1}>

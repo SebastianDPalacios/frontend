@@ -11,6 +11,8 @@ const ProductionPlanOverview = ({
   formatNumber,
   onStartItem,
   onViewItem,
+  onEditPlan,
+  canEditPlan,
 }) => (
   <Grid container spacing={2}>
     <Grid item xs={12} lg={canManage ? 6 : 12}>
@@ -36,6 +38,7 @@ const ProductionPlanOverview = ({
             onViewItem={onViewItem}
             startingItemId={startingItemId}
             formatNumber={formatNumber}
+            onEditPlan={typeof canEditPlan === "function" && canEditPlan(plan) ? onEditPlan : null}
           />
         ))}
       </Stack>
@@ -59,6 +62,7 @@ const ProductionPlanOverview = ({
               plan={plan}
               formatNumber={formatNumber}
               onViewItem={(currentPlan, currentItem) => onViewItem(currentPlan, currentItem, { canFinish: false })}
+              onEditPlan={typeof canEditPlan === "function" && canEditPlan(plan) ? onEditPlan : null}
             />
           ))}
         </Stack>

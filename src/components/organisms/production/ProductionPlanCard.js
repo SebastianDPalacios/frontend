@@ -15,7 +15,7 @@ const getStatusLabel = (status) => {
   return "Asignada";
 };
 
-const ProductionPlanCard = ({ plan, formatNumber, onViewItem }) => (
+const ProductionPlanCard = ({ plan, formatNumber, onViewItem, onEditPlan }) => (
   <Paper variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
     <Stack
       direction={{ xs: "column", sm: "row" }}
@@ -34,6 +34,11 @@ const ProductionPlanCard = ({ plan, formatNumber, onViewItem }) => (
         color={plan.status === "viewed" || plan.status === "completed" ? "success" : "warning"}
         variant="outlined"
       />
+      {onEditPlan ? (
+        <AppButton variant="outlined" color="secondary" onClick={() => onEditPlan(plan)}>
+          Editar plan
+        </AppButton>
+      ) : null}
     </Stack>
 
     <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>

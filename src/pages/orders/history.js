@@ -516,9 +516,9 @@ const getOperationalInsight = (order, items) => {
     return {
       severity: "error",
       title: "Pedido cancelado",
-      description: "El pedido no debe seguir a produccion ni despacho. Si habia una orden de produccion pendiente, revisala manualmente.",
-      actionHref: "/production/orders",
-      actionLabel: "Revisar produccion",
+      description: "El pedido fue retirado del flujo comercial. Si había sido despachado, sus productos fueron reintegrados al inventario.",
+      actionHref: "/inventory/movements",
+      actionLabel: "Ver movimientos",
     };
   }
 
@@ -655,7 +655,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     selectedOrder?.status === "confirmed" ||
     isReadyToDispatch(selectedOrder);
   const canDeliver = selectedOrder?.status === "dispatched";
-  const canCancel = isAdministrator && (selectedOrder?.status === "draft" || selectedOrder?.status === "confirmed");
+  const canCancel = isAdministrator && ["draft", "confirmed", "dispatched"].includes(selectedOrder?.status);
   const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
   const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
@@ -1244,7 +1244,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <MenuItem onClick={openRowDetail}>Ver detalle</MenuItem>
-        {isAdministrator && ["draft", "confirmed"].includes(actionMenu.order?.status) ? (
+        {isAdministrator && ["draft", "confirmed", "dispatched"].includes(actionMenu.order?.status) ? (
           <MenuItem onClick={openRowDelete} sx={{ color: "error.main" }}>Eliminar pedido</MenuItem>
         ) : null}
       </Menu>
@@ -1254,7 +1254,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
-              El pedido quedara eliminado de la vista habitual, pero se conservara en auditoria. Solo aplica para pedidos en borrador o confirmados; si ya fue despachado debe manejarse como ajuste o devolucion.
+              El pedido quedará eliminado de la vista habitual, pero se conservará en auditoría. Si está despachado, sus unidades se devolverán automáticamente al inventario. Un pedido entregado debe manejarse como devolución.
             </Alert>
             <TextField
               fullWidth
@@ -1408,7 +1408,9 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                             </Typography>
                             <Chip
                               size="small"
-                              label={["dispatched", "delivered"].includes(detailOrder.status) ? "Inventario afectado" : "Inventario sin salida"}
+                              label={detailOrder.status === "cancelled"
+                                ? "Inventario sin afectación"
+                                : (["dispatched", "delivered"].includes(detailOrder.status) ? "Inventario afectado" : "Inventario sin salida")}
                               color={["dispatched", "delivered"].includes(detailOrder.status) ? "success" : "default"}
                               variant="outlined"
                             />

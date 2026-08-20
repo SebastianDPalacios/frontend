@@ -69,10 +69,14 @@ const buildProductionPayload = (item, quantities) => normalizeRows(item?.outputs
 
 const ProductionPlanningPage = () => {
   const currentUser = authService.getCurrentUser() || {};
-  const canManage = (currentUser.roles || []).some((role) => ["ADMIN", "SUPER_ADMIN"].includes(role))
-    || (currentUser.permissions || []).includes("production.manage");
+  const isAdministrator = (currentUser.roles || []).some((role) => {
+    const code = typeof role === "string" ? role : role?.code || role?.name;
+    return ["ADMIN", "SUPER_ADMIN"].includes(String(code || "").toUpperCase());
+  });
+  const canManage = isAdministrator || (currentUser.permissions || []).includes("production.manage");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState("");
   const [startingItemId, setStartingItemId] = useState("");
   const [finishingItemId, setFinishingItemId] = useState("");
   const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
@@ -95,7 +99,7 @@ const ProductionPlanningPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const commonRequests = [productionService.getMyPlans()];
+      const commonRequests = [productionService.getMyPlans(), productionService.getMyProductionBaseData()];
       const adminRequests = canManage
         ? [
             recipesService.getList({ onlyActive: 1 }),
@@ -106,6 +110,7 @@ const ProductionPlanningPage = () => {
         : [];
       const responses = await Promise.all([...commonRequests, ...adminRequests]);
       const myPlansResponse = responses[0];
+      const myBaseResponse = responses[1];
 
       if (myPlansResponse?.code !== 1) {
         setError(myPlansResponse?.message || "No se pudo cargar la planificaciÃ³n.");
@@ -114,18 +119,35 @@ const ProductionPlanningPage = () => {
 
       setMyPlans(normalizeRows(myPlansResponse.data));
 
+      if (myBaseResponse?.code === 1) {
+        const myBranchRows = normalizeRows(myBaseResponse.data?.branches);
+        const myRecipeRows = normalizeRows(myBaseResponse.data?.recipes).map((recipe) => ({
+          ...recipe,
+          displayName: String(recipe.notes || "").split(/\s+-\s+/)[0]
+            || recipe.product_name
+            || `Receta #${recipe.id}`,
+          outputs: normalizeRows(recipe.outputs),
+        }));
+        const myBaker = myBaseResponse.data?.baker;
+        if (!canManage) {
+          setBranches(myBranchRows);
+          setRecipes(myRecipeRows);
+          setBakers(myBaker ? [myBaker] : []);
+        }
+      }
+
       if (canManage) {
-        const recipeResponse = responses[1];
+        const recipeResponse = responses[2];
         if (recipeResponse?.code !== 1) {
           setError(recipeResponse?.message || "No se pudieron cargar las recetas vigentes.");
           return;
         }
-        const branchRows = normalizeRows(responses[2]?.data);
-        const employeeRows = normalizeRows(responses[3]?.data).filter((employee) => employee.job_type === "baker");
+        const branchRows = normalizeRows(responses[3]?.data);
+        const employeeRows = normalizeRows(responses[4]?.data).filter((employee) => employee.job_type === "baker");
         setRecipes(groupRecipes(normalizeRows(recipeResponse.data)));
         setBranches(branchRows);
         setBakers(employeeRows);
-        setPlans(normalizeRows(responses[4]?.data));
+        setPlans(normalizeRows(responses[5]?.data));
         setForm((current) => ({
           ...current,
           branchId: current.branchId || String(branchRows[0]?.id || ""),
@@ -163,6 +185,52 @@ const ProductionPlanningPage = () => {
     [bakers, form.bakerId]
   );
 
+  const resetPlanForm = () => {
+    setEditingPlanId("");
+    setRows([emptyPlanRow()]);
+    setForm((current) => ({
+      ...current,
+      branchId: canManage ? current.branchId : String(branches[0]?.id || ""),
+      bakerId: canManage ? current.bakerId : String(bakers[0]?.id || ""),
+      plannedDate: getTomorrow(),
+      notes: "",
+    }));
+  };
+
+  const planCanBeEdited = (plan) => !["completed", "cancelled"].includes(plan.status)
+    && normalizeRows(plan.items).every((item) => !item.started_at && !item.production_batch_id)
+    && normalizeRows(plan.items).every((item) => normalizeRows(item.outputs).every(
+      (output) => Number(output.reserved_quantity || 0) === 0 && Number(output.direct_delivered_quantity || 0) === 0
+    ));
+  const currentUserId = Number(currentUser.user_id || currentUser.userId || currentUser.id);
+  const userCanEditPlan = (plan) => (
+    isAdministrator
+    || Number(plan.created_by) === currentUserId
+    || Number(plan.baker_user_id) === currentUserId
+  );
+
+  const editPlan = (plan) => {
+    if (!planCanBeEdited(plan)) {
+      setError("El plan ya tiene producción iniciada o reservas asociadas y no puede modificarse.");
+      return;
+    }
+    setEditingPlanId(String(plan.id));
+    setForm({
+      branchId: String(plan.branch_id || ""),
+      bakerId: String(plan.baker_employee_id || ""),
+      plannedDate: String(plan.planned_date || "").split("T")[0],
+      notes: plan.notes || "",
+    });
+    setRows(normalizeRows(plan.items).map((item, index) => ({
+      rowKey: `plan-${plan.id}-${item.id || index}`,
+      recipeId: String(item.recipe_id || ""),
+      arrobas: String(item.arrobas || "1"),
+      productIds: normalizeRows(item.outputs).map((output) => String(output.product_id)),
+    })));
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const savePlan = async () => {
     if (!form.branchId || !form.bakerId || !form.plannedDate) {
       setError("Selecciona sucursal, fecha y panadero.");
@@ -176,7 +244,7 @@ const ProductionPlanningPage = () => {
     setSaving(true);
     setError(null);
     try {
-      const response = await productionService.createPlan({
+      const payload = {
         p_branch_id: Number(form.branchId),
         p_baker_employee_id: Number(form.bakerId),
         p_planned_date: form.plannedDate,
@@ -186,14 +254,16 @@ const ProductionPlanningPage = () => {
           arrobas: Number(row.arrobas),
           product_ids: row.productIds.map(Number),
         })),
-      });
+      };
+      const response = editingPlanId
+        ? await productionService.updatePlan(editingPlanId, payload)
+        : await productionService.createPlan(payload);
       if (response?.code !== 1) {
         setError(response?.message || "No se pudo enviar el plan.");
         return;
       }
-      toast.success(response.message || "Plan enviado al panadero");
-      setRows([emptyPlanRow()]);
-      setForm((current) => ({ ...current, notes: "" }));
+      toast.success(response.message || (editingPlanId ? "Plan actualizado" : "Plan enviado al panadero"));
+      resetPlanForm();
       await loadData();
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al enviar el plan."));
@@ -285,7 +355,7 @@ const ProductionPlanningPage = () => {
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificaciÃ³n...</Alert> : null}
 
-      {canManage ? (
+      {canManage || editingPlanId ? (
         <ProductionPlanAssignmentForm
           branches={branches}
           bakers={bakers}
@@ -304,6 +374,8 @@ const ProductionPlanningPage = () => {
           onRemoveRow={(index) => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
           onAddRow={() => setRows((current) => [...current, emptyPlanRow()])}
           onSubmit={savePlan}
+          editing={Boolean(editingPlanId)}
+          onCancelEdit={resetPlanForm}
         />
       ) : null}
 
@@ -316,6 +388,8 @@ const ProductionPlanningPage = () => {
         formatNumber={formatNumber}
         onStartItem={startPlanItem}
         onViewItem={openWorkDialog}
+        onEditPlan={editPlan}
+        canEditPlan={userCanEditPlan}
       />
 
       <ProductionWorkDialog

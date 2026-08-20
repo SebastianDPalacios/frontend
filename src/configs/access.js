@@ -13,6 +13,7 @@ export const salesOnlyPaths = [
 export const bakerOnlyPaths = [
   "/dashboards/analytics",
   "/production/performed",
+  "/production/planning",
 ];
 
 export const packagingOnlyPaths = [
@@ -68,6 +69,10 @@ export const isAdministrativeUser = (user) => {
 export const hasPermission = (user, permission) => {
   if (!permission) {
     return true;
+  }
+
+  if (Array.isArray(permission)) {
+    return permission.some((permissionCode) => hasPermission(user, permissionCode));
   }
 
   if (isAdministrativeUser(user)) {

@@ -20,6 +20,8 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import ordersService from "services/orders/orders-service";
+import authService from "services/auth/auth-service";
+import { isSalesOnlyUser } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getTotal, normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
@@ -277,6 +279,8 @@ const OrdersPeriodTable = ({ orders }) => {
 };
 
 const OrdersDayPage = () => {
+  const currentUser = authService.getCurrentUser() || {};
+  const salesOnly = isSalesOnlyUser(currentUser);
   const [period, setPeriod] = useState("daily");
   const [dayValue, setDayValue] = useState(toDateInputValue());
   const [weekValue, setWeekValue] = useState(getIsoWeekInputValue());
@@ -292,6 +296,7 @@ const OrdersDayPage = () => {
     products: 0,
   });
   const [orders, setOrders] = useState([]);
+  const [periodEarnings, setPeriodEarnings] = useState(0);
 
   const dateRange = useMemo(
     () =>
@@ -314,7 +319,7 @@ const OrdersDayPage = () => {
       setError(null);
 
       try {
-        const [baseResponse, ordersResponse] = await Promise.all([
+        const [baseResponse, ordersResponse, commissionsResponse] = await Promise.all([
           ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 50 }),
           ordersService.getOrders({
             dateFrom: dateRange.from,
@@ -322,6 +327,9 @@ const OrdersDayPage = () => {
             page: 1,
             pageSize: 500,
           }),
+          salesOnly
+            ? ordersService.getSalesCommissions({ dateFrom: dateRange.from, dateTo: dateRange.to })
+            : Promise.resolve(null),
         ]);
 
         if (baseResponse?.code !== 1) {
@@ -334,11 +342,17 @@ const OrdersDayPage = () => {
           return;
         }
 
+        if (salesOnly && commissionsResponse?.code !== 1) {
+          setError(commissionsResponse?.message || "No se pudieron cargar tus ganancias del periodo");
+          return;
+        }
+
         setSummary({
           customers: getTotal(baseResponse.data?.customers),
           products: getTotal(baseResponse.data?.products),
         });
         setOrders(normalizeRows(ordersResponse.data?.items));
+        setPeriodEarnings(salesOnly ? Number(commissionsResponse?.data?.summary?.commission_amount || 0) : 0);
       } catch (requestError) {
         setError(getErrorMessage(requestError, "Error de red al cargar pedidos"));
       } finally {
@@ -347,7 +361,7 @@ const OrdersDayPage = () => {
     };
 
     run();
-  }, [dateRange]);
+  }, [dateRange, salesOnly]);
 
   const periodOrders = useMemo(
     () => orders.filter((order) => formatDate(order.order_date) >= dateRange.from && formatDate(order.order_date) <= dateRange.to),
@@ -468,13 +482,18 @@ const OrdersDayPage = () => {
 
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
         <Grid item xs={12} sm={6} lg={3}>
-          <MetricCard label="Valor del periodo" value={formatMoney(periodAmount)} helper={`${activeOrders} pedidos activos`} color="secondary" />
+          <MetricCard
+            label={salesOnly ? (period === "daily" ? "Ganancia del día" : "Ganancia del periodo") : "Valor del periodo"}
+            value={formatMoney(salesOnly ? periodEarnings : periodAmount)}
+            helper={salesOnly ? "Comisión de pedidos entregados" : `${activeOrders} pedidos activos`}
+            color="secondary"
+          />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Pedidos" value={periodOrders.length} helper={`${draftOrders} borrador, ${confirmedOrders} confirmados`} color="info" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <MetricCard label="Ticket promedio" value={formatMoney(averageTicket)} helper="Sobre pedidos no cancelados" color="primary" />
+          <MetricCard label="Venta promedio" value={formatMoney(averageTicket)} helper="Sobre pedidos no cancelados" color="primary" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <MetricCard label="Despachados" value={dispatchedOrders} helper={`${completedFlow}% del flujo del periodo`} color="success" />

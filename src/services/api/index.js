@@ -89,6 +89,7 @@
     rawMaterialUsageByProductReport: "/production/reports/raw-material-usage-by-product",
     packingSummaryReport: "/production/reports/packing-summary",
     plans: "/production/plans",
+    planById: (id) => `/production/plans/${id}`,
     myPlans: "/production/my-plans",
     myBaseData: "/production/my-base-data",
     myBatches: "/production/my-batches",

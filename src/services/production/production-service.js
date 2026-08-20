@@ -1,4 +1,4 @@
-import { GetEndpoint, PatchEndpoint, PostEndpoint } from "services/api/api-base";
+import { GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from "services/api/api-base";
 import endpoints from "services/api";
 
 class ProductionService {
@@ -71,6 +71,10 @@ class ProductionService {
 
   async createPlan(payload) {
     return PostEndpoint(endpoints.production.plans, payload);
+  }
+
+  async updatePlan(planId, payload) {
+    return PutEndpoint(endpoints.production.planById(planId), payload);
   }
 
   async getMyPlans(params = {}) {
