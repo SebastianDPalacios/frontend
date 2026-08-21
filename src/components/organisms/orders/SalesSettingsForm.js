@@ -151,11 +151,11 @@ const SalesSettingsForm = () => {
                 required
               />
               <ColombianCurrencyField
-                label="Margen máximo de pérdida por producto"
+                label="Margen máximo de pérdida por pedido"
                 name="bonus_max_company_loss_amount"
                 value={values.bonus_max_company_loss_amount}
                 onChange={handleChange}
-                helperText="Completa una unidad de vendaje si el valor adicional no supera este margen."
+                helperText="Este margen se aplica una sola vez al total de vendaje del pedido."
                 required
               />
               <PercentageField

@@ -25,6 +25,7 @@ import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AppButton from "@core/components/ui/AppButton";
 import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import OrderDraftSummary from "components/molecules/OrderDraftSummary";
+import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
 
 const keypadKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "00", "000"];
@@ -86,7 +87,7 @@ const SellerPosOrderForm = ({
   };
 
   const confirmProduct = () => {
-    if (!captureProduct || Number(captureValue || 0) <= 0) return;
+    if (!captureProduct || Number(captureValue || 0) <= 0 || captureSaleError) return;
     addConfiguredProduct(captureProduct, { orderMode, captureMode: "amount", value: captureValue });
     setCaptureProduct(null);
   };
@@ -97,6 +98,11 @@ const SellerPosOrderForm = ({
         ? Math.floor(Number(captureValue || 0) / unitPrice)
         : Math.floor((Number(captureValue || 0) / unitPrice) * 1000) / 1000)
     : 0;
+  const captureSaleError = getInvalidUnitSaleAmount(captureProduct, {
+    orderMode,
+    captureMode: "amount",
+    value: captureValue,
+  });
 
   return (
     <Stack spacing={2} sx={{ pb: 10 }}>
@@ -233,7 +239,7 @@ const SellerPosOrderForm = ({
               showCreditDetails={false}
             />
           </Paper>
-          <AppButton fullWidth color="secondary" disabled={loading || customers.length === 0 || selectedLines.length === 0} onClick={onReview} sx={{ minHeight: 54 }}>
+          <AppButton fullWidth color="secondary" disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 54 }}>
             Revisar y guardar pedido
           </AppButton>
         </>
@@ -272,6 +278,7 @@ const SellerPosOrderForm = ({
               </Typography>
               <Typography variant="caption" color="text.secondary">{previewQuantity} unidades calculadas</Typography>
             </Paper>
+            {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
               {keypadKeys.map((key) => (
                 <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: 50, fontSize: 18, fontWeight: 900 }}>{key}</Button>
@@ -285,7 +292,7 @@ const SellerPosOrderForm = ({
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button onClick={() => setCaptureProduct(null)}>Cancelar</Button>
-          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0} onClick={confirmProduct}>Agregar al carrito</AppButton>
+          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct}>Agregar al carrito</AppButton>
         </DialogActions>
       </Dialog>
 

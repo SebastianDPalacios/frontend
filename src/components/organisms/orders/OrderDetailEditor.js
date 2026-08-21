@@ -125,6 +125,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       const result = await ordersService.upsertItem(order.id, {
         p_product_id: Number(item.product_id),
         p_line_type: requestedLineType === "sale_bonus" ? "sale" : requestedLineType,
+        p_ui_line_type: requestedLineType,
         p_previous_line_type: draft.originalLineType,
         p_capture_mode: draft.captureMode,
         p_requested_amount: draft.captureMode === "amount" ? Number(draft.value || 0) : null,
@@ -190,6 +191,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       const result = await ordersService.upsertItem(order.id, {
         p_product_id: Number(selectedNewProduct.id),
         p_line_type: requestedLineType === "sale_bonus" ? "sale" : requestedLineType,
+        p_ui_line_type: requestedLineType,
         p_capture_mode: newLine.captureMode,
         p_requested_amount: newLine.captureMode === "amount" ? Number(newLine.value) : null,
         p_quantity: newLine.captureMode === "quantity" ? Number(newLine.value) : null,

@@ -32,6 +32,7 @@ import SellerPosOrderForm from "components/organisms/orders/SellerPosOrderForm";
 import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
 import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
+import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const today = toDateInputValue();
@@ -254,6 +255,12 @@ const AtomicOrderForm = () => {
     const minimum = Number(settings.bonus_minimum_amount || 0);
     const percent = Number(settings.bonus_percent || 0);
     const bonusEnabled = bonusEligibleSaleTotal >= minimum;
+    const regulatedSaleTotal = preparedRows.reduce((total, row) => (
+      row.entry.orderMode === "sale_bonus" && !isPastryProduct(row.product)
+        ? total + row.calculation.requestedValue
+        : total
+    ), 0);
+    const hasRegulatedBonus = regulatedSaleTotal > 0;
     const lines = [];
 
     preparedRows.forEach((row) => {
@@ -270,6 +277,7 @@ const AtomicOrderForm = () => {
         key: `${entry.id}-${primaryType}`,
         product,
         lineType: primaryType,
+        uiLineType: orderMode,
         captureMode: entry.captureMode,
         requestedAmount: entry.captureMode === "amount" ? Number(entry.value) : null,
         quantity: calculation.quantity,
@@ -291,6 +299,7 @@ const AtomicOrderForm = () => {
             key: `${entry.id}-bonus`,
             product,
             lineType: "bonus",
+            uiLineType: "sale_bonus",
             captureMode: "quantity",
             requestedAmount: null,
             quantity: automaticBonus.quantity,
@@ -310,18 +319,26 @@ const AtomicOrderForm = () => {
       },
       { saleTotal: 0, bonusTotal: 0, exchangeTotal: 0 }
     );
-    const bonusLineCount = lines.filter((line) => line.lineType === "bonus").length;
-    summary.bonusGenerated = bonusEnabled
-      ? bonusEligibleSaleTotal * (percent / 100)
+    summary.regulatedBonusTotal = lines.reduce((total, line) => (
+      line.lineType === "bonus" && line.uiLineType === "sale_bonus"
+        ? total + Number(line.commercialValue || 0)
+        : total
+    ), 0);
+    summary.hasRegulatedBonus = hasRegulatedBonus;
+    summary.bonusGenerated = bonusEnabled && hasRegulatedBonus
+      ? regulatedSaleTotal * (percent / 100)
       : 0;
-    summary.allowedBonus = bonusEnabled
+    summary.allowedBonus = bonusEnabled && hasRegulatedBonus
       ? summary.bonusGenerated
-        + bonusLineCount * Number(settings.bonus_max_company_loss_amount || 0)
+        + Number(settings.bonus_max_company_loss_amount || 0)
       : 0;
-    summary.bonusCompanyDifference = Math.max(summary.bonusTotal - summary.bonusGenerated, 0);
-    summary.bonusExceeded = summary.bonusTotal > summary.allowedBonus + 0.01;
+    summary.bonusCompanyDifference = Math.max(summary.regulatedBonusTotal - summary.bonusGenerated, 0);
+    summary.bonusExceeded = summary.regulatedBonusTotal > summary.allowedBonus + 0.01;
+    const invalidUnitSales = preparedRows
+      .map((row) => getInvalidUnitSaleAmount(row.product, row.entry))
+      .filter(Boolean);
 
-    return { rows: preparedRows, lines, summary, bonusEnabled };
+    return { rows: preparedRows, lines, summary, bonusEnabled, invalidUnitSales };
   }, [productsById, selectedLines, settings]);
 
   const selectedCustomer = customers.find((customer) => String(customer.id) === String(customerId));
@@ -395,6 +412,11 @@ const AtomicOrderForm = () => {
       setError("Completa el valor o la cantidad de todos los productos agregados");
       return;
     }
+    const invalidUnitSale = preparedOrder.invalidUnitSales[0];
+    if (invalidUnitSale) {
+      setError(`En ${invalidUnitSale.product.name}, ${invalidUnitSale.message.toLowerCase()}`);
+      return;
+    }
     if (preparedOrder.summary.bonusExceeded) {
       setError("El vendaje seleccionado supera el limite disponible");
       return;
@@ -416,6 +438,7 @@ const AtomicOrderForm = () => {
         p_items_json: preparedOrder.lines.map((line) => ({
           product_id: Number(line.product.id),
           line_type: line.lineType,
+          ui_line_type: line.uiLineType,
           capture_mode: line.captureMode,
           requested_amount: line.requestedAmount,
           quantity: line.quantity,
@@ -602,6 +625,7 @@ const AtomicOrderForm = () => {
                       settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0, commercialValue: 0 };
+                const invalidUnitSale = getInvalidUnitSaleAmount(product, { ...entry, orderMode: orderModeValue });
 
                 return (
                   <Box key={entry.id} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
@@ -656,6 +680,8 @@ const AtomicOrderForm = () => {
                             name={`amount-${entry.id}`}
                             value={entry.value}
                             onChange={(event) => updateLine(entry.id, { value: event.target.value })}
+                            error={invalidUnitSale?.message}
+                            helperText={invalidUnitSale?.message}
                           />
                         ) : (
                           <TextField
@@ -719,7 +745,7 @@ const AtomicOrderForm = () => {
             <AppButton
               fullWidth
               color="secondary"
-              disabled={loading || customers.length === 0 || selectedLines.length === 0}
+              disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0}
               onClick={validateBeforeConfirmation}
               sx={{ mt: 2.5, minHeight: 48 }}
             >
