@@ -57,6 +57,10 @@ const defaultTicketSettings = {
   showBranchContact: true,
   showSeller: true,
   showDeliveryDate: true,
+  showSaleTotal: true,
+  showBonusTotal: true,
+  showGiftTotal: true,
+  showExchangeTotal: true,
   customerTitle: "CLIENTE",
   showCustomerName: true,
   showCustomerIdentification: true,
@@ -84,6 +88,23 @@ const defaultTicketSettings = {
   productFontSize: 13,
   quantityFontSize: 20,
   totalFontSize: 17,
+  subtitleFontSize: 12,
+  branchFontSize: 14,
+  branchContactFontSize: 11,
+  orderNumberFontSize: 18,
+  orderDateFontSize: 12,
+  deliveryDateFontSize: 12,
+  sellerFontSize: 12,
+  sectionTitleFontSize: 14,
+  categoryFontSize: 12,
+  typeFontSize: 10,
+  productValueFontSize: 13,
+  quantityLabelFontSize: 10,
+  itemDetailFontSize: 11,
+  summaryFontSize: 13,
+  policyTitleFontSize: 11,
+  policyTextFontSize: 10,
+  footerFontSize: 11,
   showExtraLegend: false,
   extraLegendTitle: "LEYENDA ADICIONAL",
   extraLegendText: "",
@@ -190,12 +211,55 @@ const mergeSaleBonusDisplayItems = (items = []) => {
     return acc;
   }, []);
 };
+
+const calculateVisibleBonusTotal = (items = [], bonusPercent = 0) => {
+  const usedSaleIndexes = new Set();
+
+  return items.reduce((total, item, bonusIndex) => {
+    if (item.line_type !== "bonus") return total;
+
+    const saleIndex = items.findIndex((candidate, candidateIndex) =>
+      candidateIndex < bonusIndex &&
+      !usedSaleIndexes.has(candidateIndex) &&
+      candidate.line_type === "sale" &&
+      getItemProductKey(candidate) === getItemProductKey(item)
+    );
+    const deliveredValue = Number(item.commercial_value || 0);
+
+    if (saleIndex === -1) return total + deliveredValue;
+
+    usedSaleIndexes.add(saleIndex);
+    const generatedValue = Number(items[saleIndex].line_total || 0) * (Number(bonusPercent || 0) / 100);
+    return total + Math.min(deliveredValue, generatedValue);
+  }, 0);
+};
+
 const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
   const ticketSettings = mergeTicketSettings(settings);
-  const scale = getTicketFontScale(ticketSettings);
+  const scale = {
+    ...getTicketFontScale(ticketSettings),
+    subtitle: numberOrFallback(ticketSettings.subtitleFontSize, 12),
+    branch: numberOrFallback(ticketSettings.branchFontSize, 14),
+    branchContact: numberOrFallback(ticketSettings.branchContactFontSize, 11),
+    orderNumber: numberOrFallback(ticketSettings.orderNumberFontSize, 18),
+    orderDate: numberOrFallback(ticketSettings.orderDateFontSize, 12),
+    deliveryDate: numberOrFallback(ticketSettings.deliveryDateFontSize, 12),
+    seller: numberOrFallback(ticketSettings.sellerFontSize, 12),
+    section: numberOrFallback(ticketSettings.sectionTitleFontSize, 14),
+    category: numberOrFallback(ticketSettings.categoryFontSize, 12),
+    type: numberOrFallback(ticketSettings.typeFontSize, 10),
+    productValue: numberOrFallback(ticketSettings.productValueFontSize, 13),
+    quantityLabel: numberOrFallback(ticketSettings.quantityLabelFontSize, 10),
+    itemDetail: numberOrFallback(ticketSettings.itemDetailFontSize, 11),
+    summary: numberOrFallback(ticketSettings.summaryFontSize, 13),
+    policyTitle: numberOrFallback(ticketSettings.policyTitleFontSize, 11),
+    policyText: numberOrFallback(ticketSettings.policyTextFontSize, 10),
+    footer: numberOrFallback(ticketSettings.footerFontSize, 11),
+  };
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
+  const visibleBonusTotal = calculateVisibleBonusTotal(items, order.bonus_percent);
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {
@@ -252,12 +316,15 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         body { width: 74mm; margin: 0 auto; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: ${scale.body}px; line-height: 1.28; }
         h1 { margin: 0; font-size: ${scale.title}px; line-height: 1; text-align: center; text-transform: uppercase; }
         .logo { display: block; max-width: 34mm; max-height: 22mm; object-fit: contain; margin: 0 auto 3px; }
-        .subtitle { margin-top: 2px; text-align: center; font-size: 11px; font-weight: 700; }
+        .subtitle { margin-top: 2px; text-align: center; font-size: ${scale.subtitle}px; font-weight: 700; }
         .branch { margin-top: 4px; text-align: center; font-size: ${scale.branch}px; font-weight: 900; }
-        .contact { margin-top: 2px; text-align: center; font-size: 10.5px; }
+        .contact { margin-top: 2px; text-align: center; font-size: ${scale.branchContact}px; }
         .rule { margin: 7px 0; border-top: 1px dashed #111; }
         .section-title { margin-bottom: 4px; font-size: ${scale.section}px; font-weight: 900; text-transform: uppercase; }
-        .meta { display: grid; gap: 2px; font-size: 11.5px; }
+        .meta { display: grid; gap: 2px; }
+        .order-date { font-size: ${scale.orderDate}px; }
+        .delivery-date { font-size: ${scale.deliveryDate}px; }
+        .seller { font-size: ${scale.seller}px; }
         .meta strong { font-size: 15px; }
         .customer-meta { gap: 3px; font-size: 13px; line-height: 1.25; }
         .customer-meta strong { font-size: ${scale.customer}px; line-height: 1.05; text-transform: uppercase; }
@@ -265,25 +332,25 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         .customer-address { font-size: ${scale.address}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
         .customer-zone { font-size: ${scale.neighborhood}px; font-weight: 800; line-height: 1.18; overflow-wrap: anywhere; }
         .customer-phone { font-size: ${scale.phone}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
-        .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: 16px; font-weight: 900; }
+        .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: ${scale.orderNumber}px; font-weight: 900; }
         .category-block { margin-top: 7px; break-inside: avoid; }
-        .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; }
+        .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: ${scale.category}px; font-weight: 900; text-align: center; text-transform: uppercase; }
         .item { padding: 7px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
         .item-head { display: flex; justify-content: space-between; gap: 5px; align-items: baseline; }
         .item-name { min-width: 0; font-weight: 900; font-size: ${scale.item}px; overflow-wrap: anywhere; }
         .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 58px auto; gap: 4px; align-items: center; margin-top: 3px; }
-        .item-values strong { font-size: 12.5px; white-space: nowrap; text-align: right; }
+        .item-values strong { font-size: ${scale.productValue}px; white-space: nowrap; text-align: right; }
         .qty-box { display: grid; justify-items: center; text-align: center; }
         .qty { font-size: ${scale.qty}px; font-weight: 900; letter-spacing: 0; line-height: 1; }
-        .qty-label { font-size: 10px; font-weight: 900; line-height: 1; }
-        .item-detail { margin-top: 2px; color: #333; font-size: 10px; }
-        .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: 8.5px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
-        .totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; margin-top: 8px; font-size: 12.5px; }
+        .qty-label { font-size: ${scale.quantityLabel}px; font-weight: 900; line-height: 1; }
+        .item-detail { margin-top: 2px; color: #333; font-size: ${scale.itemDetail}px; }
+        .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: ${scale.type}px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+        .totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; margin-top: 8px; font-size: ${scale.summary}px; }
         .totals strong { text-align: right; }
         .total { padding-top: 5px; border-top: 2px solid #111; font-size: ${scale.total}px; font-weight: 900; }
-        .policy { padding: 6px; border: 1px solid #111; font-size: 10px; line-height: 1.35; }
-        .policy strong { display: block; margin-bottom: 3px; text-align: center; font-size: 11px; }
-        .footer { margin-top: 8px; text-align: center; font-size: 10px; font-weight: 700; }
+        .policy { padding: 6px; border: 1px solid #111; font-size: ${scale.policyText}px; line-height: 1.35; }
+        .policy strong { display: block; margin-bottom: 3px; text-align: center; font-size: ${scale.policyTitle}px; }
+        .footer { margin-top: 8px; text-align: center; font-size: ${scale.footer}px; font-weight: 700; }
         @media print { body { width: 74mm; } }
       </style>
     </head>
@@ -300,9 +367,9 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       <div class="order-number">PEDIDO #${Number(order.id)}</div>
       <div class="rule"></div>
       <div class="meta">
-        <span>Fecha: ${escapeHtml(String(order.created_at || order.order_date).replace("T", " ").slice(0, 19))}</span>
-        ${ticketSettings.showDeliveryDate ? `<span>Entrega: ${escapeHtml(String(order.delivery_date || "Sin fecha").slice(0, 10))}</span>` : ""}
-        ${ticketSettings.showSeller ? `<span>Vendedor: ${escapeHtml(order.sales_agent_name || "Sin vendedor")}</span>` : ""}
+        <span class="order-date">Fecha: ${escapeHtml(String(order.created_at || order.order_date).replace("T", " ").slice(0, 19))}</span>
+        ${ticketSettings.showDeliveryDate ? `<span class="delivery-date">Entrega: ${escapeHtml(String(order.delivery_date || "Sin fecha").slice(0, 10))}</span>` : ""}
+        ${ticketSettings.showSeller ? `<span class="seller">Vendedor: ${escapeHtml(order.sales_agent_name || "Sin vendedor")}</span>` : ""}
       </div>
       <div class="rule"></div>
       <div class="section-title">${escapeHtml(ticketSettings.customerTitle || defaultTicketSettings.customerTitle)}</div>
@@ -317,10 +384,10 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       <div class="section-title">${escapeHtml(ticketSettings.detailTitle || defaultTicketSettings.detailTitle)}</div>
       ${rows}
       <div class="totals">
-        <span>Venta</span><strong>${money.format(saleTotal)}</strong>
-        <span>Vendaje</span><strong>${money.format(Number(order.bonus_total || 0))}</strong>
-        <span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>
-        <span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>
+        ${ticketSettings.showSaleTotal ? `<span>Venta</span><strong>${money.format(saleTotal)}</strong>` : ""}
+        ${ticketSettings.showBonusTotal ? `<span>Vendaje</span><strong>${money.format(visibleBonusTotal)}</strong>` : ""}
+        ${ticketSettings.showGiftTotal ? `<span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>` : ""}
+        ${ticketSettings.showExchangeTotal ? `<span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>` : ""}
         ${Number(order.credit_redeemed_amount || 0) > 0 ? `<span>Saldo a favor aplicado</span><strong>-${money.format(Number(order.credit_redeemed_amount || 0))}</strong>` : ""}
         <span class="total">TOTAL A COBRAR</span><strong class="total">${money.format(Number(order.amount_to_collect ?? (Number(order.grand_total || 0) + Number(order.exchange_total || 0) - Number(order.credit_redeemed_amount || 0))))}</strong>
       </div>

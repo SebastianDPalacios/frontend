@@ -2,7 +2,7 @@ import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import { isIntegerUnit } from "views/modules/flow-utils";
 
 const getInvalidUnitSaleAmount = (product, entry) => {
-  if (entry?.orderMode !== "sale" || entry?.captureMode !== "amount" || !isIntegerUnit(product?.unit)) {
+  if (!["sale", "bonus"].includes(entry?.orderMode) || entry?.captureMode !== "amount" || !isIntegerUnit(product?.unit)) {
     return null;
   }
 
@@ -24,7 +24,7 @@ const getInvalidUnitSaleAmount = (product, entry) => {
     price,
     lower,
     upper,
-    message: `El valor de Venta debe ser múltiplo de $${formatCurrencyValue(price, 0)}. Ingresa ${alternatives}.`,
+    message: `El valor de ${entry.orderMode === "bonus" ? "Solo vendaje" : "Venta"} debe ser múltiplo de $${formatCurrencyValue(price, 0)}. Ingresa ${alternatives}.`,
   };
 };
 

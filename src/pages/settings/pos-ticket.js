@@ -30,6 +30,10 @@ const initialValues = {
   showBranchContact: true,
   showSeller: true,
   showDeliveryDate: true,
+  showSaleTotal: true,
+  showBonusTotal: true,
+  showGiftTotal: true,
+  showExchangeTotal: true,
   customerTitle: "CLIENTE",
   showCustomerName: true,
   showCustomerIdentification: true,
@@ -57,6 +61,23 @@ const initialValues = {
   productFontSize: 13,
   quantityFontSize: 20,
   totalFontSize: 17,
+  subtitleFontSize: 12,
+  branchFontSize: 14,
+  branchContactFontSize: 11,
+  orderNumberFontSize: 18,
+  orderDateFontSize: 12,
+  deliveryDateFontSize: 12,
+  sellerFontSize: 12,
+  sectionTitleFontSize: 14,
+  categoryFontSize: 12,
+  typeFontSize: 10,
+  productValueFontSize: 13,
+  quantityLabelFontSize: 10,
+  itemDetailFontSize: 11,
+  summaryFontSize: 13,
+  policyTitleFontSize: 11,
+  policyTextFontSize: 10,
+  footerFontSize: 11,
   showExtraLegend: false,
   extraLegendTitle: "LEYENDA ADICIONAL",
   extraLegendText: "",
@@ -88,6 +109,10 @@ const fontScales = {
     productFontSize: 13,
     quantityFontSize: 20,
     totalFontSize: 17,
+    subtitleFontSize: 12, branchFontSize: 14, branchContactFontSize: 11, orderNumberFontSize: 18,
+    orderDateFontSize: 12, deliveryDateFontSize: 12, sellerFontSize: 12, sectionTitleFontSize: 14,
+    categoryFontSize: 12, typeFontSize: 10, productValueFontSize: 13, quantityLabelFontSize: 10,
+    itemDetailFontSize: 11, summaryFontSize: 13, policyTitleFontSize: 11, policyTextFontSize: 10, footerFontSize: 11,
   },
   large: {
     bodyFontSize: 13,
@@ -101,6 +126,10 @@ const fontScales = {
     productFontSize: 14,
     quantityFontSize: 22,
     totalFontSize: 19,
+    subtitleFontSize: 13, branchFontSize: 15, branchContactFontSize: 12, orderNumberFontSize: 20,
+    orderDateFontSize: 13, deliveryDateFontSize: 13, sellerFontSize: 13, sectionTitleFontSize: 15,
+    categoryFontSize: 13, typeFontSize: 11, productValueFontSize: 14, quantityLabelFontSize: 11,
+    itemDetailFontSize: 12, summaryFontSize: 14, policyTitleFontSize: 12, policyTextFontSize: 11, footerFontSize: 12,
   },
   extra_large: {
     bodyFontSize: 14,
@@ -114,6 +143,10 @@ const fontScales = {
     productFontSize: 15,
     quantityFontSize: 24,
     totalFontSize: 20,
+    subtitleFontSize: 14, branchFontSize: 16, branchContactFontSize: 13, orderNumberFontSize: 22,
+    orderDateFontSize: 14, deliveryDateFontSize: 14, sellerFontSize: 14, sectionTitleFontSize: 16,
+    categoryFontSize: 14, typeFontSize: 12, productValueFontSize: 15, quantityLabelFontSize: 12,
+    itemDetailFontSize: 13, summaryFontSize: 15, policyTitleFontSize: 13, policyTextFontSize: 12, footerFontSize: 13,
   },
 };
 
@@ -136,6 +169,67 @@ const threeFieldGridSx = {
     md: "repeat(3, minmax(0, 1fr))",
   },
 };
+
+const fontSizeGroups = [
+  {
+    title: "Encabezado",
+    description: "Marca, sucursal y datos iniciales.",
+    fields: [
+      ["headerFontSize", "Nombre del negocio", 18, 34],
+      ["subtitleFontSize", "Subtitulo", 8, 24],
+      ["branchFontSize", "Sucursal", 9, 26],
+      ["branchContactFontSize", "Contacto sucursal", 8, 22],
+      ["bodyFontSize", "Texto general", 10, 18],
+    ],
+  },
+  {
+    title: "Datos del pedido",
+    description: "Numero, fechas, vendedor y rotulos.",
+    fields: [
+      ["orderNumberFontSize", "Numero de pedido", 12, 32],
+      ["orderDateFontSize", "Fecha del pedido", 8, 22],
+      ["deliveryDateFontSize", "Fecha de entrega", 8, 22],
+      ["sellerFontSize", "Vendedor", 8, 22],
+      ["sectionTitleFontSize", "Titulos de seccion", 9, 26],
+    ],
+  },
+  {
+    title: "Cliente",
+    description: "Nombre y datos de contacto del cliente.",
+    fields: [
+      ["customerFontSize", "Nombre", 16, 30],
+      ["customerContactFontSize", "Contacto general", 12, 24],
+      ["customerIdentificationFontSize", "Identificacion", 10, 24],
+      ["customerAddressFontSize", "Direccion", 12, 28],
+      ["customerNeighborhoodFontSize", "Barrio/Zona", 12, 26],
+      ["customerPhoneFontSize", "Telefono", 12, 28],
+    ],
+  },
+  {
+    title: "Detalle de productos",
+    description: "Categoria, producto, tipo, cantidades y valores.",
+    fields: [
+      ["categoryFontSize", "Categoria", 8, 22],
+      ["productFontSize", "Nombre producto", 11, 22],
+      ["typeFontSize", "Tipo de movimiento", 7, 18],
+      ["quantityFontSize", "Cantidad", 16, 34],
+      ["quantityLabelFontSize", "Etiqueta UND", 7, 18],
+      ["productValueFontSize", "Valor", 9, 24],
+      ["itemDetailFontSize", "Detalle solicitado", 8, 20],
+    ],
+  },
+  {
+    title: "Resumen y cierre",
+    description: "Totales, politica y mensaje final.",
+    fields: [
+      ["summaryFontSize", "Resumen de valores", 9, 24],
+      ["totalFontSize", "Total a cobrar", 15, 30],
+      ["policyTitleFontSize", "Titulo de politica", 8, 22],
+      ["policyTextFontSize", "Texto de politica", 8, 20],
+      ["footerFontSize", "Texto final", 8, 22],
+    ],
+  },
+];
 
 const previewItems = [
   { name: "PAN ROYAL 2.000", category: "PAN DE SAL", type: "VENTA", qty: 5, value: "$ 10.500" },
@@ -200,6 +294,23 @@ const PosTicketPreview = ({ values }) => {
     product: numberOrFallback(values.productFontSize, preset.productFontSize),
     quantity: numberOrFallback(values.quantityFontSize, preset.quantityFontSize),
     total: numberOrFallback(values.totalFontSize, preset.totalFontSize),
+    subtitle: numberOrFallback(values.subtitleFontSize, preset.subtitleFontSize),
+    branch: numberOrFallback(values.branchFontSize, preset.branchFontSize),
+    branchContact: numberOrFallback(values.branchContactFontSize, preset.branchContactFontSize),
+    orderNumber: numberOrFallback(values.orderNumberFontSize, preset.orderNumberFontSize),
+    orderDate: numberOrFallback(values.orderDateFontSize, preset.orderDateFontSize),
+    deliveryDate: numberOrFallback(values.deliveryDateFontSize, preset.deliveryDateFontSize),
+    seller: numberOrFallback(values.sellerFontSize, preset.sellerFontSize),
+    section: numberOrFallback(values.sectionTitleFontSize, preset.sectionTitleFontSize),
+    category: numberOrFallback(values.categoryFontSize, preset.categoryFontSize),
+    type: numberOrFallback(values.typeFontSize, preset.typeFontSize),
+    productValue: numberOrFallback(values.productValueFontSize, preset.productValueFontSize),
+    quantityLabel: numberOrFallback(values.quantityLabelFontSize, preset.quantityLabelFontSize),
+    itemDetail: numberOrFallback(values.itemDetailFontSize, preset.itemDetailFontSize),
+    summary: numberOrFallback(values.summaryFontSize, preset.summaryFontSize),
+    policyTitle: numberOrFallback(values.policyTitleFontSize, preset.policyTitleFontSize),
+    policyText: numberOrFallback(values.policyTextFontSize, preset.policyTextFontSize),
+    footer: numberOrFallback(values.footerFontSize, preset.footerFontSize),
   };
   const groupedItems = useMemo(() => (
     previewItems.reduce((groups, item) => {
@@ -249,17 +360,17 @@ const PosTicketPreview = ({ values }) => {
         {values.businessName || "PANADERIA"}
       </Typography>
       {values.businessSubtitle ? (
-        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: 12, fontWeight: 700, mt: 0.5 }}>
+        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: scale.subtitle, fontWeight: 700, mt: 0.5 }}>
           {values.businessSubtitle}
         </Typography>
       ) : null}
       {values.showBranchName ? (
-        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: 14, fontWeight: 900, mt: 0.5 }}>
+        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: scale.branch, fontWeight: 900, mt: 0.5 }}>
           Branch 20260525202730
         </Typography>
       ) : null}
       {values.showBranchContact ? (
-        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: 11, mt: 0.25 }}>
+        <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", fontSize: scale.branchContact, mt: 0.25 }}>
           Cra 11 No 1D-43 B/Diego de Ospina
           <br />
           Tel. 6088667316
@@ -267,19 +378,19 @@ const PosTicketPreview = ({ values }) => {
       ) : null}
 
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
-      <Box sx={{ border: "1px solid #111", py: 0.75, textAlign: "center", fontSize: 18, fontWeight: 900 }}>
+      <Box sx={{ border: "1px solid #111", py: 0.75, textAlign: "center", fontSize: scale.orderNumber, fontWeight: 900 }}>
         PEDIDO #31
       </Box>
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
 
       <Stack spacing={0.25}>
-        <span>Fecha: 2026-07-04 14:31:33</span>
-        {values.showDeliveryDate ? <span>Entrega: 2026-07-04</span> : null}
-        {values.showSeller ? <span>Vendedor: ventas</span> : null}
+        <span style={{ fontSize: scale.orderDate }}>Fecha: 2026-07-04 14:31:33</span>
+        {values.showDeliveryDate ? <span style={{ fontSize: scale.deliveryDate }}>Entrega: 2026-07-04</span> : null}
+        {values.showSeller ? <span style={{ fontSize: scale.seller }}>Vendedor: ventas</span> : null}
       </Stack>
 
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: 14 }}>
+      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.section }}>
         {values.customerTitle || "CLIENTE"}
       </Typography>
       {values.showCustomerName ? (
@@ -309,41 +420,46 @@ const PosTicketPreview = ({ values }) => {
       ) : null}
 
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
-      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: 14 }}>
+      <Typography sx={{ fontFamily: "Arial, sans-serif", fontWeight: 900, fontSize: scale.section }}>
         {values.detailTitle || "DETALLE SOLICITADO"}
       </Typography>
 
       {Object.entries(groupedItems).map(([category, items]) => (
         <Box key={category} sx={{ mt: 1 }}>
-          <Box sx={{ border: "1px solid #111", bgcolor: "#eee", py: 0.5, textAlign: "center", fontWeight: 900 }}>
+          <Box sx={{ border: "1px solid #111", bgcolor: "#eee", py: 0.5, textAlign: "center", fontSize: scale.category, fontWeight: 900 }}>
             {category}
           </Box>
           {items.map((item) => (
             <Box key={`${item.category}-${item.name}-${item.type}`} sx={{ py: 1, borderBottom: "1px dashed #777" }}>
               <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}>
                 <Box component="strong" sx={{ fontSize: scale.product }}>{item.name}</Box>
-                <Box component="span" sx={{ border: "1px solid #111", px: 0.5, fontSize: 10, fontWeight: 900 }}>
+                <Box component="span" sx={{ border: "1px solid #111", px: 0.5, fontSize: scale.type, fontWeight: 900 }}>
                   {item.type}
                 </Box>
               </Stack>
               <Stack direction="row" sx={{ alignItems: "center", justifyContent: "flex-end", gap: 2, mt: 0.5 }}>
                 <Box sx={{ textAlign: "center", fontWeight: 900 }}>
                   <Box sx={{ fontSize: scale.quantity, lineHeight: 1 }}>{item.qty}</Box>
-                  <Box sx={{ fontSize: 10, lineHeight: 1 }}>UND</Box>
+                  <Box sx={{ fontSize: scale.quantityLabel, lineHeight: 1 }}>UND</Box>
                 </Box>
-                <strong>{item.value}</strong>
+                <strong style={{ fontSize: scale.productValue }}>{item.value}</strong>
               </Stack>
-              <Typography sx={{ fontFamily: "Arial, sans-serif", fontSize: 11 }}>Solicitado: $ 10.000</Typography>
+              <Typography sx={{ fontFamily: "Arial, sans-serif", fontSize: scale.itemDetail }}>Solicitado: $ 10.000</Typography>
             </Box>
           ))}
         </Box>
       ))}
 
-      <Stack spacing={0.4} sx={{ mt: 1 }}>
-        {["Venta", "Vendaje", "Obsequio", "Cambio"].map((label, index) => (
+      <Stack spacing={0.4} sx={{ mt: 1, fontSize: scale.summary }}>
+        {[
+          ["Venta", "$ 10.500", values.showSaleTotal],
+          ["Vendaje", "$ 0", values.showBonusTotal],
+          ["Obsequio", "$ 0", values.showGiftTotal],
+          ["Cambio", "$ 0", values.showExchangeTotal],
+        ].filter(([, , visible]) => visible).map(([label, value]) => (
           <Stack key={label} direction="row" sx={{ justifyContent: "space-between" }}>
             <span>{label}</span>
-            <strong>{index === 0 ? "$ 10.500" : "$ 0"}</strong>
+            <strong>{value}</strong>
           </Stack>
         ))}
         <Stack direction="row" sx={{ justifyContent: "space-between", borderTop: "2px solid #111", pt: 0.75, fontSize: scale.total, fontWeight: 900 }}>
@@ -353,8 +469,8 @@ const PosTicketPreview = ({ values }) => {
       </Stack>
 
       <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
-      <Box sx={{ border: "1px solid #111", p: 1, fontSize: 11 }}>
-        <strong style={{ display: "block", textAlign: "center", marginBottom: 4 }}>
+      <Box sx={{ border: "1px solid #111", p: 1, fontSize: scale.policyText }}>
+        <strong style={{ display: "block", textAlign: "center", marginBottom: 4, fontSize: scale.policyTitle }}>
           {values.policyTitle || "POLITICA DE CAMBIOS"}
         </strong>
         {values.policyText || initialValues.policyText}
@@ -362,15 +478,15 @@ const PosTicketPreview = ({ values }) => {
       {values.showExtraLegend && values.extraLegendText ? (
         <>
           <Box sx={{ borderTop: "1px dashed #111", my: 1 }} />
-          <Box sx={{ border: "1px solid #111", p: 1, fontSize: 11 }}>
-            <strong style={{ display: "block", textAlign: "center", marginBottom: 4 }}>
+          <Box sx={{ border: "1px solid #111", p: 1, fontSize: scale.policyText }}>
+            <strong style={{ display: "block", textAlign: "center", marginBottom: 4, fontSize: scale.policyTitle }}>
               {values.extraLegendTitle || "LEYENDA ADICIONAL"}
             </strong>
             {values.extraLegendText}
           </Box>
         </>
       ) : null}
-      <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", mt: 1, fontSize: 11, fontWeight: 700 }}>
+      <Typography sx={{ fontFamily: "Arial, sans-serif", textAlign: "center", mt: 1, fontSize: scale.footer, fontWeight: 700 }}>
         {values.footerText || "Gracias por su compra"}
       </Typography>
     </Box>
@@ -631,35 +747,43 @@ const PosTicketSettingsPage = () => {
 
               <EditorPanel
                 title="Tamanos de letra"
-                subtitle="Ajusta cada zona del ticket. Los valores estan en pixeles para mantener el ancho POS controlado."
+                subtitle="Personaliza cada zona del comprobante. Todos los valores estan expresados en pixeles."
               >
-                <Box sx={threeFieldGridSx}>
-                  {[
-                    ["bodyFontSize", "Texto general", 10, 18],
-                    ["headerFontSize", "Encabezado", 18, 34],
-                    ["customerFontSize", "Nombre cliente", 16, 30],
-                    ["customerContactFontSize", "Contacto cliente", 12, 24],
-                    ["customerIdentificationFontSize", "Identificacion", 10, 24],
-                    ["customerAddressFontSize", "Direccion", 12, 28],
-                    ["customerNeighborhoodFontSize", "Barrio/Zona", 12, 26],
-                    ["customerPhoneFontSize", "Telefono", 12, 28],
-                    ["productFontSize", "Productos", 11, 22],
-                    ["quantityFontSize", "Cantidad", 16, 34],
-                    ["totalFontSize", "Total", 15, 30],
-                  ].map(([name, label, min, max]) => (
-                    <Box key={name} sx={{ minWidth: 0 }}>
-                      <TextField
-                        type="number"
-                        name={name}
-                        label={label}
-                        value={values[name]}
-                        onChange={handleInputChange}
-                        fullWidth
-                        inputProps={{ min, max, step: 1 }}
-                      />
+                <Stack spacing={1.5}>
+                  {fontSizeGroups.map((group) => (
+                    <Box
+                      key={group.title}
+                      sx={{
+                        p: { xs: 1.5, sm: 2 },
+                        borderRadius: 2.5,
+                        border: "1px solid",
+                        borderColor: "rgba(17, 24, 39, 0.10)",
+                        bgcolor: "rgba(248, 250, 252, 0.82)",
+                      }}
+                    >
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={0.5} sx={{ mb: 1.5, justifyContent: "space-between" }}>
+                        <Typography sx={{ fontWeight: 900, color: "text.primary" }}>{group.title}</Typography>
+                        <Typography variant="caption" color="text.secondary">{group.description}</Typography>
+                      </Stack>
+                      <Box sx={threeFieldGridSx}>
+                        {group.fields.map(([name, label, min, max]) => (
+                          <TextField
+                            key={name}
+                            type="number"
+                            size="small"
+                            name={name}
+                            label={label}
+                            value={values[name]}
+                            onChange={handleInputChange}
+                            fullWidth
+                            inputProps={{ min, max, step: 1 }}
+                            helperText={`${min}–${max} px`}
+                          />
+                        ))}
+                      </Box>
                     </Box>
                   ))}
-                </Box>
+                </Stack>
               </EditorPanel>
 
               <EditorPanel
@@ -714,6 +838,27 @@ const PosTicketSettingsPage = () => {
                     ["showBranchContact", "Mostrar contacto de sucursal"],
                     ["showDeliveryDate", "Mostrar fecha de entrega"],
                     ["showSeller", "Mostrar vendedor"],
+                  ].map(([name, label]) => (
+                    <Box key={name} sx={{ minWidth: 0 }}>
+                      <FormControlLabel
+                        control={<Switch name={name} checked={Boolean(values[name])} onChange={handleSwitchChange} />}
+                        label={label}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </EditorPanel>
+
+              <EditorPanel
+                title="Resumen de valores"
+                subtitle="Elige que conceptos aparecen en el resumen final del ticket. El total a cobrar siempre permanece visible."
+              >
+                <Box sx={fieldGridSx}>
+                  {[
+                    ["showSaleTotal", "Mostrar venta"],
+                    ["showBonusTotal", "Mostrar vendaje"],
+                    ["showGiftTotal", "Mostrar obsequio"],
+                    ["showExchangeTotal", "Mostrar cambio"],
                   ].map(([name, label]) => (
                     <Box key={name} sx={{ minWidth: 0 }}>
                       <FormControlLabel

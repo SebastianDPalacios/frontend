@@ -19,10 +19,10 @@ const OrderDraftSummary = ({
   creditRedeemed = 0,
   showCreditDetails = true,
 }) => {
-  const allowed = Number(summary.allowedBonus || 0);
   const used = Number(summary.regulatedBonusTotal || 0);
   const generated = Number(summary.bonusGenerated || 0);
-  const progress = allowed > 0 ? Math.min((used / allowed) * 100, 100) : 0;
+  const standaloneBonus = Math.max(Number(summary.bonusTotal || 0) - used, 0);
+  const visibleBonusTotal = generated + standaloneBonus;
   const exchangeTotal = Number(summary.exchangeTotal || 0);
   const finalTotal = Math.max(Number(summary.saleTotal || 0) + exchangeTotal - Number(creditRedeemed || 0), 0);
   const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
@@ -34,7 +34,7 @@ const OrderDraftSummary = ({
         Resumen
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} />
-      {showBonusRule ? <MoneyRow label={`Vendaje generado (${Number(settings.bonus_percent || 0)}%)`} value={generated} /> : null}
+      {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje" value={visibleBonusTotal} /> : null}
       {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} /> : null}
 
       {showCreditDetails && creditAvailable > 0 ? (
@@ -60,18 +60,6 @@ const OrderDraftSummary = ({
 
       <Divider />
       <MoneyRow label="Total a cobrar" value={finalTotal} strong />
-
-      {showBonusRule ? <Box>
-        <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
-          <Typography variant="caption" color="text.secondary">
-            Margen disponible
-          </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 900 }}>
-            ${formatCurrencyValue(Math.max(allowed - used, 0), 0)}
-          </Typography>
-        </Stack>
-        <LinearProgress variant="determinate" value={progress} color={summary.bonusExceeded ? "error" : "success"} />
-      </Box> : null}
 
       {showBonusRule && summary.saleTotal > 0 && summary.saleTotal < Number(settings.bonus_minimum_amount || 0) ? (
         <Alert severity="info">
