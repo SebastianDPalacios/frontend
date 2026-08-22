@@ -213,7 +213,9 @@ const SellerPosOrderForm = ({
                         {` · ${calculation.quantity} ${product?.unit || "unidades"}`}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>${formatCurrencyValue(calculation.commercialValue, 0)}</Typography>
+                    <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
+                      ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
+                    </Typography>
                     <IconButton color="error" onClick={() => removeLine(entry.id)}><DeleteOutlineRoundedIcon /></IconButton>
                   </Stack>
                 </Paper>
@@ -305,7 +307,9 @@ const SellerPosOrderForm = ({
               {preparedOrder.rows.map(({ entry, product, calculation }) => (
                 <Stack key={entry.id} direction="row" spacing={1} sx={{ py: 1, justifyContent: "space-between" }}>
                   <Box><Typography sx={{ fontWeight: 800 }}>{product?.name}</Typography><Typography variant="caption" color="text.secondary">{getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode} · {calculation.quantity} unidades</Typography></Box>
-                  <Typography sx={{ fontWeight: 900 }}>${formatCurrencyValue(calculation.commercialValue, 0)}</Typography>
+                  <Typography sx={{ fontWeight: 900 }}>
+                    ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
+                  </Typography>
                 </Stack>
               ))}
             </Stack>

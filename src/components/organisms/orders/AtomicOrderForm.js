@@ -127,6 +127,12 @@ const calculateAutomaticBonus = (product, allowance, maxCompanyLoss = 0) => {
   };
 };
 
+const getDisplayedEntryValue = (entry, calculation) => (
+  entry?.orderMode === "sale_bonus"
+    ? calculation.requestedValue
+    : calculation.commercialValue
+);
+
 const createSelectedLine = (product) => ({
   id: `${product.id}-${Date.now()}`,
   productId: Number(product.id),
@@ -699,7 +705,7 @@ const AtomicOrderForm = () => {
                     {calculation.quantity > 0 ? (
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5, alignItems: { sm: "center" }, flexWrap: "wrap" }}>
                         <Chip size="small" variant="outlined" label={`${calculation.quantity} unidades`} />
-                        <Chip size="small" variant="outlined" label={`Valor ${formatCurrencyValue(calculation.commercialValue, 0)}`} />
+                        <Chip size="small" variant="outlined" label={`Valor ${formatCurrencyValue(getDisplayedEntryValue(entry, calculation), 0)}`} />
                         {orderModeValue === "sale_bonus" && !isPastryProduct(product) ? (
                           preparedOrder.bonusEnabled && automaticBonus.quantity > 0 ? (
                             <Chip
@@ -800,7 +806,7 @@ const AtomicOrderForm = () => {
                   </Box>
                   <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
                     {orderMode !== "bonus"
-                      ? `$${formatCurrencyValue(calculation.commercialValue, 0)}`
+                      ? `$${formatCurrencyValue(getDisplayedEntryValue(entry, calculation), 0)}`
                       : "Sin cobro"}
                   </Typography>
                 </Stack>
