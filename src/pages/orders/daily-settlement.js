@@ -154,7 +154,7 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
     const creditUsed = Number(item.credit_redeemed_amount || 0);
     const collectedSale = Number(item.collected_sales_total ?? grossSale);
     const exchangeTotal = Number(item.exchange_total || 0);
-    const exchangeCollected = Number(item.exchange_collected_total ?? Math.max(exchangeTotal - creditUsed, 0));
+    const exchangeCollected = Number(item.exchange_collected_total ?? 0);
 
     return `
       <div class="row">
@@ -320,7 +320,6 @@ const DailySettlementPage = () => {
   const collectedSalesTotal = Number(
     summary.collected_sales_total ?? grossSalesTotal
   );
-  const exchangeCollectedTotal = Number(summary.exchange_collected_total || 0);
 
   return (
     <FlowPageLayout
@@ -386,7 +385,7 @@ const DailySettlementPage = () => {
           <Metric label="Comision" value={money.format(Number(summary.commission_amount || 0))} helper="Solo sobre venta" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper={`Venta + excedente de cambios (${money.format(exchangeCollectedTotal)}) - comision`} />
+          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper="Venta cobrada menos comision. Los cambios no son cobrables." />
         </Grid>
         <Grid item xs={6} md={3}>
           <Metric label="Cambios" value={money.format(Number(summary.returned_sales_total || 0))} helper={`Saldo generado: ${money.format(Number(summary.credit_generated_total || 0))}`} />

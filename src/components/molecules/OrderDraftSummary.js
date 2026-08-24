@@ -24,7 +24,7 @@ const OrderDraftSummary = ({
   const standaloneBonus = Math.max(Number(summary.bonusTotal || 0) - used, 0);
   const visibleBonusTotal = generated + standaloneBonus;
   const exchangeTotal = Number(summary.exchangeTotal || 0);
-  const finalTotal = Math.max(Number(summary.saleTotal || 0) + exchangeTotal - Number(creditRedeemed || 0), 0);
+  const finalTotal = Math.max(Number(summary.saleTotal || 0), 0);
   const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
   const showBonusRule = Boolean(summary.hasRegulatedBonus);
 

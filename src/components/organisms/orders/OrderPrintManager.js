@@ -389,7 +389,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         ${ticketSettings.showGiftTotal ? `<span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>` : ""}
         ${ticketSettings.showExchangeTotal ? `<span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>` : ""}
         ${Number(order.credit_redeemed_amount || 0) > 0 ? `<span>Saldo a favor aplicado</span><strong>-${money.format(Number(order.credit_redeemed_amount || 0))}</strong>` : ""}
-        <span class="total">TOTAL A COBRAR</span><strong class="total">${money.format(Number(order.amount_to_collect ?? (Number(order.grand_total || 0) + Number(order.exchange_total || 0) - Number(order.credit_redeemed_amount || 0))))}</strong>
+        <span class="total">TOTAL A COBRAR</span><strong class="total">${money.format(Number(order.amount_to_collect ?? order.grand_total ?? 0))}</strong>
       </div>
       ${order.notes ? `<div class="rule"></div><div>Nota: ${escapeHtml(order.notes)}</div>` : ""}
       <div class="rule"></div>
