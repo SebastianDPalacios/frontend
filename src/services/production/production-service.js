@@ -97,6 +97,26 @@ class ProductionService {
     return PostEndpoint(endpoints.production.finishPlanItem(productionPlanItemId), payload);
   }
 
+  async startPlanProduct(productionPlanOutputId) {
+    return PostEndpoint(endpoints.production.startPlanProduct(productionPlanOutputId), {});
+  }
+
+  async savePlanProductProgress(productionPlanOutputId, payload) {
+    return PatchEndpoint(endpoints.production.planProductProgress(productionPlanOutputId), payload);
+  }
+
+  async skipPlanProduct(productionPlanOutputId, justification) {
+    return PostEndpoint(endpoints.production.skipPlanProduct(productionPlanOutputId), { p_justification: justification });
+  }
+
+  async finishPlanProduct(productionPlanOutputId, payload) {
+    return PostEndpoint(endpoints.production.finishPlanProduct(productionPlanOutputId), payload);
+  }
+
+  async correctPlanProduct(productionPlanOutputId, payload) {
+    return PatchEndpoint(endpoints.production.correctPlanProduct(productionPlanOutputId), payload);
+  }
+
   async getNotifications(params = {}) {
     return GetEndpoint(endpoints.production.notifications, { params });
   }

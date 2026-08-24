@@ -17,10 +17,12 @@ const ProductionPlanAssignmentForm = ({
   form,
   rows,
   totalArrobas,
+  summary,
   selectedBaker,
   saving,
   loading,
   formatNumber,
+  formatArrobas,
   onFormChange,
   onDateChange,
   onRowChange,
@@ -40,10 +42,10 @@ const ProductionPlanAssignmentForm = ({
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>{editing ? "Editar asignación" : "Nueva asignación"}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Un bulto estimado equivale a un moje. Puedes incluir varias recetas en el mismo plan.
+          Agrega cada producto por separado. La receta vigente y sus equivalencias se calculan automaticamente.
         </Typography>
       </Box>
-      <Chip label={`${formatNumber(totalArrobas)} bulto(s) estimado(s)`} color="secondary" variant="outlined" />
+      <Chip label={`${formatArrobas(totalArrobas)} arroba(s) estimada(s)`} color="secondary" variant="outlined" />
     </Stack>
 
     <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -108,7 +110,33 @@ const ProductionPlanAssignmentForm = ({
       onMove={onMoveRow}
       onRemove={onRemoveRow}
       formatNumber={formatNumber}
+      formatArrobas={formatArrobas}
     />
+
+    <Paper variant="outlined" sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "background.default" }}>
+      <Typography sx={{ fontWeight: 900, mb: 1 }}>Resumen antes de enviar</Typography>
+      <Stack spacing={0.75}>
+        {summary.products.filter((row) => row.output).map((row) => (
+          <Stack key={row.rowKey} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", gap: 0.5 }}>
+            <Typography sx={{ fontWeight: 700 }}>{row.output.product_name}</Typography>
+            <Typography variant="body2">
+              {row.requestMode === "units"
+                ? `${formatNumber(row.requestedQuantity)} unidades · ${formatArrobas(row.plannedArrobas)} arrobas`
+                : `${formatArrobas(row.requestedQuantity)} arrobas · ${formatNumber(row.estimatedUnits)} unidades`}
+            </Typography>
+          </Stack>
+        ))}
+        {!summary.products.some((row) => row.output) ? (
+          <Typography variant="body2" color="text.secondary">Agrega productos para consultar el resumen.</Typography>
+        ) : null}
+        {summary.recipeGroups.map((group) => (
+          <Stack key={group.recipeId} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", pt: 0.75, borderTop: "1px solid", borderColor: "divider" }}>
+            <Typography variant="body2" sx={{ fontWeight: 800 }}>Total receta {group.recipeName}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800 }}>{formatArrobas(group.plannedArrobas)} arrobas</Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Paper>
 
     <Stack
       direction={{ xs: "column", sm: "row" }}
@@ -116,7 +144,7 @@ const ProductionPlanAssignmentForm = ({
       sx={{ mt: 2, alignItems: { xs: "stretch", sm: "center" } }}
     >
       <AppButton variant="outlined" color="secondary" onClick={onAddRow}>
-        Agregar otra receta
+        Agregar otro producto
       </AppButton>
       <AppButton color="secondary" onClick={onSubmit} loading={saving} disabled={saving || loading}>
         {editing ? "Guardar cambios" : "Enviar plan al panadero"}

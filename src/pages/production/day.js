@@ -236,6 +236,7 @@ const ProductionDayPage = () => {
     raw_materials_usage: [],
     posterior_materials: [],
     packers: [],
+    plan_products: [],
   });
   const reportRange = useMemo(() => getReportRange(filters), [filters]);
 
@@ -282,6 +283,7 @@ const ProductionDayPage = () => {
           raw_materials_usage: normalizeRows(response.data?.raw_materials_usage),
           posterior_materials: normalizeRows(response.data?.posterior_materials),
           packers: normalizeRows(response.data?.packers),
+          plan_products: normalizeRows(response.data?.plan_products),
         });
       } catch (requestError) {
         setError(getErrorMessage(requestError, "Error de red al cargar el reporte"));
@@ -490,6 +492,31 @@ const ProductionDayPage = () => {
                 <Grid item xs={12} sm={9} md={3}>
                   <CountGapChip gap={product.count_gap} />
                 </Grid>
+              </Grid>
+            </Paper>
+          ))}
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>Plan y resultado por producto</Typography>
+            <Typography variant="body2" color="text.secondary">Incluye planes nuevos por producto y planes históricos por receta.</Typography>
+          </Box>
+          <Chip label={`${report.plan_products.length} asignaciones`} variant="outlined" />
+        </Stack>
+        {!loading && report.plan_products.length === 0 ? <Alert severity="info">No hay productos planificados para estos filtros.</Alert> : null}
+        <Stack spacing={1}>
+          {report.plan_products.map((product) => (
+            <Paper key={`${product.production_plan_id}-${product.production_plan_output_id}`} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+              <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
+                <Grid item xs={12} md={3}><Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography><Typography variant="caption" color="text.secondary">{product.baker_name} · {product.planning_format === "legacy" ? "Plan anterior" : "Plan por producto"}</Typography></Grid>
+                <Grid item xs={6} sm={3} md={2}><SmallStat label="Solicitado" value={`${formatUnits(product.requested_quantity)} ${product.request_mode === "units" ? "unidades" : "arrobas"}`} /></Grid>
+                <Grid item xs={6} sm={3} md={2}><SmallStat label="Estimado" value={`${formatUnits(product.planned_arrobas)} arrobas / ${formatUnits(product.estimated_units)} und`} /></Grid>
+                <Grid item xs={6} sm={3} md={2}><SmallStat label="Producido" value={formatUnits(product.batch_produced_quantity)} /></Grid>
+                <Grid item xs={6} sm={3} md={2}><SmallStat label="Empacado" value={formatUnits(product.packed_quantity)} /></Grid>
+                <Grid item xs={12} md={1}><Chip size="small" label={product.product_status || "pendiente"} color={product.product_status === "completed" ? "success" : product.product_status === "skipped" ? "default" : "warning"} /></Grid>
               </Grid>
             </Paper>
           ))}

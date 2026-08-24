@@ -14,6 +14,8 @@ import { normalizeRows } from "views/modules/flow-utils";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+const arrobaFormatter = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const formatArrobas = (value) => arrobaFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
 const toDateValue = (date) => {
@@ -31,9 +33,14 @@ const getTomorrow = () => {
 
 const emptyPlanRow = () => ({
   rowKey: `plan-${Date.now()}-${Math.random()}`,
+  productId: "",
   recipeId: "",
-  arrobas: "1",
-  productIds: [],
+  requestMode: "units",
+  requestedQuantity: "",
+  unitsPerTray: "",
+  trayCount: "",
+  looseUnits: "",
+  detailsOpen: false,
 });
 
 const groupRecipes = (rows) => {
@@ -55,6 +62,30 @@ const groupRecipes = (rows) => {
     grouped.set(key, current);
   });
   return Array.from(grouped.values());
+};
+
+const getRecipeOutput = (recipes, row) => {
+  const recipe = recipes.find((item) => String(item.id) === String(row.recipeId));
+  const output = recipe?.outputs?.find((item) => String(item.product_id) === String(row.productId));
+  return { recipe, output };
+};
+
+const calculatePlanRow = (recipes, row) => {
+  const { recipe, output } = getRecipeOutput(recipes, row);
+  const requestedQuantity = Number(row.requestedQuantity || 0);
+  const yieldPerArroba = Number(output?.expected_quantity || 0);
+  const plannedArrobas = row.requestMode === "arrobas"
+    ? requestedQuantity
+    : requestedQuantity / yieldPerArroba;
+  const estimatedUnits = row.requestMode === "units"
+    ? requestedQuantity
+    : requestedQuantity * yieldPerArroba;
+  return {
+    recipe,
+    output,
+    plannedArrobas: Number.isFinite(plannedArrobas) ? plannedArrobas : 0,
+    estimatedUnits: Number.isFinite(estimatedUnits) ? estimatedUnits : 0,
+  };
 };
 const buildProductionQuantities = (item) => normalizeRows(item?.outputs).reduce((acc, output) => {
   const expectedTotal = Math.round(Number(output.expected_quantity || 0) * Number(item?.arrobas || 1) * 1000) / 1000;
@@ -176,9 +207,27 @@ const ProductionPlanningPage = () => {
     return next;
   });
 
+  const planSummary = useMemo(() => {
+    const recipeGroups = new Map();
+    const products = rows.map((row) => {
+      const calculated = calculatePlanRow(recipes, row);
+      if (calculated.recipe && calculated.output) {
+        const key = String(calculated.recipe.id);
+        const current = recipeGroups.get(key) || {
+          recipeId: calculated.recipe.id,
+          recipeName: calculated.recipe.displayName,
+          plannedArrobas: 0,
+        };
+        current.plannedArrobas += calculated.plannedArrobas;
+        recipeGroups.set(key, current);
+      }
+      return { ...row, ...calculated };
+    });
+    return { products, recipeGroups: Array.from(recipeGroups.values()) };
+  }, [recipes, rows]);
   const totalArrobas = useMemo(
-    () => rows.reduce((total, row) => total + Number(row.arrobas || 0), 0),
-    [rows]
+    () => planSummary.products.reduce((total, row) => total + row.plannedArrobas, 0),
+    [planSummary]
   );
   const selectedBaker = useMemo(
     () => bakers.find((baker) => String(baker.id) === String(form.bakerId)),
@@ -221,11 +270,25 @@ const ProductionPlanningPage = () => {
       plannedDate: String(plan.planned_date || "").split("T")[0],
       notes: plan.notes || "",
     });
-    setRows(normalizeRows(plan.items).map((item, index) => ({
-      rowKey: `plan-${plan.id}-${item.id || index}`,
-      recipeId: String(item.recipe_id || ""),
-      arrobas: String(item.arrobas || "1"),
-      productIds: normalizeRows(item.outputs).map((output) => String(output.product_id)),
+    const assignments = normalizeRows(plan.product_assignments);
+    const sourceRows = assignments.length
+      ? assignments
+      : normalizeRows(plan.items).flatMap((item) => normalizeRows(item.outputs).map((output) => ({
+          ...output,
+          recipe_id: item.recipe_id,
+          request_mode: "arrobas",
+          requested_quantity: item.arrobas,
+        })));
+    setRows(sourceRows.map((assignment, index) => ({
+      rowKey: `plan-${plan.id}-${assignment.production_plan_output_id || index}`,
+      productId: String(assignment.product_id || ""),
+      recipeId: String(assignment.recipe_id || ""),
+      requestMode: assignment.request_mode || "arrobas",
+      requestedQuantity: String(assignment.requested_quantity || ""),
+      unitsPerTray: String(assignment.units_per_tray ?? ""),
+      trayCount: String(assignment.tray_count ?? ""),
+      looseUnits: String(assignment.loose_units ?? ""),
+      detailsOpen: false,
     })));
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -236,8 +299,16 @@ const ProductionPlanningPage = () => {
       setError("Selecciona sucursal, fecha y panadero.");
       return;
     }
-    if (!rows.every((row) => row.recipeId && Number(row.arrobas || 0) > 0 && row.productIds.length > 0)) {
-      setError("Completa cada receta, sus bultos estimados y al menos un producto final.");
+    if (!rows.every((row) => row.recipeId && row.productId && Number(row.requestedQuantity || 0) > 0)) {
+      setError("Completa el producto, el tipo de solicitud y la cantidad de cada fila.");
+      return;
+    }
+    if (new Set(rows.map((row) => String(row.productId))).size !== rows.length) {
+      setError("Un producto no puede aparecer dos veces dentro del mismo plan.");
+      return;
+    }
+    if (rows.some((row) => row.requestMode === "units" && !Number.isInteger(Number(row.requestedQuantity)))) {
+      setError("Las solicitudes por unidades deben usar cantidades enteras.");
       return;
     }
 
@@ -250,9 +321,13 @@ const ProductionPlanningPage = () => {
         p_planned_date: form.plannedDate,
         p_notes: form.notes || null,
         p_items: rows.map((row) => ({
+          product_id: Number(row.productId),
           recipe_id: Number(row.recipeId),
-          arrobas: Number(row.arrobas),
-          product_ids: row.productIds.map(Number),
+          request_mode: row.requestMode,
+          requested_quantity: Number(row.requestedQuantity),
+          units_per_tray: row.unitsPerTray === "" ? null : Number(row.unitsPerTray),
+          tray_count: row.trayCount === "" ? null : Number(row.trayCount),
+          loose_units: row.looseUnits === "" ? null : Number(row.looseUnits),
         })),
       };
       const response = editingPlanId
@@ -350,7 +425,7 @@ const ProductionPlanningPage = () => {
   return (
     <FlowPageLayout
       title="ProducciÃ³n del dÃ­a siguiente"
-      subtitle="Asigna recetas por bultos estimados y consulta las unidades esperadas para cada panadero."
+      subtitle="Planifica cada producto por unidades o arrobas; el sistema utiliza internamente su receta vigente."
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificaciÃ³n...</Alert> : null}
@@ -363,10 +438,12 @@ const ProductionPlanningPage = () => {
           form={form}
           rows={rows}
           totalArrobas={totalArrobas}
+          summary={planSummary}
           selectedBaker={selectedBaker}
           saving={saving}
           loading={loading}
           formatNumber={formatNumber}
+          formatArrobas={formatArrobas}
           onFormChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))}
           onDateChange={(value) => setForm((current) => ({ ...current, plannedDate: value }))}
           onRowChange={updateRow}

@@ -1,5 +1,5 @@
 export const SALES_ONLY_HOME = "/sales/dashboard";
-export const BAKER_HOME = "/production/performed";
+export const BAKER_HOME = "/production/my-plan";
 export const PACKAGING_HOME = "/production/packaging";
 
 export const salesOnlyPaths = [
@@ -13,7 +13,7 @@ export const salesOnlyPaths = [
 export const bakerOnlyPaths = [
   "/dashboards/analytics",
   "/production/performed",
-  "/production/planning",
+  "/production/my-plan",
 ];
 
 export const packagingOnlyPaths = [

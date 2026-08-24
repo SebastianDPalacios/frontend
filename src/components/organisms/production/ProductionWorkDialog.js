@@ -35,9 +35,9 @@ const getOutputValue = (output, item, productionQuantities) => {
     return productionQuantities[key];
   }
   if (output.produced_quantity !== undefined && output.produced_quantity !== null) {
-    return String(output.produced_quantity);
+    return String(Math.round(Number(output.produced_quantity)));
   }
-  return String(Math.round(Number(output.expected_quantity || 0) * Number(item?.arrobas || 1) * 1000) / 1000);
+  return String(Math.round(Number(output.expected_quantity || 0) * Number(item?.arrobas || 1)));
 };
 
 const ProductionWorkDialog = ({
@@ -126,7 +126,7 @@ const ProductionWorkDialog = ({
                 <Grid container spacing={1.5}>
                   {(Array.isArray(item.outputs) ? item.outputs : []).map((output) => {
                     const value = getOutputValue(output, item, productionQuantities);
-                    const expectedTotal = Math.round(Number(output.expected_quantity || 0) * Number(item.arrobas || 1) * 1000) / 1000;
+                    const expectedTotal = Math.round(Number(output.expected_quantity || 0) * Number(item.arrobas || 1));
 
                     return (
                       <Grid item xs={12} md={6} key={`${item.id}-${output.product_id}`}>
@@ -140,8 +140,12 @@ const ProductionWorkDialog = ({
                             type="number"
                             label="Cantidad realizada"
                             value={value}
-                            onChange={(event) => onQuantityChange?.(output.product_id, event.target.value)}
-                            inputProps={{ min: 0.001, step: 0.001 }}
+                            onChange={(event) => {
+                              const { value: nextValue } = event.target;
+                              if (nextValue === "" || /^\d+$/.test(nextValue)) onQuantityChange?.(output.product_id, nextValue);
+                            }}
+                            inputProps={{ min: 1, step: 1, inputMode: "numeric" }}
+                            helperText="Solo unidades completas"
                           />
                         </Box>
                       </Grid>

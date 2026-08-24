@@ -266,7 +266,7 @@ const UserLayout = ({ children }) => {
       if (notification.reference_type === "order" && notification.reference_id) {
         router.push(`/orders/history?search=${encodeURIComponent(notification.reference_id)}`);
       } else {
-        router.push("/production/planning");
+        router.push(isBakerOnlyUser(currentUser) ? "/production/my-plan" : "/production/planning");
       }
     }
   };

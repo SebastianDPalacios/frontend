@@ -244,7 +244,7 @@ const exportProductionMonthExcel = async ({
 
   const worksheet = workbook.addWorksheet(`Produccion ${filters.month}`);
   worksheet.views = [{ state: "frozen", ySplit: 4 }];
-  [34, 16, 18, 18, 16, 16, 18].forEach((width, index) => {
+  [34, 20, 28, 18, 16, 18, 18, 18, 18, 16, 16, 16, 18, 14].forEach((width, index) => {
     worksheet.getColumn(index + 1).width = width;
   });
 
@@ -313,6 +313,29 @@ const exportProductionMonthExcel = async ({
       Number(product.pending_quantity || 0),
     ]),
     { decimalColumns: [2, 3, 4, 5, 6, 7], headerFill: colors.softOrange }
+  );
+
+  addSection(
+    worksheet,
+    "Planificacion y resultado por producto",
+    ["Fecha", "Panadero", "Producto", "Formato", "Solicitud", "Arrobas estimadas", "Unidades estimadas", "Estado", "Arrobas reales", "Producido", "Empacado", "Latas reales", "Unidades por lata", "Sueltas"],
+    (report.plan_products || []).map((product) => [
+      formatDate(product.planned_date),
+      product.baker_name || "",
+      product.product_name || "",
+      product.planning_format === "legacy" ? "Plan anterior" : (product.request_mode === "units" ? "Por unidades" : "Por arrobas"),
+      Number(product.requested_quantity || 0),
+      Number(product.planned_arrobas || 0),
+      Number(product.estimated_units || 0),
+      product.product_status || "",
+      product.actual_arrobas == null ? "" : Number(product.actual_arrobas),
+      Number(product.batch_produced_quantity || product.produced_quantity || 0),
+      Number(product.packed_quantity || 0),
+      product.actual_tray_count == null ? "" : Number(product.actual_tray_count),
+      product.actual_units_per_tray == null ? "" : Number(product.actual_units_per_tray),
+      product.actual_loose_units == null ? "" : Number(product.actual_loose_units),
+    ]),
+    { decimalColumns: [5, 6, 7, 9, 10, 11, 12, 13, 14], headerFill: colors.softGreen }
   );
 
   addSection(
