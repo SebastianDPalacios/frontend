@@ -104,6 +104,21 @@ const SellerPosOrderForm = ({
     value: captureValue,
   });
 
+  const getBonusQuantity = (entry) => {
+    if (entry.orderMode !== "sale_bonus") return 0;
+    const bonusLine = preparedOrder.lines.find((line) => line.key === `${entry.id}-bonus`);
+    return Number(bonusLine?.quantity || 0);
+  };
+
+  const getQuantityLabel = (entry, calculation) => {
+    const bonusQuantity = getBonusQuantity(entry);
+    const totalQuantity = Number(calculation.quantity || 0) + bonusQuantity;
+
+    return bonusQuantity > 0
+      ? `${totalQuantity} unidades (${calculation.quantity} venta + ${bonusQuantity} vendaje)`
+      : `${calculation.quantity} unidades`;
+  };
+
   return (
     <Stack spacing={2} sx={{ pb: 10 }}>
       {error ? <Alert severity="error">{error}</Alert> : null}
@@ -210,8 +225,13 @@ const SellerPosOrderForm = ({
                       <Typography sx={{ fontWeight: 900 }}>{product?.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode}
-                        {` · ${calculation.quantity} ${product?.unit || "unidades"}`}
                       </Typography>
+                      <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: "wrap", rowGap: 0.75 }}>
+                        <Chip size="small" variant="outlined" label={`${calculation.quantity} unidades`} />
+                        {getBonusQuantity(entry) > 0 ? (
+                          <Chip size="small" color="success" label={`+ ${getBonusQuantity(entry)} de vendaje`} />
+                        ) : null}
+                      </Stack>
                     </Box>
                     <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
                       ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
@@ -306,7 +326,7 @@ const SellerPosOrderForm = ({
             <Stack divider={<Divider flexItem />}>
               {preparedOrder.rows.map(({ entry, product, calculation }) => (
                 <Stack key={entry.id} direction="row" spacing={1} sx={{ py: 1, justifyContent: "space-between" }}>
-                  <Box><Typography sx={{ fontWeight: 800 }}>{product?.name}</Typography><Typography variant="caption" color="text.secondary">{getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode} · {calculation.quantity} unidades</Typography></Box>
+                  <Box><Typography sx={{ fontWeight: 800 }}>{product?.name}</Typography><Typography variant="caption" color="text.secondary">{getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode} · {getQuantityLabel(entry, calculation)}</Typography></Box>
                   <Typography sx={{ fontWeight: 900 }}>
                     ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
                   </Typography>
