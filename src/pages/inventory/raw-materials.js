@@ -90,22 +90,44 @@ const InventoryRawMaterialsPage = () => {
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
   const [rows, setRows] = useState([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const run = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 40, branchId: selectedBranch || undefined });
+        const pageSize = 200;
+        const response = await inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize, branchId: selectedBranch || undefined });
         if (response?.code !== 1) {
           setError(response?.message || "No se pudo cargar inventario de materias");
           return;
         }
 
         const branchRows = normalizeRows(response.data?.branches);
+        const resolvedBranchId = selectedBranch || (response.data?.selected_branch_id ? String(response.data.selected_branch_id) : "");
+        const firstPageRows = normalizeRows(response.data?.raw_materials);
+        const totalRows = Number(response.data?.raw_materials?.total || firstPageRows.length);
+        const allRows = [...firstPageRows];
+
+        for (let page = 2; allRows.length < totalRows; page += 1) {
+          const pageResponse = await inventoryService.getBaseData({
+            onlyActive: 1,
+            page,
+            pageSize,
+            branchId: resolvedBranchId || undefined,
+          });
+          if (pageResponse?.code !== 1) {
+            throw new Error(pageResponse?.message || "No se pudieron cargar todas las materias primas");
+          }
+          const pageRows = normalizeRows(pageResponse.data?.raw_materials);
+          if (!pageRows.length) break;
+          allRows.push(...pageRows);
+        }
+
         setBranches(branchRows);
-        setRows(normalizeRows(response.data?.raw_materials));
-        setSelectedBranch((current) => current || (response.data?.selected_branch_id ? String(response.data.selected_branch_id) : ""));
+        setRows(allRows);
+        setSelectedBranch((current) => current || resolvedBranchId);
       } catch (requestError) {
         setError(getErrorMessage(requestError, "Error de red al cargar inventario de materias"));
       } finally {
@@ -116,7 +138,11 @@ const InventoryRawMaterialsPage = () => {
     run();
   }, [selectedBranch]);
 
-  const sortedRows = [...rows].sort((a, b) => {
+  const normalizedSearch = search.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const filteredRows = normalizedSearch
+    ? rows.filter((row) => `${getDisplayName(row)} ${row.sku || ""}`.toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedSearch))
+    : rows;
+  const sortedRows = [...filteredRows].sort((a, b) => {
     const priority = getStockPriority(a) - getStockPriority(b);
     if (priority !== 0) {
       return priority;
@@ -133,6 +159,8 @@ const InventoryRawMaterialsPage = () => {
         branches={branches}
         selectedBranch={selectedBranch}
         onBranchChange={setSelectedBranch}
+        search={search}
+        onSearchChange={setSearch}
         getDisplayName={getDisplayName}
       />
 

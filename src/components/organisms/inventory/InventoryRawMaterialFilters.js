@@ -1,6 +1,6 @@
 import { Grid, MenuItem, Paper, TextField, Typography } from "@mui/material";
 
-const InventoryRawMaterialFilters = ({ branches, selectedBranch, onBranchChange, getDisplayName }) => (
+const InventoryRawMaterialFilters = ({ branches, selectedBranch, onBranchChange, search, onSearchChange, getDisplayName }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
     <Grid container spacing={2} sx={{ alignItems: "center" }}>
       <Grid item xs={12} md={4}>
@@ -12,7 +12,16 @@ const InventoryRawMaterialFilters = ({ branches, selectedBranch, onBranchChange,
           ))}
         </TextField>
       </Grid>
-      <Grid item xs={12} md={8}>
+      <Grid item xs={12} md={4}>
+        <TextField
+          fullWidth
+          label="Buscar materia prima"
+          placeholder="Nombre o SKU"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </Grid>
+      <Grid item xs={12} md={4}>
         <Typography variant="body2" color="text.secondary">
           Revisa existencias por sucursal. Cada materia prima usa su presentacion de compra configurada.
         </Typography>

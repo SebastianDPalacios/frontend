@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Alert, Box, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle,
-  Grid, Paper, Stack, TextField, Typography,
+  Grid, MenuItem, Paper, Stack, TextField, Typography,
 } from "@mui/material";
 import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
+import { BalanceDatePicker, BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
 import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
@@ -25,6 +27,15 @@ const updateWholeNumber = (value, update) => {
   if (value === "" || /^\d+$/.test(value)) update(value);
 };
 const errorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
+const getLocalDate = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+const getMonthRange = (date) => {
+  const [year, month] = String(date).slice(0, 7).split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return { date_from: `${year}-${String(month).padStart(2, "0")}-01`, date_to: `${year}-${String(month).padStart(2, "0")}-${lastDay}` };
+};
 const statuses = [
   ["all", "Todos"], ["pending", "Pendientes"], ["in_progress", "Iniciados"],
   ["completed", "Terminados"], ["skipped", "No elaborados"],
@@ -56,7 +67,10 @@ const buildPayload = (draft) => ({
   p_baker_notes: draft.notes || null,
 });
 
-const ProductionMyPlanPage = () => {
+export const ProductionMyPlanPage = ({ mode = "today" }) => {
+  const isHistory = mode === "history";
+  const [selectedDate, setSelectedDate] = useState(getLocalDate);
+  const [periodType, setPeriodType] = useState("day");
   const [plans, setPlans] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [filter, setFilter] = useState("all");
@@ -69,7 +83,10 @@ const ProductionMyPlanPage = () => {
   const loadPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await productionService.getMyPlans();
+      const requestParams = periodType === "month" && isHistory
+        ? getMonthRange(selectedDate)
+        : { planned_date: selectedDate };
+      const response = await productionService.getMyPlans(requestParams);
       if (response?.code !== 1) throw new Error(response?.message || "No se pudieron cargar los planes.");
       const nextPlans = normalizeRows(response.data);
       setPlans(nextPlans);
@@ -87,7 +104,7 @@ const ProductionMyPlanPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isHistory, periodType, selectedDate]);
 
   useEffect(() => { loadPlans(); }, [loadPlans]);
 
@@ -120,9 +137,48 @@ const ProductionMyPlanPage = () => {
   };
 
   return (
-    <FlowPageLayout title="Mi plan de produccion" subtitle="Registra cada producto mientras avanzas. Puedes guardar sin finalizar.">
+    <FlowPageLayout
+      title={isHistory ? "Historial de produccion" : "Mi produccion de hoy"}
+      subtitle={isHistory ? "Consulta los productos asignados y trabajados en una fecha anterior." : "Aqui aparece unicamente el trabajo que tienes asignado para hoy."}
+    >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {legacyPlans.length ? <Alert severity="info" sx={{ mb: 2 }}>Tienes planes anteriores por receta. Continuan disponibles en Produccion realizada.</Alert> : null}
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
+          {isHistory ? (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ width: { xs: "100%", sm: "auto" } }}>
+              <TextField select label="Consultar por" value={periodType} onChange={(event) => setPeriodType(event.target.value)} sx={{ width: { xs: "100%", sm: 180 } }}>
+                <MenuItem value="day">Día</MenuItem>
+                <MenuItem value="month">Mes</MenuItem>
+              </TextField>
+              <Box sx={{ width: { xs: "100%", sm: 260 } }}>
+                {periodType === "month" ? (
+                  <BalanceMonthPicker
+                    label="Mes a consultar"
+                    value={selectedDate.slice(0, 7)}
+                    onChange={(value) => setSelectedDate(`${value}-01`)}
+                  />
+                ) : (
+                  <BalanceDatePicker
+                    fullWidth
+                    label="Fecha a consultar"
+                    value={selectedDate}
+                    onChange={setSelectedDate}
+                  />
+                )}
+              </Box>
+            </Stack>
+          ) : (
+            <Box>
+              <Typography variant="caption" color="text.secondary">Fecha de trabajo</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900 }}>{selectedDate}</Typography>
+            </Box>
+          )}
+          <AppButton component={Link} href={isHistory ? "/production/my-plan" : "/production/history"} variant="outlined" color="secondary">
+            {isHistory ? "Volver al plan de hoy" : "Ver historial"}
+          </AppButton>
+        </Stack>
+      </Paper>
       <Stack direction="row" spacing={1} sx={{ overflowX: "auto", pb: 1, mb: 2 }}>
         {statuses.map(([value, label]) => (
           <Chip key={value} clickable label={`${label} ${value === "all" ? products.length : products.filter((item) => item.product_status === value).length}`}
@@ -130,13 +186,13 @@ const ProductionMyPlanPage = () => {
         ))}
       </Stack>
       {loading ? <Alert severity="info">Cargando productos asignados...</Alert> : null}
-      {!loading && !visibleProducts.length ? <Alert severity="info">No hay productos en este estado.</Alert> : null}
+      {!loading && !visibleProducts.length ? <Alert severity="info">{isHistory ? "No hay productos para la fecha y el estado seleccionados." : "No tienes productos de hoy en este estado."}</Alert> : null}
       <Stack spacing={2}>
         {visibleProducts.map((product) => {
           const id = String(product.production_plan_output_id);
           const draft = drafts[id] || makeDraft(product);
           const status = statusInfo[product.product_status] || statusInfo.pending;
-          const editable = product.product_status === "in_progress";
+          const editable = !isHistory && product.product_status === "in_progress";
           return (
             <Paper key={id} variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 2.5 }, borderColor: editable ? "info.main" : "divider" }}>
               <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1, mb: 1.5 }}>
@@ -150,6 +206,10 @@ const ProductionMyPlanPage = () => {
                 <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Solicitud</Typography><Typography sx={{ fontWeight: 800 }}>{formatNumber(product.requested_quantity)} {product.request_mode === "units" ? "unidades" : "arrobas"}</Typography></Grid>
                 <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Estimado</Typography><Typography sx={{ fontWeight: 800 }}>{formatNumber(product.request_mode === "units" ? product.planned_arrobas : product.estimated_units)} {product.request_mode === "units" ? "arrobas" : "unidades"}</Typography></Grid>
                 <Grid item xs={12} sm={6}><Typography variant="caption" color="text.secondary">Receta vigente</Typography><Typography sx={{ fontWeight: 800 }}>{product.recipe_name} · V{product.recipe_version}</Typography></Grid>
+                {isHistory && product.produced_quantity !== null && product.produced_quantity !== undefined ? <>
+                  <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Cantidad producida</Typography><Typography sx={{ fontWeight: 800 }}>{formatNumber(product.produced_quantity)} unidades</Typography></Grid>
+                  <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Arrobas utilizadas</Typography><Typography sx={{ fontWeight: 800 }}>{formatNumber(product.actual_arrobas)} arrobas</Typography></Grid>
+                </> : null}
                 {editable ? <>
                   <Grid item xs={12} sm={6}><TextField fullWidth type="number" label="Arrobas realmente utilizadas" value={draft.actualArrobas} onChange={(event) => changeDraft(id, "actualArrobas", event.target.value)} inputProps={{ min: 0.001, step: "0.001" }} /></Grid>
                   <Grid item xs={12} sm={6}><TextField fullWidth type="number" label="Cantidad producida" value={formatWholeInput(draft.producedQuantity)} onChange={(event) => updateWholeNumber(event.target.value, (value) => changeDraft(id, "producedQuantity", value))} inputProps={{ min: 0, step: 1, inputMode: "numeric" }} helperText="Registra únicamente productos completos." /></Grid>
@@ -159,11 +219,11 @@ const ProductionMyPlanPage = () => {
                 </> : null}
               </Grid>
               {product.product_status === "skipped" ? <Alert severity="warning" sx={{ mt: 2 }}>{product.baker_notes}</Alert> : null}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2, justifyContent: "flex-end" }}>
+              {!isHistory ? <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2, justifyContent: "flex-end" }}>
                 {product.product_status === "pending" ? <><AppButton variant="outlined" color="error" onClick={() => setSkipDialog({ product, justification: "" })}>No elaborado</AppButton><AppButton color="secondary" loading={workingId === id} onClick={() => runAction(id, () => productionService.startPlanProduct(id), "Producto iniciado")}>Iniciar producto</AppButton></> : null}
                 {editable ? <><AppButton variant="outlined" color="error" onClick={() => setSkipDialog({ product, justification: "" })}>No elaborado</AppButton><AppButton variant="outlined" color="secondary" loading={workingId === id} onClick={() => runAction(id, () => productionService.savePlanProductProgress(id, buildPayload(draft)), "Avance guardado")}>Guardar avance</AppButton><AppButton color="secondary" loading={workingId === id} onClick={() => runAction(id, () => productionService.finishPlanProduct(id, buildPayload(draft)), "Producto finalizado")}>Finalizar producto</AppButton></> : null}
                 {product.product_status === "completed" ? <AppButton variant="outlined" color="secondary" onClick={() => setCorrectionDialog({ product, actualArrobas: formatArrobasInput(product.actual_arrobas), producedQuantity: formatWholeInput(product.produced_quantity), reason: "" })}>Corregir registro</AppButton> : null}
-              </Stack>
+              </Stack> : null}
             </Paper>
           );
         })}

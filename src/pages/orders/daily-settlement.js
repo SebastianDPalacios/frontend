@@ -136,12 +136,29 @@ const getDailyOrderNumbers = (items) => {
   }, {});
 };
 
-const Metric = ({ label, value, helper }) => (
-  <Paper variant="outlined" sx={{ p: 2, height: "100%", borderRadius: 2 }}>
+const Metric = ({ label, value, helper, emphasis = false }) => (
+  <Paper
+    variant="outlined"
+    sx={{
+      p: 2,
+      height: "100%",
+      borderRadius: 3,
+      borderColor: emphasis ? "secondary.main" : "divider",
+      bgcolor: emphasis ? "rgba(221, 91, 42, 0.04)" : "background.paper",
+    }}
+  >
     <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="h5" sx={{ mt: 0.5, fontWeight: 900 }}>{value}</Typography>
+    <Typography variant={emphasis ? "h4" : "h5"} sx={{ mt: 0.5, fontWeight: 900 }}>{value}</Typography>
     {helper ? <Typography variant="caption" color="text.secondary">{helper}</Typography> : null}
   </Paper>
+);
+
+const CompactMetric = ({ label, value, helper }) => (
+  <Box sx={{ minWidth: 0 }}>
+    <Typography variant="caption" color="text.secondary">{label}</Typography>
+    <Typography sx={{ fontWeight: 900 }}>{value}</Typography>
+    {helper ? <Typography variant="caption" color="text.secondary">{helper}</Typography> : null}
+  </Box>
 );
 
 const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSettings) => {
@@ -373,27 +390,46 @@ const DailySettlementPage = () => {
           <Metric label="Pedidos" value={Number(summary.order_count || 0)} helper="Entregados del dia" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Venta bruta" value={money.format(grossSalesTotal)} helper="Antes de saldos" />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Metric label="Saldo aplicado" value={money.format(creditAppliedTotal)} helper="Solo sobre cambios" />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Metric label="Venta cobrada" value={money.format(collectedSalesTotal)} helper="Las ventas no consumen saldo" />
+          <Metric label="Venta cobrada" value={money.format(collectedSalesTotal)} helper="Total recibido por ventas" />
         </Grid>
         <Grid item xs={6} md={3}>
           <Metric label="Comision" value={money.format(Number(summary.commission_amount || 0))} helper="Solo sobre venta" />
         </Grid>
         <Grid item xs={6} md={3}>
-          <Metric label="Debe entregar" value={money.format(Number(summary.amount_to_deliver || 0))} helper="Venta cobrada menos comision. Los cambios no son cobrables." />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Metric label="Cambios" value={money.format(Number(summary.returned_sales_total || 0))} helper={`Saldo generado: ${money.format(Number(summary.credit_generated_total || 0))}`} />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Metric label="Obsequios" value={money.format(Number(summary.gift_total || 0))} helper={`${Number(summary.gift_count || 0)} registro(s), no comisiona`} />
+          <Metric
+            label="Debe entregar"
+            value={money.format(Number(summary.amount_to_deliver || 0))}
+            helper="Venta cobrada menos comision"
+            emphasis
+          />
         </Grid>
       </Grid>
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2, bgcolor: "background.default" }}>
+        <Typography sx={{ fontWeight: 900, mb: 1.5 }}>Otros movimientos del cierre</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={6} md={3}>
+            <CompactMetric label="Venta antes de ajustes" value={money.format(grossSalesTotal)} />
+          </Grid>
+          <Grid item xs={6} md={3}>
+            <CompactMetric label="Saldo aplicado" value={money.format(creditAppliedTotal)} helper="Solo en cambios" />
+          </Grid>
+          <Grid item xs={6} md={3}>
+            <CompactMetric
+              label="Cambios"
+              value={money.format(Number(summary.returned_sales_total || 0))}
+              helper={`Saldo generado: ${money.format(Number(summary.credit_generated_total || 0))}`}
+            />
+          </Grid>
+          <Grid item xs={6} md={3}>
+            <CompactMetric
+              label="Obsequios"
+              value={money.format(Number(summary.gift_total || 0))}
+              helper={`${Number(summary.gift_count || 0)} registro(s)`}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
       <Paper variant="outlined" sx={{ borderRadius: 2, p: { xs: 2, md: 3 } }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", mb: 2 }}>
           <Box>

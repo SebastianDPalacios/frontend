@@ -407,7 +407,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   </html>`;
 };
 
-const OrderPrintManager = ({ order, onConfirmed }) => {
+const OrderPrintManager = ({ order, onConfirmed, compact = false, triggerLabel = "Imprimir pedido" }) => {
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [printData, setPrintData] = useState(null);
@@ -474,20 +474,29 @@ const OrderPrintManager = ({ order, onConfirmed }) => {
 
   return (
     <>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ alignItems: { xs: "stretch", sm: "center" } }}
+        onClick={(event) => event.stopPropagation()}
+      >
         <Button
-          variant="contained"
+          variant={compact ? "outlined" : "contained"}
           color="secondary"
-          startIcon={<PrintRoundedIcon />}
+          size={compact ? "small" : "medium"}
+          startIcon={compact ? null : <PrintRoundedIcon />}
           onClick={printPreview}
           disabled={loading || !order?.id || order?.status === "cancelled"}
+          sx={compact ? { whiteSpace: "nowrap", minWidth: 92 } : undefined}
         >
-          {loading ? "Preparando..." : "Imprimir pedido"}
+          {loading ? "Preparando..." : triggerLabel}
         </Button>
-        <Chip
-          variant="outlined"
-          label={`${Number(order?.print_count || 0)} impresion(es) confirmada(s)`}
-        />
+        {!compact ? (
+          <Chip
+            variant="outlined"
+            label={`${Number(order?.print_count || 0)} impresion(es) confirmada(s)`}
+          />
+        ) : null}
       </Stack>
 
       <Dialog open={confirmOpen} onClose={() => !loading && setConfirmOpen(false)} fullWidth maxWidth="sm">

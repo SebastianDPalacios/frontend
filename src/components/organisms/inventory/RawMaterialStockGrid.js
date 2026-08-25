@@ -40,7 +40,9 @@ const RawMaterialStockGrid = ({
           Stock de materia prima
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          {rows.length} materias registradas. Las criticas aparecen primero.
+          {sortedRows.length === rows.length
+            ? `${rows.length} materias registradas. Las criticas aparecen primero.`
+            : `${sortedRows.length} de ${rows.length} materias coinciden con la busqueda.`}
         </Typography>
       </Stack>
     </Stack>
@@ -51,7 +53,7 @@ const RawMaterialStockGrid = ({
       </Alert>
     ) : null}
     {loading ? <Alert severity="info">Cargando stock de materia prima...</Alert> : null}
-    {!loading && rows.length === 0 ? <Alert severity="info">No hay materias primas para mostrar.</Alert> : null}
+    {!loading && sortedRows.length === 0 ? <Alert severity="info">No hay materias primas que coincidan con la busqueda.</Alert> : null}
 
     <Grid container spacing={2}>
       {sortedRows.map((row) => {

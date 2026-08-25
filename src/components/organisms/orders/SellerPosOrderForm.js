@@ -296,14 +296,27 @@ const SellerPosOrderForm = ({
         </>
       )}
 
-      <Dialog open={Boolean(captureProduct)} onClose={() => setCaptureProduct(null)} fullWidth maxWidth="xs" PaperProps={{ sx: { m: 1.5, borderRadius: 3 } }}>
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography sx={{ fontWeight: 900, fontSize: 21, lineHeight: 1.2 }}>{captureProduct?.name}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 16, fontWeight: 700 }}>
+      <Dialog
+        open={Boolean(captureProduct)}
+        onClose={() => setCaptureProduct(null)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            m: { xs: 0.75, sm: 1.5 },
+            width: { xs: "calc(100% - 12px)", sm: "calc(100% - 24px)" },
+            maxHeight: { xs: "calc(100dvh - 12px)", sm: "calc(100% - 24px)" },
+            borderRadius: { xs: 3.5, sm: 3 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1, px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 2.5 }, flexShrink: 0 }}>
+          <Typography sx={{ fontWeight: 900, fontSize: { xs: 25, sm: 21 }, lineHeight: 1.15 }}>{captureProduct?.name}</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: 19, sm: 16 }, fontWeight: 700 }}>
             ${formatCurrencyValue(captureProduct?.base_price, 0)} por {captureProduct?.unit || "unidad"}
           </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflowY: "auto" }}>
           <Stack spacing={1.5}>
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1 }}>
               {getModes(captureProduct).map((mode) => (
@@ -312,7 +325,7 @@ const SellerPosOrderForm = ({
                   variant={orderMode === mode.value ? "contained" : "outlined"}
                   color="secondary"
                   onClick={() => setOrderMode(mode.value)}
-                  sx={{ minHeight: 54, px: 1.5, fontSize: 14, fontWeight: 900 }}
+                  sx={{ minHeight: { xs: 64, sm: 54 }, px: 1, fontSize: { xs: 16, sm: 14 }, fontWeight: 900, lineHeight: 1.2 }}
                 >
                   {mode.label}
                 </Button>
@@ -323,8 +336,8 @@ const SellerPosOrderForm = ({
               color="secondary"
               sx={{ alignSelf: "flex-start", height: 32, fontSize: 13, fontWeight: 900, px: 0.5 }}
             />
-            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: "center" }}>
-              <Typography variant="h4" sx={{ fontWeight: 900 }}>
+            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 1.5 }, borderRadius: 2.5, textAlign: "center" }}>
+              <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 42, sm: 34 } }}>
                 ${formatCurrencyValue(captureValue, 0)}
               </Typography>
               <Typography variant="caption" color="text.secondary">{previewQuantity} unidades calculadas</Typography>
@@ -332,7 +345,7 @@ const SellerPosOrderForm = ({
             {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
               {keypadKeys.map((key) => (
-                <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: 50, fontSize: 18, fontWeight: 900 }}>{key}</Button>
+                <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: { xs: 60, sm: 50 }, fontSize: { xs: 23, sm: 18 }, fontWeight: 900 }}>{key}</Button>
               ))}
             </Box>
             <Stack direction="row" spacing={1}>
@@ -341,9 +354,9 @@ const SellerPosOrderForm = ({
             </Stack>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={() => setCaptureProduct(null)}>Cancelar</Button>
-          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct}>Agregar al carrito</AppButton>
+        <DialogActions sx={{ p: { xs: 1.5, sm: 2 }, pt: { xs: 1.25, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>
+          <Button onClick={() => setCaptureProduct(null)} sx={{ minHeight: { xs: 54, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Cancelar</Button>
+          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct} sx={{ minHeight: { xs: 54, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Agregar al carrito</AppButton>
         </DialogActions>
       </Dialog>
 

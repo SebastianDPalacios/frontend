@@ -14,6 +14,7 @@ export const bakerOnlyPaths = [
   "/dashboards/analytics",
   "/production/performed",
   "/production/my-plan",
+  "/production/history",
 ];
 
 export const packagingOnlyPaths = [
