@@ -2,9 +2,11 @@
 import InventoryRawMaterialFilters from "components/organisms/inventory/InventoryRawMaterialFilters";
 import InventoryStockSummary from "components/organisms/inventory/InventoryStockSummary";
 import RawMaterialStockGrid from "components/organisms/inventory/RawMaterialStockGrid";
+import RawMaterialMovementDialog from "components/organisms/inventory/RawMaterialMovementDialog";
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import toast from "react-hot-toast";
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
@@ -91,6 +93,8 @@ const InventoryRawMaterialsPage = () => {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const run = async () => {
@@ -136,7 +140,7 @@ const InventoryRawMaterialsPage = () => {
     };
 
     run();
-  }, [selectedBranch]);
+  }, [reloadKey, selectedBranch]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredRows = normalizedSearch
@@ -175,6 +179,19 @@ const InventoryRawMaterialsPage = () => {
         formatStockEquivalent={formatStockEquivalent}
         formatInventoryQuantity={formatInventoryQuantity}
         getUnitLabel={getUnitLabel}
+        onLoadMovement={setSelectedMaterial}
+      />
+
+      <RawMaterialMovementDialog
+        material={selectedMaterial}
+        branchId={selectedBranch}
+        open={Boolean(selectedMaterial)}
+        onClose={() => setSelectedMaterial(null)}
+        onSaved={({ movementType }) => {
+          toast.success(movementType === "adjustment_in" ? "Entrada registrada" : "Salida registrada");
+          setSelectedMaterial(null);
+          setReloadKey((current) => current + 1);
+        }}
       />
     </FlowPageLayout>
   );

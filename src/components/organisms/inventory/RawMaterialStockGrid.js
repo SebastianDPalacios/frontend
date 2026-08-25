@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Alert, Chip, Grid, Paper, Stack, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 
@@ -28,6 +27,7 @@ const RawMaterialStockGrid = ({
   formatStockEquivalent,
   formatInventoryQuantity,
   getUnitLabel,
+  onLoadMovement,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
     <Stack
@@ -104,7 +104,7 @@ const RawMaterialStockGrid = ({
                   </Grid>
                 </Grid>
 
-                <AppButton component={Link} href="/inventory/movements" variant="outlined" color="secondary">
+                <AppButton onClick={() => onLoadMovement(row)} variant="outlined" color="secondary">
                   Cargar movimiento
                 </AppButton>
               </Stack>
