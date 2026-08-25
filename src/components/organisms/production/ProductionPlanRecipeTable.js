@@ -1,5 +1,5 @@
 import {
-  Box, Button, Collapse, Grid, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography,
+  Autocomplete, Box, Button, Collapse, Grid, IconButton, Paper, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
@@ -45,29 +45,22 @@ const ProductionPlanRecipeTable = ({ rows, recipes, onChange, onRemove, formatNu
             <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
-                  <TextField
-                    id={`planned-product-${row.rowKey}`}
-                    select
+                  <Autocomplete
                     fullWidth
-                    label="¿Qué producto van a preparar?"
-                    value={row.productId && row.recipeId ? `${row.recipeId}:${row.productId}` : ""}
-                    onChange={(event) => {
-                      const [recipeId, productId] = event.target.value.split(":");
-                      onChange(index, { recipeId, productId });
-                    }}
-                  >
-                    <MenuItem value="">Seleccionar producto</MenuItem>
-                    {products.map((product) => (
-                      <MenuItem
-                        key={`${product.recipeId}:${product.product_id}`}
-                        value={`${product.recipeId}:${product.product_id}`}
-                        disabled={rows.some((otherRow, otherIndex) => otherIndex !== index
-                          && String(otherRow.productId) === String(product.product_id))}
-                      >
-                        {product.product_name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={products}
+                    value={selected || null}
+                    onChange={(_event, product) => onChange(index, {
+                      recipeId: product ? String(product.recipeId) : "",
+                      productId: product ? String(product.product_id) : "",
+                    })}
+                    getOptionLabel={(product) => product.product_name || "Producto"}
+                    isOptionEqualToValue={(option, value) => String(option.recipeId) === String(value.recipeId)
+                      && String(option.product_id) === String(value.product_id)}
+                    getOptionDisabled={(product) => rows.some((otherRow, otherIndex) => otherIndex !== index
+                      && String(otherRow.productId) === String(product.product_id))}
+                    noOptionsText="No encontramos productos"
+                    renderInput={(params) => <TextField {...params} label="¿Qué producto van a preparar?" placeholder="Escribe el nombre" />}
+                  />
                 </Grid>
                 <Grid item xs={12}>
                   <Typography sx={{ mb: 1, fontWeight: 800 }}>¿Cómo quieres indicar la cantidad?</Typography>
