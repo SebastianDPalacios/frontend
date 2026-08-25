@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert } from "@mui/material";
+import { Alert, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import toast from "react-hot-toast";
 import ProductionPlanAssignmentForm from "components/organisms/production/ProductionPlanAssignmentForm";
+import ProductionPlanDesktopForm from "components/organisms/production/ProductionPlanDesktopForm";
 import ProductionPlanOverview from "components/organisms/production/ProductionPlanOverview";
 import ProductionWorkDialog from "components/organisms/production/ProductionWorkDialog";
 import authService from "services/auth/auth-service";
@@ -99,6 +101,8 @@ const buildProductionPayload = (item, quantities) => normalizeRows(item?.outputs
 }));
 
 const ProductionPlanningPage = () => {
+  const theme = useTheme();
+  const useCompactPlanning = useMediaQuery(theme.breakpoints.down("lg"));
   const currentUser = authService.getCurrentUser() || {};
   const isAdministrator = (currentUser.roles || []).some((role) => {
     const code = typeof role === "string" ? role : role?.code || role?.name;
@@ -144,7 +148,7 @@ const ProductionPlanningPage = () => {
       const myBaseResponse = responses[1];
 
       if (myPlansResponse?.code !== 1) {
-        setError(myPlansResponse?.message || "No se pudo cargar la planificaciÃ³n.");
+        setError(myPlansResponse?.message || "No se pudo cargar la planificación.");
         return;
       }
 
@@ -186,7 +190,7 @@ const ProductionPlanningPage = () => {
         }));
       }
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al cargar la planificaciÃ³n."));
+      setError(getErrorMessage(requestError, "Error de red al cargar la planificación."));
     } finally {
       setLoading(false);
     }
@@ -360,11 +364,11 @@ const ProductionPlanningPage = () => {
     try {
       const response = await productionService.startPlanItem(productionPlanItemId);
       if (response?.code !== 1) {
-        setError(response?.message || "No se pudo iniciar la producciÃ³n.");
+        setError(response?.message || "No se pudo iniciar la producción.");
         return;
       }
 
-      toast.success(response.message || "ProducciÃ³n iniciada");
+      toast.success(response.message || "Producción iniciada");
       const ownerPlan = myPlans.find((plan) =>
         normalizeRows(plan.items).some((item) => String(item.id) === String(productionPlanItemId))
       );
@@ -374,7 +378,7 @@ const ProductionPlanningPage = () => {
       openWorkDialog(ownerPlan, { ...ownerItem, started_at: new Date().toISOString() });
       await loadData();
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al iniciar la producciÃ³n."));
+      setError(getErrorMessage(requestError, "Error de red al iniciar la producción."));
     } finally {
       setStartingItemId("");
     }
@@ -424,14 +428,36 @@ const ProductionPlanningPage = () => {
   };
   return (
     <FlowPageLayout
-      title="ProducciÃ³n del dÃ­a siguiente"
+      title="Producción del día siguiente"
       subtitle="Planifica cada producto por unidades o arrobas; el sistema utiliza internamente su receta vigente."
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificaciÃ³n...</Alert> : null}
+      {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificación...</Alert> : null}
 
       {canManage || editingPlanId ? (
-        <ProductionPlanAssignmentForm
+        useCompactPlanning ? <ProductionPlanAssignmentForm
+          branches={branches}
+          bakers={bakers}
+          recipes={recipes}
+          form={form}
+          rows={rows}
+          totalArrobas={totalArrobas}
+          summary={planSummary}
+          selectedBaker={selectedBaker}
+          saving={saving}
+          loading={loading}
+          formatNumber={formatNumber}
+          formatArrobas={formatArrobas}
+          onFormChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))}
+          onDateChange={(value) => setForm((current) => ({ ...current, plannedDate: value }))}
+          onRowChange={updateRow}
+          onMoveRow={moveRow}
+          onRemoveRow={(index) => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+          onAddRow={() => setRows((current) => [...current, emptyPlanRow()])}
+          onSubmit={savePlan}
+          editing={Boolean(editingPlanId)}
+          onCancelEdit={resetPlanForm}
+        /> : <ProductionPlanDesktopForm
           branches={branches}
           bakers={bakers}
           recipes={recipes}

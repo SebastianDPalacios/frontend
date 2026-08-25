@@ -1,24 +1,19 @@
-import { Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import AppButton from "@core/components/ui/AppButton";
 import ProductionPlanRecipeTable from "components/organisms/production/ProductionPlanRecipeTable";
-import { getDisplayName } from "views/modules/flow-utils";
 
-const getBakerLabel = (baker) => {
-  const name = baker.full_name || baker.username || `Empleado #${baker.id}`;
-  const account = baker.username && baker.username !== name ? `@${baker.username}` : "";
-  return [name, account, baker.email].filter(Boolean).join(" · ");
-};
+const getBakerLabel = (baker) => baker.full_name || baker.username || `Empleado #${baker.id}`;
+
+const steps = ["Datos", "Productos", "Confirmar"];
 
 const ProductionPlanAssignmentForm = ({
-  branches,
   bakers,
   recipes,
   form,
   rows,
-  totalArrobas,
   summary,
-  selectedBaker,
   saving,
   loading,
   formatNumber,
@@ -26,136 +21,163 @@ const ProductionPlanAssignmentForm = ({
   onFormChange,
   onDateChange,
   onRowChange,
-  onMoveRow,
   onRemoveRow,
   onAddRow,
   onSubmit,
   editing = false,
   onCancelEdit,
-}) => (
-  <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
-    <Stack
-      direction={{ xs: "column", md: "row" }}
-      spacing={1}
-      sx={{ justifyContent: "space-between", mb: 2 }}
-    >
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>{editing ? "Editar asignación" : "Nueva asignación"}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Agrega cada producto por separado. La receta vigente y sus equivalencias se calculan automaticamente.
+}) => {
+  const [step, setStep] = useState(0);
+  const productsComplete = rows.every((row) => row.productId && row.recipeId && Number(row.requestedQuantity) > 0);
+
+  useEffect(() => {
+    setStep(0);
+  }, [editing]);
+
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 3 }, mb: 3 }}>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+          {editing ? "Editar plan" : "Crear plan de producción"}
         </Typography>
+        <Typography color="text.secondary">Completa tres pasos sencillos.</Typography>
       </Box>
-      <Chip label={`${formatArrobas(totalArrobas)} arroba(s) estimada(s)`} color="secondary" variant="outlined" />
-    </Stack>
 
-    <Grid container spacing={2} sx={{ mb: 2 }}>
-      <Grid item xs={12} md={3}>
-        <TextField
-          select
-          fullWidth
-          label="Sucursal"
-          value={form.branchId}
-          onChange={(event) => onFormChange("branchId", event.target.value)}
-        >
-          {branches.map((branch) => (
-            <MenuItem key={branch.id} value={String(branch.id)}>
-              {getDisplayName(branch)}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Grid>
-
-      <Grid item xs={12} md={3}>
-        <TextField
-          select
-          fullWidth
-          label="Panadero"
-          value={form.bakerId}
-          helperText={selectedBaker
-            ? `La notificación llegará a ${selectedBaker.email || `@${selectedBaker.username}`}.`
-            : "Selecciona la cuenta que recibirá la notificación."}
-          onChange={(event) => onFormChange("bakerId", event.target.value)}
-        >
-          {bakers.map((baker) => (
-            <MenuItem key={baker.id} value={String(baker.id)}>
-              {getBakerLabel(baker)}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Grid>
-
-      <Grid item xs={12} md={3}>
-        <BalanceDatePicker
-          label="Fecha de producción"
-          value={form.plannedDate}
-          onChange={onDateChange}
-          fullWidth
-        />
-      </Grid>
-
-      <Grid item xs={12} md={3}>
-        <TextField
-          fullWidth
-          label="Nota para el panadero"
-          value={form.notes}
-          onChange={(event) => onFormChange("notes", event.target.value)}
-        />
-      </Grid>
-    </Grid>
-
-    <ProductionPlanRecipeTable
-      rows={rows}
-      recipes={recipes}
-      onChange={onRowChange}
-      onMove={onMoveRow}
-      onRemove={onRemoveRow}
-      formatNumber={formatNumber}
-      formatArrobas={formatArrobas}
-    />
-
-    <Paper variant="outlined" sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "background.default" }}>
-      <Typography sx={{ fontWeight: 900, mb: 1 }}>Resumen antes de enviar</Typography>
-      <Stack spacing={0.75}>
-        {summary.products.filter((row) => row.output).map((row) => (
-          <Stack key={row.rowKey} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", gap: 0.5 }}>
-            <Typography sx={{ fontWeight: 700 }}>{row.output.product_name}</Typography>
-            <Typography variant="body2">
-              {row.requestMode === "units"
-                ? `${formatNumber(row.requestedQuantity)} unidades · ${formatArrobas(row.plannedArrobas)} arrobas`
-                : `${formatArrobas(row.requestedQuantity)} arrobas · ${formatNumber(row.estimatedUnits)} unidades`}
-            </Typography>
-          </Stack>
-        ))}
-        {!summary.products.some((row) => row.output) ? (
-          <Typography variant="body2" color="text.secondary">Agrega productos para consultar el resumen.</Typography>
-        ) : null}
-        {summary.recipeGroups.map((group) => (
-          <Stack key={group.recipeId} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", pt: 0.75, borderTop: "1px solid", borderColor: "divider" }}>
-            <Typography variant="body2" sx={{ fontWeight: 800 }}>Total receta {group.recipeName}</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 800 }}>{formatArrobas(group.plannedArrobas)} arrobas</Typography>
-          </Stack>
+      <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+        {steps.map((label, index) => (
+          <Box
+            key={label}
+            sx={{
+              flex: 1,
+              py: 1.25,
+              px: 0.5,
+              textAlign: "center",
+              borderRadius: 2,
+              bgcolor: index === step ? "secondary.main" : index < step ? "success.light" : "background.default",
+              color: index === step ? "secondary.contrastText" : "text.primary",
+              border: "1px solid",
+              borderColor: index === step ? "secondary.main" : "divider",
+              fontWeight: 900,
+              fontSize: { xs: 13, sm: 16 },
+            }}
+          >
+            {index + 1}. {label}
+          </Box>
         ))}
       </Stack>
-    </Paper>
 
-    <Stack
-      direction={{ xs: "column", sm: "row" }}
-      spacing={1.5}
-      sx={{ mt: 2, alignItems: { xs: "stretch", sm: "center" } }}
-    >
-      <AppButton variant="outlined" color="secondary" onClick={onAddRow}>
-        Agregar otro producto
-      </AppButton>
-      <AppButton color="secondary" onClick={onSubmit} loading={saving} disabled={saving || loading}>
-        {editing ? "Guardar cambios" : "Enviar plan al panadero"}
-      </AppButton>
+      {step === 0 ? (
+        <Stack spacing={2.5}>
+          <Typography sx={{ fontSize: 20, fontWeight: 900 }}>¿Quién y para cuándo?</Typography>
+          <TextField
+            select
+            fullWidth
+            label="Panadero"
+            value={form.bakerId}
+            onChange={(event) => onFormChange("bakerId", event.target.value)}
+          >
+            {bakers.map((baker) => (
+              <MenuItem key={baker.id} value={String(baker.id)}>{getBakerLabel(baker)}</MenuItem>
+            ))}
+          </TextField>
+          <BalanceDatePicker label="Fecha de producción" value={form.plannedDate} onChange={onDateChange} fullWidth />
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="Nota para el panadero (opcional)"
+            value={form.notes}
+            onChange={(event) => onFormChange("notes", event.target.value)}
+          />
+          <AppButton
+            color="secondary"
+            disabled={!form.bakerId || !form.plannedDate}
+            onClick={() => setStep(1)}
+            sx={{ minHeight: 58, fontSize: 17 }}
+          >
+            Continuar
+          </AppButton>
+        </Stack>
+      ) : null}
+
+      {step === 1 ? (
+        <Stack spacing={2}>
+          <Box>
+            <Typography sx={{ fontSize: 20, fontWeight: 900 }}>¿Qué debe preparar?</Typography>
+            <Typography color="text.secondary">Agrega cada producto y su cantidad.</Typography>
+          </Box>
+          <ProductionPlanRecipeTable
+            rows={rows}
+            recipes={recipes}
+            onChange={onRowChange}
+            onRemove={onRemoveRow}
+            formatNumber={formatNumber}
+            formatArrobas={formatArrobas}
+          />
+          <AppButton variant="outlined" color="secondary" onClick={onAddRow} sx={{ minHeight: 54 }}>
+            + Agregar otro producto
+          </AppButton>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={5}>
+              <AppButton fullWidth variant="outlined" color="secondary" onClick={() => setStep(0)} sx={{ minHeight: 54 }}>
+                Volver
+              </AppButton>
+            </Grid>
+            <Grid item xs={12} sm={7}>
+              <AppButton fullWidth color="secondary" disabled={!productsComplete} onClick={() => setStep(2)} sx={{ minHeight: 54 }}>
+                Revisar plan
+              </AppButton>
+            </Grid>
+          </Grid>
+        </Stack>
+      ) : null}
+
+      {step === 2 ? (
+        <Stack spacing={2}>
+          <Box>
+            <Typography sx={{ fontSize: 20, fontWeight: 900 }}>Confirma el plan</Typography>
+            <Typography color="text.secondary">Revisa los productos antes de enviarlos.</Typography>
+          </Box>
+          <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2.5 }, borderRadius: 3, bgcolor: "background.default" }}>
+            <Stack spacing={1}>
+              {summary.products.filter((row) => row.output).map((row) => (
+                <Stack
+                  key={row.rowKey}
+                  direction="row"
+                  sx={{ justifyContent: "space-between", alignItems: "center", gap: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}
+                >
+                  <Typography sx={{ fontSize: { xs: 16, sm: 18 }, fontWeight: 900 }}>{row.output.product_name}</Typography>
+                  <Typography sx={{ textAlign: "right", fontWeight: 700 }}>
+                    {row.requestMode === "units"
+                      ? `${formatNumber(row.requestedQuantity)} unidades`
+                      : `${formatArrobas(row.requestedQuantity)} arrobas`}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={5}>
+              <AppButton fullWidth variant="outlined" color="secondary" onClick={() => setStep(1)} disabled={saving} sx={{ minHeight: 56 }}>
+                Corregir productos
+              </AppButton>
+            </Grid>
+            <Grid item xs={12} sm={7}>
+              <AppButton fullWidth color="secondary" onClick={onSubmit} loading={saving} disabled={saving || loading} sx={{ minHeight: 56, fontSize: 17 }}>
+                {editing ? "Guardar cambios" : "Enviar al panadero"}
+              </AppButton>
+            </Grid>
+          </Grid>
+        </Stack>
+      ) : null}
+
       {editing ? (
-        <AppButton variant="text" color="secondary" onClick={onCancelEdit} disabled={saving}>
+        <AppButton variant="text" color="secondary" onClick={onCancelEdit} disabled={saving} sx={{ mt: 2 }}>
           Cancelar edición
         </AppButton>
       ) : null}
-    </Stack>
-  </Paper>
-);
+    </Paper>
+  );
+};
 
 export default ProductionPlanAssignmentForm;

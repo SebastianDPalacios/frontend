@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Badge,
   Box,
   Button,
@@ -18,6 +19,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
@@ -29,6 +31,15 @@ import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
 
 const keypadKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "00", "000"];
+const filterCustomers = createFilterOptions({
+  stringify: (customer) => [
+    getDisplayName(customer),
+    customer?.tax_id,
+    customer?.phone,
+    customer?.address,
+    customer?.neighborhood,
+  ].filter(Boolean).join(" "),
+});
 
 const SellerPosOrderForm = ({
   loading,
@@ -178,8 +189,8 @@ const SellerPosOrderForm = ({
                   onClick={() => openCapture(product)}
                   sx={{
                     width: "100%",
-                    minHeight: 82,
-                    p: 1.5,
+                    minHeight: { xs: 104, sm: 108 },
+                    p: { xs: 2, sm: 2.25 },
                     borderRadius: 2.5,
                     bgcolor: "background.paper",
                     color: "text.primary",
@@ -190,10 +201,10 @@ const SellerPosOrderForm = ({
                 >
                   <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>{product.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{product.category_name || "Sin categoría"}</Typography>
+                      <Typography sx={{ fontWeight: 900, fontSize: { xs: 20, sm: 22 }, lineHeight: 1.15, overflowWrap: "anywhere" }}>{product.name}</Typography>
+                      <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: 16, sm: 17 }, fontWeight: 600, lineHeight: 1.2 }}>{product.category_name || "Sin categoría"}</Typography>
                     </Box>
-                    <Chip color="secondary" label={`$${formatCurrencyValue(product.base_price, 0)}`} sx={{ fontWeight: 900, flexShrink: 0 }} />
+                    <Chip color="secondary" label={`$${formatCurrencyValue(product.base_price, 0)}`} sx={{ height: { xs: 44, sm: 48 }, fontSize: { xs: 18, sm: 20 }, fontWeight: 900, flexShrink: 0, px: 0.75 }} />
                   </Stack>
                 </Paper>
               </Grid>
@@ -245,9 +256,27 @@ const SellerPosOrderForm = ({
 
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
             <Stack spacing={2}>
-              <TextField select fullWidth label="Cliente asignado" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
-                {customers.map((customer) => <MenuItem key={customer.id} value={String(customer.id)}>{getDisplayName(customer)}</MenuItem>)}
-              </TextField>
+              <Autocomplete
+                fullWidth
+                options={customers}
+                value={customers.find((customer) => String(customer.id) === String(customerId)) || null}
+                onChange={(_event, customer) => setCustomerId(customer ? String(customer.id) : "")}
+                getOptionLabel={(customer) => getDisplayName(customer)}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                filterOptions={filterCustomers}
+                noOptionsText="No encontramos clientes"
+                renderInput={(params) => <TextField {...params} label="Buscar cliente asignado" placeholder="Nombre, documento, teléfono o dirección" />}
+                renderOption={(props, customer) => (
+                  <Box component="li" {...props} key={customer.id} sx={{ py: 1.25 }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800, fontSize: 17 }}>{getDisplayName(customer)}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {[customer.tax_id, customer.phone, customer.neighborhood].filter(Boolean).join(" · ") || "Sin información adicional"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              />
               <TextField fullWidth multiline minRows={2} label="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} inputProps={{ maxLength: 255 }} />
             </Stack>
           </Paper>
