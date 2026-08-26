@@ -45,6 +45,9 @@ const initialValues = {
   customerNeighborhoodLabel: "Barrio/Zona",
   customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
+  requestedLabel: "Solicitado",
+  unitLabel: "UND",
+  showItemDetail: true,
   policyTitle: "POLITICA DE CAMBIOS",
   policyText:
     "Se realizan cambios por producto vencido, con moho, mojado o mal moldeado. La vigencia es de 15 dias desde la entrega. El inconveniente debe reportarse como maximo dentro de los 2 dias siguientes al vencimiento y requiere autorizacion del vendedor.",
@@ -437,14 +440,19 @@ const PosTicketPreview = ({ values }) => {
                   {item.type}
                 </Box>
               </Stack>
-              <Stack direction="row" sx={{ alignItems: "center", justifyContent: "flex-end", gap: 2, mt: 0.5 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 64px minmax(70px, auto)", alignItems: "center", gap: 1, mt: 0.5 }}>
+                <span />
                 <Box sx={{ textAlign: "center", fontWeight: 900 }}>
                   <Box sx={{ fontSize: scale.quantity, lineHeight: 1 }}>{item.qty}</Box>
-                  <Box sx={{ fontSize: scale.quantityLabel, lineHeight: 1 }}>UND</Box>
+                  <Box sx={{ fontSize: scale.quantityLabel, lineHeight: 1 }}>{values.unitLabel || "UND"}</Box>
                 </Box>
-                <strong style={{ fontSize: scale.productValue }}>{item.value}</strong>
-              </Stack>
-              <Typography sx={{ fontFamily: "Arial, sans-serif", fontSize: scale.itemDetail }}>Solicitado: $ 10.000</Typography>
+                <strong style={{ fontSize: scale.productValue, textAlign: "right" }}>{item.value}</strong>
+              </Box>
+              {values.showItemDetail ? (
+                <Typography sx={{ fontFamily: "Arial, sans-serif", fontSize: scale.itemDetail }}>
+                  {values.requestedLabel || "Solicitado"}: $ 10.000
+                </Typography>
+              ) : null}
             </Box>
           ))}
         </Box>
@@ -913,7 +921,7 @@ const PosTicketSettingsPage = () => {
               </EditorPanel>
               <EditorPanel
                 title="Textos del comprobante"
-                subtitle="Edita titulos, politica y mensaje de cierre."
+                subtitle="Edita todos los textos fijos del ticket, incluida la unidad y el valor solicitado."
               >
                 <Box sx={fieldGridSx}>
                   <Box sx={{ minWidth: 0 }}>
@@ -932,6 +940,31 @@ const PosTicketSettingsPage = () => {
                       value={values.detailTitle}
                       onChange={handleInputChange}
                       fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <TextField
+                      name="requestedLabel"
+                      label="Etiqueta del valor solicitado"
+                      value={values.requestedLabel}
+                      onChange={handleInputChange}
+                      fullWidth
+                      disabled={!values.showItemDetail}
+                    />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <TextField
+                      name="unitLabel"
+                      label="Etiqueta de unidad"
+                      value={values.unitLabel}
+                      onChange={handleInputChange}
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
+                    <FormControlLabel
+                      control={<Switch name="showItemDetail" checked={Boolean(values.showItemDetail)} onChange={handleSwitchChange} />}
+                      label="Mostrar el valor solicitado debajo del producto"
                     />
                   </Box>
                   <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>

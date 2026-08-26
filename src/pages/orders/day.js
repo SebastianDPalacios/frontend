@@ -9,12 +9,6 @@ import {
   MenuItem,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -23,7 +17,7 @@ import ordersService from "services/orders/orders-service";
 import authService from "services/auth/auth-service";
 import { isSalesOnlyUser } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
-import { getTotal, normalizeRows } from "views/modules/flow-utils";
+import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker, BalanceMonthPicker, BalanceWeekPicker } from "@core/components/ui/BalancePeriodPickers";
 import { getIsoWeekInputValue, getPeriodRange, toDateInputValue, toMonthInputValue } from "@core/components/ui/balance-date-utils";
@@ -54,26 +48,6 @@ const formatDate = (value) => {
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
-};
-
-const statusLabels = {
-  draft: "Borrador",
-  confirmed: "Confirmado",
-  in_production: "Produccion",
-  ready: "Listo",
-  dispatched: "Despachado",
-  delivered: "Entregado",
-  cancelled: "Cancelado",
-};
-
-const statusColors = {
-  draft: "default",
-  confirmed: "info",
-  in_production: "info",
-  ready: "warning",
-  dispatched: "success",
-  delivered: "success",
-  cancelled: "error",
 };
 
 const MetricCard = ({ label, value, helper, color = "primary" }) => (
@@ -109,58 +83,6 @@ const MetricCard = ({ label, value, helper, color = "primary" }) => (
     </Stack>
   </Paper>
 );
-
-const StatusChip = ({ status }) => (
-  <Chip
-    size="small"
-    label={statusLabels[status] || status || "-"}
-    color={statusColors[status] || "default"}
-    variant={status === "draft" ? "outlined" : "filled"}
-    sx={{ minWidth: 104 }}
-  />
-);
-
-const getTraceSteps = (order) => {
-  if (order?.status === "cancelled") {
-    return [
-      { label: "Pedido", state: "done" },
-      { label: "Cancelado", state: "error" },
-    ];
-  }
-
-  const isConfirmed = ["confirmed", "ready", "dispatched", "delivered"].includes(order?.status);
-  const isDispatched = ["dispatched", "delivered"].includes(order?.status);
-  const isDelivered = order?.status === "delivered";
-
-  return [
-    { label: "Pedido", state: "done" },
-    { label: "Confirmado", state: isConfirmed ? "done" : order?.status === "draft" ? "active" : "pending" },
-    { label: "Inventario", state: isDispatched ? "done" : isConfirmed ? "active" : "pending" },
-    { label: "Despachado", state: isDispatched ? "done" : "pending" },
-    { label: "Entregado", state: isDelivered ? "done" : isDispatched ? "active" : "pending" },
-  ];
-};
-
-const buildDailyOrderNumberMap = (orders) => {
-  const dayMap = new Map();
-
-  orders.forEach((order) => {
-    const day = formatDate(order.order_date);
-    if (!dayMap.has(day)) {
-      dayMap.set(day, []);
-    }
-    dayMap.get(day).push(order);
-  });
-
-  return Array.from(dayMap.values()).reduce((acc, dayOrders) => {
-    [...dayOrders]
-      .sort((a, b) => Number(a.id || 0) - Number(b.id || 0))
-      .forEach((order, index) => {
-        acc[String(order.id)] = index + 1;
-      });
-    return acc;
-  }, {});
-};
 
 const BalancePanel = ({ title, emptyText, items }) => (
   <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, height: "100%" }}>
@@ -199,85 +121,6 @@ const BalancePanel = ({ title, emptyText, items }) => (
   </Paper>
 );
 
-const OrdersPeriodTable = ({ orders }) => {
-  const dailyOrderNumberById = buildDailyOrderNumberMap(orders);
-
-  return (
-    <TableContainer>
-      <Table sx={{ minWidth: 860 }}>
-      <TableHead>
-        <TableRow>
-          <TableCell>Pedido</TableCell>
-          <TableCell>Cliente</TableCell>
-          <TableCell>Flujo</TableCell>
-          <TableCell>Estado</TableCell>
-          <TableCell>Vendedor</TableCell>
-          <TableCell>Entrega</TableCell>
-          <TableCell align="right">Total</TableCell>
-          <TableCell align="right">Accion</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {orders.slice(0, 12).map((order) => {
-          const isDone = ["dispatched", "delivered"].includes(order.status);
-          const progress = getTraceSteps(order).filter((step) => step.state === "done").length * 20;
-          const dailyNumber = dailyOrderNumberById[String(order.id)] || "";
-
-          return (
-            <TableRow key={order.id} hover>
-              <TableCell>
-                <Typography sx={{ fontWeight: 900 }}>Pedido #{dailyNumber}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(order.order_date)}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography sx={{ fontWeight: 800 }}>{order.customer_name || "Cliente"}</Typography>
-              </TableCell>
-              <TableCell sx={{ minWidth: 220 }}>
-                <Stack spacing={0.5}>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Avance
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 900 }}>
-                      {Math.min(progress, 100)}%
-                    </Typography>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={Math.min(progress, 100)}
-                    sx={{
-                      height: 8,
-                      borderRadius: 999,
-                      bgcolor: "action.hover",
-                      "& .MuiLinearProgress-bar": { borderRadius: 999, bgcolor: isDone ? "success.main" : "secondary.main" },
-                    }}
-                  />
-                </Stack>
-              </TableCell>
-              <TableCell>
-                <StatusChip status={order.status} />
-              </TableCell>
-              <TableCell>{order.sales_agent_name || "Sin vendedor"}</TableCell>
-              <TableCell>{formatDate(order.delivery_date)}</TableCell>
-              <TableCell align="right">
-                <Typography sx={{ fontWeight: 900 }}>{formatMoney(order.amount_to_collect ?? order.grand_total)}</Typography>
-              </TableCell>
-              <TableCell align="right">
-                <Button component={Link} href={`/orders/history?search=${encodeURIComponent(dailyNumber)}`} color="secondary" variant="outlined">
-                  Ver detalle
-                </Button>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-      </Table>
-    </TableContainer>
-  );
-};
-
 const OrdersDayPage = () => {
   const currentUser = authService.getCurrentUser() || {};
   const salesOnly = isSalesOnlyUser(currentUser);
@@ -289,12 +132,7 @@ const OrdersDayPage = () => {
   const [fortnightHalf, setFortnightHalf] = useState("1");
   const [semesterYear, setSemesterYear] = useState(String(new Date().getFullYear()));
   const [semesterHalf, setSemesterHalf] = useState(new Date().getMonth() < 6 ? "1" : "2");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [summary, setSummary] = useState({
-    customers: 0,
-    products: 0,
-  });
   const [orders, setOrders] = useState([]);
   const [periodEarnings, setPeriodEarnings] = useState(0);
 
@@ -315,12 +153,10 @@ const OrdersDayPage = () => {
 
   useEffect(() => {
     const run = async () => {
-      setLoading(true);
       setError(null);
 
       try {
-        const [baseResponse, ordersResponse, commissionsResponse] = await Promise.all([
-          ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 50 }),
+        const [ordersResponse, commissionsResponse] = await Promise.all([
           ordersService.getOrders({
             dateFrom: dateRange.from,
             dateTo: dateRange.to,
@@ -332,11 +168,6 @@ const OrdersDayPage = () => {
             : Promise.resolve(null),
         ]);
 
-        if (baseResponse?.code !== 1) {
-          setError(baseResponse?.message || "No se pudo cargar base de pedidos");
-          return;
-        }
-
         if (ordersResponse?.code !== 1) {
           setError(ordersResponse?.message || "No se pudieron cargar pedidos del periodo");
           return;
@@ -347,16 +178,10 @@ const OrdersDayPage = () => {
           return;
         }
 
-        setSummary({
-          customers: getTotal(baseResponse.data?.customers),
-          products: getTotal(baseResponse.data?.products),
-        });
         setOrders(normalizeRows(ordersResponse.data?.items));
         setPeriodEarnings(salesOnly ? Number(commissionsResponse?.data?.summary?.commission_amount || 0) : 0);
       } catch (requestError) {
         setError(getErrorMessage(requestError, "Error de red al cargar pedidos"));
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -539,24 +364,6 @@ const OrdersDayPage = () => {
         </Grid>
       </Grid>
 
-      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 } }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Pedidos del periodo
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Ultimos movimientos entre {dateRange.from} y {dateRange.to}.
-            </Typography>
-          </Box>
-          <Chip label={`${summary.customers} clientes - ${summary.products} productos`} variant="outlined" />
-        </Stack>
-
-        {loading ? <Alert severity="info">Cargando balance de pedidos...</Alert> : null}
-        {!loading && periodOrders.length === 0 ? <Alert severity="info">No hay pedidos registrados en este periodo.</Alert> : null}
-
-        {!loading && periodOrders.length > 0 ? <OrdersPeriodTable orders={periodOrders} /> : null}
-      </Paper>
     </FlowPageLayout>
   );
 };

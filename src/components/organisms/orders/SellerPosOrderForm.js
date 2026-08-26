@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ShoppingCartRoundedIcon from "@mui/icons-material/ShoppingCartRounded";
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
@@ -245,7 +246,9 @@ const SellerPosOrderForm = ({
                       </Stack>
                     </Box>
                     <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap", fontSize: { xs: 25, sm: 16 } }}>
-                      ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
+                      {["bonus", "gift"].includes(entry.orderMode)
+                        ? "Sin cobro"
+                        : `$${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}`}
                     </Typography>
                     <IconButton color="error" onClick={() => removeLine(entry.id)} sx={{ width: 48, height: 48 }}><DeleteOutlineRoundedIcon sx={{ fontSize: 30 }} /></IconButton>
                   </Stack>
@@ -337,11 +340,45 @@ const SellerPosOrderForm = ({
               color="secondary"
               sx={{ alignSelf: "flex-start", height: 32, fontSize: 13, fontWeight: 900, px: 0.5 }}
             />
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 1.5 }, borderRadius: 2.5, textAlign: "center" }}>
-              <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 42, sm: 34 } }}>
-                ${formatCurrencyValue(captureValue, 0)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">{previewQuantity} unidades calculadas</Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 1.25, sm: 1 },
+                borderRadius: 2.5,
+                display: "grid",
+                gridTemplateColumns: { xs: "56px minmax(0, 1fr) 56px", sm: "48px minmax(0, 1fr) 48px" },
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
+              <IconButton
+                aria-label="Limpiar valor"
+                title="Limpiar valor"
+                onClick={() => setCaptureValue("")}
+                sx={{
+                  width: { xs: 52, sm: 44 },
+                  height: { xs: 52, sm: 44 },
+                  bgcolor: "text.primary",
+                  color: "background.paper",
+                  "&:hover": { bgcolor: "text.primary" },
+                }}
+              >
+                <CloseRoundedIcon sx={{ fontSize: { xs: 32, sm: 27 } }} />
+              </IconButton>
+              <Box sx={{ minWidth: 0, textAlign: "center" }}>
+                <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 42, sm: 34 }, lineHeight: 1.1 }}>
+                  ${formatCurrencyValue(captureValue, 0)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">{previewQuantity} unidades calculadas</Typography>
+              </Box>
+              <IconButton
+                aria-label="Borrar último número"
+                title="Borrar último número"
+                onClick={() => setCaptureValue((value) => value.slice(0, -1))}
+                sx={{ width: { xs: 52, sm: 44 }, height: { xs: 52, sm: 44 } }}
+              >
+                <ArrowBackRoundedIcon sx={{ fontSize: { xs: 34, sm: 29 } }} />
+              </IconButton>
             </Paper>
             {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
@@ -349,10 +386,6 @@ const SellerPosOrderForm = ({
                 <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: { xs: 60, sm: 50 }, fontSize: { xs: 23, sm: 18 }, fontWeight: 900 }}>{key}</Button>
               ))}
             </Box>
-            <Stack direction="row" spacing={1}>
-              <Button fullWidth color="error" variant="outlined" onClick={() => setCaptureValue("")}>Limpiar</Button>
-              <Button fullWidth color="secondary" variant="outlined" onClick={() => setCaptureValue((value) => value.slice(0, -1))}>Borrar</Button>
-            </Stack>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: { xs: 1.5, sm: 2 }, pt: { xs: 1.25, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>
@@ -371,7 +404,9 @@ const SellerPosOrderForm = ({
                 <Stack key={entry.id} direction="row" spacing={1} sx={{ py: 1, justifyContent: "space-between" }}>
                   <Box><Typography sx={{ fontWeight: 800 }}>{product?.name}</Typography><Typography variant="caption" color="text.secondary">{getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode} · {getQuantityLabel(entry, calculation)}</Typography></Box>
                   <Typography sx={{ fontWeight: 900 }}>
-                    ${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}
+                    {["bonus", "gift"].includes(entry.orderMode)
+                      ? "Sin cobro"
+                      : `$${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}`}
                   </Typography>
                 </Stack>
               ))}

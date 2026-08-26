@@ -24,6 +24,7 @@ const OrderDraftSummary = ({
   const generated = Number(summary.bonusGenerated || 0);
   const standaloneBonus = Math.max(Number(summary.bonusTotal || 0) - used, 0);
   const visibleBonusTotal = generated + standaloneBonus;
+  const giftTotal = Number(summary.giftTotal || 0);
   const exchangeTotal = Number(summary.exchangeTotal || 0);
   const finalTotal = Math.max(Number(summary.saleTotal || 0), 0);
   const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
@@ -36,6 +37,7 @@ const OrderDraftSummary = ({
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} largeOnMobile={largeOnMobile} />
       {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje" value={visibleBonusTotal} largeOnMobile={largeOnMobile} /> : null}
+      {giftTotal > 0 ? <MoneyRow label="Obsequio" value={giftTotal} largeOnMobile={largeOnMobile} /> : null}
       {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} largeOnMobile={largeOnMobile} /> : null}
 
       {showCreditDetails && creditAvailable > 0 ? (

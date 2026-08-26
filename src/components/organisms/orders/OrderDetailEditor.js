@@ -22,7 +22,7 @@ import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
-const editableStatuses = ["draft", "confirmed", "ready", "dispatched"];
+const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
 const emptyNewLine = {
   productId: "",
   lineType: "sale",

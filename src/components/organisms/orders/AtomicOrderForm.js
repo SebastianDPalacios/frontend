@@ -41,6 +41,7 @@ const orderModes = [
   { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
   { value: "bonus", label: "Solo vendaje" },
+  { value: "gift", label: "Obsequio" },
   { value: "exchange", label: "Cambio" },
 ];
 
@@ -48,6 +49,7 @@ const lineLabels = {
   sale: "Venta",
   sale_bonus: "Venta + vendaje",
   bonus: "Vendaje",
+  gift: "Obsequio",
   exchange: "Cambio",
 };
 
@@ -69,6 +71,7 @@ const getOrderModesForProduct = (product) => {
     return [
       { value: "sale_bonus", label: "Venta con vendaje incluido" },
       { value: "bonus", label: "Solo vendaje" },
+      { value: "gift", label: "Obsequio" },
       { value: "exchange", label: "Cambio" },
     ];
   }
@@ -320,10 +323,11 @@ const AtomicOrderForm = () => {
       (acc, line) => {
         if (line.lineType === "sale") acc.saleTotal += line.transactionValue;
         if (line.lineType === "bonus") acc.bonusTotal += line.commercialValue;
+        if (line.lineType === "gift") acc.giftTotal += line.commercialValue;
         if (line.lineType === "exchange") acc.exchangeTotal += line.transactionValue;
         return acc;
       },
-      { saleTotal: 0, bonusTotal: 0, exchangeTotal: 0 }
+      { saleTotal: 0, bonusTotal: 0, giftTotal: 0, exchangeTotal: 0 }
     );
     summary.regulatedBonusTotal = lines.reduce((total, line) => (
       line.lineType === "bonus" && line.uiLineType === "sale_bonus"
@@ -410,8 +414,8 @@ const AtomicOrderForm = () => {
       setError("Selecciona sucursal y cliente");
       return;
     }
-    if (!preparedOrder.lines.some((line) => ["sale", "exchange"].includes(line.lineType))) {
-      setError("Agrega al menos un producto de venta o cambio");
+    if (!preparedOrder.lines.some((line) => ["sale", "gift", "exchange"].includes(line.lineType))) {
+      setError("Agrega al menos un producto de venta, obsequio o cambio");
       return;
     }
     if (preparedOrder.rows.some((row) => row.calculation.quantity <= 0)) {
@@ -793,7 +797,7 @@ const AtomicOrderForm = () => {
                       <Typography sx={{ fontWeight: 800 }}>{product.name}</Typography>
                       <Chip
                         size="small"
-                        color={orderMode === "sale_bonus" || orderMode === "bonus" ? "success" : "default"}
+                        color={["sale_bonus", "bonus", "gift"].includes(orderMode) ? "success" : "default"}
                         label={lineLabels[orderMode]}
                       />
                     </Stack>
@@ -805,7 +809,7 @@ const AtomicOrderForm = () => {
                     </Typography>
                   </Box>
                   <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
-                    {orderMode !== "bonus"
+                    {!["bonus", "gift"].includes(orderMode)
                       ? `$${formatCurrencyValue(getDisplayedEntryValue(entry, calculation), 0)}`
                       : "Sin cobro"}
                   </Typography>

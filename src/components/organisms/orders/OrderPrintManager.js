@@ -72,6 +72,9 @@ const defaultTicketSettings = {
   customerNeighborhoodLabel: "Barrio/Zona",
   customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
+  requestedLabel: "Solicitado",
+  unitLabel: "UND",
+  showItemDetail: true,
   policyTitle: "POLITICA DE CAMBIOS",
   policyText:
     "Se realizan cambios por producto vencido, con moho, mojado o mal moldeado. La vigencia es de 15 dias desde la entrega. El inconveniente debe reportarse como maximo dentro de los 2 dias siguientes al vencimiento y requiere autorizacion del vendedor.",
@@ -277,7 +280,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       const displayQuantity = item.display_quantity ?? item.quantity;
       const value = item.display_value ?? (item.line_type === "sale" ? item.line_total : item.commercial_value);
       const requestDetail = item.display_request_detail ?? (item.capture_mode === "amount" && item.requested_amount
-        ? `Solicitado: ${money.format(Number(item.requested_amount || 0))}`
+        ? `${ticketSettings.requestedLabel || "Solicitado"}: ${money.format(Number(item.requested_amount || 0))}`
         : `Precio unitario: ${money.format(Number(item.unit_price || 0))}`);
 
       return `
@@ -290,11 +293,11 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
             <span></span>
             <span class="qty-box">
               <span class="qty">${number.format(Number(displayQuantity || 0))}</span>
-              <span class="qty-label">UND</span>
+              <span class="qty-label">${escapeHtml(ticketSettings.unitLabel || "UND")}</span>
             </span>
             <strong>${money.format(Number(value || 0))}</strong>
           </div>
-          ${requestDetail ? `<div class="item-detail">${escapeHtml(requestDetail)}</div>` : ""}
+          ${ticketSettings.showItemDetail && requestDetail ? `<div class="item-detail">${escapeHtml(requestDetail)}</div>` : ""}
         </div>`;
     }).join("");
 
@@ -338,7 +341,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         .item { padding: 7px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
         .item-head { display: flex; justify-content: space-between; gap: 5px; align-items: baseline; }
         .item-name { min-width: 0; font-weight: 900; font-size: ${scale.item}px; overflow-wrap: anywhere; }
-        .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 58px auto; gap: 4px; align-items: center; margin-top: 3px; }
+        .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(18mm, auto); gap: 4px; align-items: center; margin-top: 3px; }
         .item-values strong { font-size: ${scale.productValue}px; white-space: nowrap; text-align: right; }
         .qty-box { display: grid; justify-items: center; text-align: center; }
         .qty { font-size: ${scale.qty}px; font-weight: 900; letter-spacing: 0; line-height: 1; }

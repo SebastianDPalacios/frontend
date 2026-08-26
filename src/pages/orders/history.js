@@ -244,7 +244,7 @@ const getOrderNextStep = (order) => {
   }
 
   if (order.status === "draft") {
-    return { label: "Confirmar pedido", description: "Valida los productos antes de habilitar el despacho desde inventario.", severity: "warning", action: "confirm" };
+    return { label: "Confirmar", description: "Descuenta inventario y registra la comision.", severity: "warning", action: "confirm" };
   }
 
   if (order.status === "confirmed") {
@@ -674,7 +674,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     setOrderId(filteredOrders[0]?.id ? String(filteredOrders[0].id) : "");
   }, [filteredOrders, orderId]);
 
-  const canCancel = isAdministrator && ["draft", "confirmed", "dispatched"].includes(selectedOrder?.status);
+  const canCancel = isAdministrator && ["draft", "confirmed", "dispatched", "delivered"].includes(selectedOrder?.status);
   const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
   const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
@@ -1120,7 +1120,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                                 openOrderDetail(order);
                               }}
                             >
-                              {["draft", "confirmed", "ready", "dispatched"].includes(order.status) ? "Editar" : "Ver detalle"}
+                              {["draft", "confirmed", "ready", "dispatched", "delivered"].includes(order.status) ? "Editar" : "Ver detalle"}
                             </AppButton>
                           </Stack>
                         </TableCell>
@@ -1168,7 +1168,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                       onConfirmed={() => handlePrintConfirmed(order.id)}
                     />
                     <AppButton size="small" color="secondary" variant="outlined" onClick={() => openOrderDetail(order)}>
-                      {["draft", "confirmed", "ready", "dispatched"].includes(order.status) ? "Editar" : "Ver detalle"}
+                      {["draft", "confirmed", "ready", "dispatched", "delivered"].includes(order.status) ? "Editar" : "Ver detalle"}
                     </AppButton>
                   </Stack>
                 </Stack>
@@ -1193,7 +1193,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             {getOrderNextStep(actionMenu.order).label}
           </MenuItem>
         ) : null}
-        {isAdministrator && ["draft", "confirmed", "dispatched"].includes(actionMenu.order?.status) ? (
+        {isAdministrator && ["draft", "confirmed", "dispatched", "delivered"].includes(actionMenu.order?.status) ? (
           <MenuItem onClick={openRowDelete} sx={{ color: "error.main" }}>Eliminar pedido</MenuItem>
         ) : null}
       </Menu>
@@ -1203,7 +1203,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
-              El pedido quedará eliminado de la vista habitual, pero se conservará en auditoría. Si está despachado, sus unidades se devolverán automáticamente al inventario. Un pedido entregado debe manejarse como devolución.
+              El pedido quedará eliminado de la vista habitual, pero se conservará en auditoría. Si ya afectó el inventario, sus unidades se devolverán automáticamente y la comisión quedará cancelada.
             </Alert>
             <TextField
               fullWidth
@@ -1243,7 +1243,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       >
         <DialogTitle>
           {detailOrder
-            ? `${["draft", "confirmed", "ready", "dispatched"].includes(detailOrder.status) ? "Editar" : "Detalle"} pedido #${detailOrder.id}`
+            ? `${["draft", "confirmed", "ready", "dispatched", "delivered"].includes(detailOrder.status) ? "Editar" : "Detalle"} pedido #${detailOrder.id}`
             : "Detalle pedido"}
         </DialogTitle>
         <DialogContent dividers>

@@ -4,6 +4,7 @@ const lineTypes = [
   { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
   { value: "bonus", label: "Solo vendaje" },
+  { value: "gift", label: "Obsequio" },
   { value: "exchange", label: "Cambio" },
 ];
 

@@ -317,11 +317,16 @@ const ProductionDayPage = () => {
       .filter((product) => Math.abs(Number(product.count_gap || 0)) > 0.001),
     [report.products]
   );
+  const hasProductionData = report.plan_products.length > 0
+    || report.products.length > 0
+    || report.batches.length > 0
+    || report.raw_materials_usage.length > 0
+    || report.packers.length > 0;
 
   return (
     <FlowPageLayout
-      title="Produccion - Dia"
-      subtitle="Reporte de lotes, productos listos, daños y pendientes."
+      title="Producción diaria"
+      subtitle="Consulta lo producido, empacado y pendiente del día."
     >
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -337,22 +342,19 @@ const ProductionDayPage = () => {
         >
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 900 }}>
-              Reporte de produccion
+              Resumen del día
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {reportRange.from === reportRange.to ? reportRange.from : `${reportRange.from} a ${reportRange.to}`} - {selectedBranchName}
+              {selectedBranchName} · {formatUnits(summary.batches_count)} {Number(summary.batches_count || 0) === 1 ? "lote" : "lotes"}
             </Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <Button variant="outlined" color="secondary" component={Link} href="/production/month">
               Reporte mensual
             </Button>
-            <Button variant="outlined" color="secondary" component={Link} href="/recipes/new">
-              Crear receta
-            </Button>
-            <Button variant="contained" color="secondary" component={Link} href="/production/packaging">
-              Crear o contar lote
-            </Button>
+            {hasProductionData ? <Button variant="contained" color="secondary" component={Link} href="/production/packaging">
+              Contar producción
+            </Button> : null}
           </Stack>
         </Stack>
 
@@ -394,54 +396,52 @@ const ProductionDayPage = () => {
         </Grid>
       </Paper>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
-          <MetricCard label="Lotes" value={formatUnits(summary.batches_count)} helper={`${formatUnits(summary.batch_quantity)} mojes`} color="info" />
+      {hasProductionData ? <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={4}>
+          <MetricCard label="Producido" value={formatUnits(produced)} helper="Unidades reportadas" color="secondary" />
         </Grid>
-        <Grid item xs={12} md={3}>
-          <MetricCard label="Producido" value={formatUnits(produced)} helper="Unidades esperadas del dia" color="secondary" />
+        <Grid item xs={12} sm={4}>
+          <MetricCard label="Empacado" value={formatUnits(packed)} helper={`${formatUnits(progress)}% de la producción`} color="success" />
         </Grid>
-        <Grid item xs={12} md={3}>
-          <MetricCard label="Empacados" value={formatUnits(packed)} helper={`${formatUnits(progress)}% contado`} color="success" />
-        </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={4}>
           <MetricCard
-            label="Pendientes"
+            label="Pendiente"
             value={formatUnits(pending)}
-            helper={formatUnits(damaged) + " danados / " + formatUnits(missing) + " faltantes"}
+            helper={formatUnits(damaged) + " dañados · " + formatUnits(missing) + " faltantes"}
             color={pending > 0 ? "warning" : "success"}
           />
         </Grid>
-        <Grid item xs={12} md={3}>
-          <MetricCard
-            label="Desfase de conteo"
-            value={formatUnits(countGap)}
-            helper="Reportado por panadero menos conteo real"
-            color={Math.abs(countGap) > 0.001 ? "warning" : "success"}
-          />
-        </Grid>
-      </Grid>
+      </Grid> : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Avance del dia
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Listos y daños sobre lo producido.
-            </Typography>
-          </Box>
-          <Chip label={`${formatUnits(progress)}%`} color={progress >= 100 ? "success" : "info"} />
-        </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={progress}
-          sx={{ height: 10, borderRadius: 999, "& .MuiLinearProgress-bar": { borderRadius: 999 } }}
-        />
-      </Paper>
+      {!loading && !hasProductionData ? (
+        <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2.5, md: 4 }, mb: 2, textAlign: "center" }}>
+          <Typography variant="h5" sx={{ fontWeight: 900 }}>
+            Aún no hay producción registrada
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+            Elige qué necesitas hacer para comenzar el trabajo del día.
+          </Typography>
+          <Grid container spacing={1.5} sx={{ mt: 1.5, justifyContent: "center" }}>
+            <Grid item xs={12} sm={4} md={3}>
+              <Button fullWidth variant="outlined" color="secondary" component={Link} href="/production/my-plan" sx={{ minHeight: 56, fontWeight: 800 }}>
+                Ver plan de hoy
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <Button fullWidth variant="contained" color="secondary" component={Link} href="/production/performed" sx={{ minHeight: 56, fontWeight: 800 }}>
+                Registrar producción
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <Button fullWidth variant="outlined" color="secondary" component={Link} href="/production/packaging" sx={{ minHeight: 56, fontWeight: 800 }}>
+                Contar y empacar
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+      ) : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+      {productsWithCountGap.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={1}
@@ -449,20 +449,14 @@ const ProductionDayPage = () => {
         >
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Comparativo de produccion
+              Diferencias por revisar
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Compara lo reportado por panadero contra el conteo real. El desfase sirve para preguntar y justificar diferencias.
+              El conteo no coincide con lo reportado por el panadero.
             </Typography>
           </Box>
           <CountGapChip gap={countGap} />
         </Stack>
-
-        {loading ? <Alert severity="info">Cargando comparativo...</Alert> : null}
-        {!loading && report.products.length === 0 ? <Alert severity="info">No hay produccion para comparar en estos filtros.</Alert> : null}
-        {!loading && report.products.length > 0 && productsWithCountGap.length === 0 ? (
-          <Alert severity="success">No hay desfases entre lo reportado por panadero y el conteo real.</Alert>
-        ) : null}
 
         <Stack spacing={1}>
           {productsWithCountGap.map((product) => (
@@ -484,7 +478,7 @@ const ProductionDayPage = () => {
                   <SmallStat label="Empacado" value={formatUnits(product.packed_quantity)} />
                 </Grid>
                 <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Danado" value={formatUnits(product.damaged_quantity)} />
+                  <SmallStat label="Dañado" value={formatUnits(product.damaged_quantity)} />
                 </Grid>
                 <Grid item xs={6} sm={3} md={1.5}>
                   <SmallStat label="Faltante" value={formatUnits(product.missing_quantity)} />
@@ -496,9 +490,9 @@ const ProductionDayPage = () => {
             </Paper>
           ))}
         </Stack>
-      </Paper>
+      </Paper> : null}
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
+      {report.plan_products.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>Plan y resultado por producto</Typography>
@@ -506,7 +500,6 @@ const ProductionDayPage = () => {
           </Box>
           <Chip label={`${report.plan_products.length} asignaciones`} variant="outlined" />
         </Stack>
-        {!loading && report.plan_products.length === 0 ? <Alert severity="info">No hay productos planificados para estos filtros.</Alert> : null}
         <Stack spacing={1}>
           {report.plan_products.map((product) => (
             <Paper key={`${product.production_plan_id}-${product.production_plan_output_id}`} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
@@ -521,10 +514,10 @@ const ProductionDayPage = () => {
             </Paper>
           ))}
         </Stack>
-      </Paper>
+      </Paper> : null}
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={7}>
+      {hasProductionData ? <Grid container spacing={2}>
+        {report.products.length > 0 ? <Grid item xs={12} lg={7}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <Box>
@@ -539,8 +532,6 @@ const ProductionDayPage = () => {
             </Stack>
 
             {loading ? <Alert severity="info">Cargando reporte...</Alert> : null}
-            {!loading && report.products.length === 0 ? <Alert severity="info">No hay productos producidos para estos filtros.</Alert> : null}
-
             <Stack spacing={1}>
               {report.products.map((product) => (
                 <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
@@ -571,9 +562,9 @@ const ProductionDayPage = () => {
               ))}
             </Stack>
           </Paper>
-        </Grid>
+        </Grid> : null}
 
-        <Grid item xs={12} lg={5}>
+        {report.batches.length > 0 ? <Grid item xs={12} lg={5}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <Box>
@@ -587,7 +578,6 @@ const ProductionDayPage = () => {
               <Chip label={`${report.batches.length}`} variant="outlined" />
             </Stack>
 
-            {!loading && report.batches.length === 0 ? <Alert severity="info">No hay lotes para estos filtros.</Alert> : null}
             <Grid container spacing={1.5}>
               {report.batches.map((batch) => (
                 <Grid item xs={12} key={batch.production_batch_id}>
@@ -596,9 +586,9 @@ const ProductionDayPage = () => {
               ))}
             </Grid>
           </Paper>
-        </Grid>
+        </Grid> : null}
 
-        <Grid item xs={12} lg={6}>
+        {report.raw_materials_usage.length > 0 ? <Grid item xs={12} lg={6}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <Box>
@@ -615,7 +605,6 @@ const ProductionDayPage = () => {
               </Stack>
             </Stack>
 
-            {!loading && report.raw_materials_usage.length === 0 ? <Alert severity="info">No hay consumo de materias primas para estos filtros.</Alert> : null}
             <Stack spacing={1}>
               {report.raw_materials_usage.map((material) => (
                 <Paper
@@ -659,9 +648,9 @@ const ProductionDayPage = () => {
               ))}
             </Stack>
           </Paper>
-        </Grid>
+        </Grid> : null}
 
-        <Grid item xs={12} lg={6}>
+        {report.packers.length > 0 ? <Grid item xs={12} lg={6}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
               Empaque por persona
@@ -670,7 +659,6 @@ const ProductionDayPage = () => {
               Cantidades reportadas por empacador.
             </Typography>
 
-            {!loading && report.packers.length === 0 ? <Alert severity="info">No hay empaque registrado para estos filtros.</Alert> : null}
             <Stack spacing={1}>
               {report.packers.map((packer) => (
                 <Paper key={packer.packer_employee_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
@@ -695,8 +683,8 @@ const ProductionDayPage = () => {
               ))}
             </Stack>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid> : null}
+      </Grid> : null}
     </FlowPageLayout>
   );
 };
