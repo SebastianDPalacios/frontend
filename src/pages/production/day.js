@@ -455,35 +455,28 @@ const ProductionDayPage = () => {
               El conteo no coincide con lo reportado por el panadero.
             </Typography>
           </Box>
-          <CountGapChip gap={countGap} />
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <CountGapChip gap={countGap} />
+            <Button component={Link} href="/production/packaging" color="secondary" variant="outlined">
+              Revisar conteo
+            </Button>
+          </Stack>
         </Stack>
 
         <Stack spacing={1}>
           {productsWithCountGap.map((product) => (
             <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
               <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={5}>
                   <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatUnits(product.batches_count)} {Number(product.batches_count || 0) === 1 ? "lote" : "lotes"}
-                  </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Panadero" value={formatUnits(product.produced_quantity)} />
+                <Grid item xs={6} md={2}>
+                  <SmallStat label="Reportado" value={formatUnits(product.produced_quantity)} />
                 </Grid>
-                <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Contador" value={formatUnits(product.counted_quantity)} />
+                <Grid item xs={6} md={2}>
+                  <SmallStat label="Contado" value={formatUnits(product.counted_quantity)} />
                 </Grid>
-                <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Empacado" value={formatUnits(product.packed_quantity)} />
-                </Grid>
-                <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Dañado" value={formatUnits(product.damaged_quantity)} />
-                </Grid>
-                <Grid item xs={6} sm={3} md={1.5}>
-                  <SmallStat label="Faltante" value={formatUnits(product.missing_quantity)} />
-                </Grid>
-                <Grid item xs={12} sm={9} md={3}>
+                <Grid item xs={12} md={3}>
                   <CountGapChip gap={product.count_gap} />
                 </Grid>
               </Grid>
@@ -492,7 +485,7 @@ const ProductionDayPage = () => {
         </Stack>
       </Paper> : null}
 
-      {report.plan_products.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
+      {false && report.plan_products.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>Plan y resultado por producto</Typography>
@@ -516,7 +509,7 @@ const ProductionDayPage = () => {
         </Stack>
       </Paper> : null}
 
-      {hasProductionData ? <Grid container spacing={2}>
+      {false && hasProductionData ? <Grid container spacing={2}>
         {report.products.length > 0 ? <Grid item xs={12} lg={7}>
           <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, height: "100%" }}>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -685,6 +678,12 @@ const ProductionDayPage = () => {
           </Paper>
         </Grid> : null}
       </Grid> : null}
+
+      {hasProductionData && productsWithCountGap.length === 0 ? (
+        <Alert severity="success" sx={{ borderRadius: 3 }}>
+          Todo al día: el conteo coincide con la producción reportada.
+        </Alert>
+      ) : null}
     </FlowPageLayout>
   );
 };
