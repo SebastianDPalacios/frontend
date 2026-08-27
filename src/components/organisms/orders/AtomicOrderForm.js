@@ -149,11 +149,13 @@ const AtomicOrderForm = () => {
   const sellerPosMode = useMediaQuery("(max-width:1024px)", { noSsr: true })
     && isSalesOnlyUser(currentUser);
   const showCreditDetails = isAdministrativeUser(currentUser);
+  const canAssignSeller = isAdministrativeUser(currentUser);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [branches, setBranches] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({
     bonus_percent: 20,
@@ -162,6 +164,7 @@ const AtomicOrderForm = () => {
   });
   const [branchId, setBranchId] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [sellerId, setSellerId] = useState("");
   const [orderDate, setOrderDate] = useState(today);
   const [deliveryDate, setDeliveryDate] = useState(today);
   const [notes, setNotes] = useState("");
@@ -185,9 +188,11 @@ const AtomicOrderForm = () => {
         }
 
         const nextCustomers = normalizeRows(orderData.data?.customers);
+        const nextSellers = normalizeRows(orderData.data?.sellers);
         const nextProducts = normalizeRows(orderData.data?.products);
         const nextBranches = normalizeRows(orderData.data?.branches);
         setCustomers(nextCustomers);
+        setSellers(nextSellers);
         setProducts(nextProducts);
         setBranches(nextBranches);
         setSettings(
@@ -197,7 +202,9 @@ const AtomicOrderForm = () => {
             bonus_max_company_loss_amount: 1500,
           }
         );
-        setCustomerId(nextCustomers[0]?.id ? String(nextCustomers[0].id) : "");
+        if (!canAssignSeller) {
+          setCustomerId(nextCustomers[0]?.id ? String(nextCustomers[0].id) : "");
+        }
         setBranchId(nextBranches[0]?.id ? String(nextBranches[0].id) : "");
       } catch (requestError) {
         setError(requestError?.response?.data?.message || requestError?.message || "Error al cargar el formulario");
@@ -206,7 +213,7 @@ const AtomicOrderForm = () => {
       }
     };
     load();
-  }, []);
+  }, [canAssignSeller]);
 
   const productsById = useMemo(
     () => new Map(products.map((product) => [Number(product.id), product])),
@@ -351,7 +358,15 @@ const AtomicOrderForm = () => {
     return { rows: preparedRows, lines, summary, bonusEnabled, invalidUnitSales };
   }, [productsById, selectedLines, settings]);
 
-  const selectedCustomer = customers.find((customer) => String(customer.id) === String(customerId));
+  const availableCustomers = useMemo(() => (
+    canAssignSeller
+      ? customers.filter((customer) => String(customer.sales_agent_user_id) === String(sellerId))
+      : customers
+  ), [canAssignSeller, customers, sellerId]);
+  const selectedSeller = sellers.find((seller) => String(seller.id) === String(sellerId)) || null;
+  const selectedCustomer = availableCustomers.find(
+    (customer) => String(customer.id) === String(customerId)
+  ) || null;
   const creditAvailable = Number(customerCredit?.balance_amount || 0);
   const creditRedeemedAmount = Math.min(creditAvailable, Number(preparedOrder.summary.exchangeTotal || 0));
 
@@ -410,6 +425,10 @@ const AtomicOrderForm = () => {
 
   const validateBeforeConfirmation = () => {
     setError("");
+    if (canAssignSeller && !sellerId) {
+      setError("Selecciona el vendedor al que se asignara el pedido");
+      return;
+    }
     if (!branchId || !customerId) {
       setError("Selecciona sucursal y cliente");
       return;
@@ -441,6 +460,7 @@ const AtomicOrderForm = () => {
       const response = await ordersService.createOrder({
         p_branch_id: Number(branchId),
         p_customer_id: Number(customerId),
+        ...(canAssignSeller ? { p_sales_agent_user_id: Number(sellerId) } : {}),
         p_order_date: orderDate,
         p_delivery_date: deliveryDate,
         p_notes: notes || null,
@@ -521,10 +541,43 @@ const AtomicOrderForm = () => {
             </TextField>
           </Grid>
           <Grid item xs={12} sm={6} lg={3}>
-            <TextField select fullWidth label="Cliente asignado" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
-              {customers.map((customer) => <MenuItem key={customer.id} value={String(customer.id)}>{getDisplayName(customer)}</MenuItem>)}
-            </TextField>
+            {canAssignSeller ? (
+              <Autocomplete
+                options={sellers}
+                value={selectedSeller}
+                getOptionLabel={(option) => getDisplayName(option)}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, seller) => {
+                  setSellerId(seller?.id ? String(seller.id) : "");
+                  setCustomerId("");
+                }}
+                renderInput={(params) => <TextField {...params} label="Vendedor" />}
+              />
+            ) : (
+              <Autocomplete
+                options={availableCustomers}
+                value={selectedCustomer}
+                getOptionLabel={(option) => getDisplayName(option)}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, customer) => setCustomerId(customer?.id ? String(customer.id) : "")}
+                renderInput={(params) => <TextField {...params} label="Cliente asignado" />}
+              />
+            )}
           </Grid>
+          {canAssignSeller ? (
+            <Grid item xs={12} sm={6} lg={3}>
+              <Autocomplete
+                options={availableCustomers}
+                value={selectedCustomer}
+                disabled={!sellerId}
+                getOptionLabel={(option) => getDisplayName(option)}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, customer) => setCustomerId(customer?.id ? String(customer.id) : "")}
+                noOptionsText={sellerId ? "Este vendedor no tiene clientes asignados" : "Selecciona primero un vendedor"}
+                renderInput={(params) => <TextField {...params} label="Cliente del vendedor" />}
+              />
+            </Grid>
+          ) : null}
           <Grid item xs={12} sm={6} lg={3}>
             <BalanceDatePicker fullWidth label="Fecha pedido" value={orderDate} minDate={today} onChange={setOrderDate} />
           </Grid>

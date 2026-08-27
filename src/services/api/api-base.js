@@ -33,6 +33,18 @@ const redirectToExpiredLogin = () => {
   }
 };
 
+const redirectToMaintenanceLogin = (error) => {
+  const maintenance = error?.response?.data?.maintenance || null;
+  clearSessionData();
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("systemMaintenance", JSON.stringify(maintenance || {}));
+    if (!isRedirectingToLogin) {
+      isRedirectingToLogin = true;
+      window.location.replace("/login?maintenance=1");
+    }
+  }
+};
+
 const refreshAccessToken = async () => {
   if (refreshRequest) return refreshRequest;
 
@@ -85,6 +97,11 @@ apiClient.interceptors.response.use(
     const status = error?.response?.status;
     const url = error?.config?.url || "";
     const originalRequest = error?.config;
+
+    if (status === 423 && error?.response?.data?.code === "SYSTEM_MAINTENANCE") {
+      redirectToMaintenanceLogin(error);
+      return Promise.reject(error);
+    }
 
     if (status === 401 && !shouldIgnore401Redirect(url) && originalRequest && !originalRequest._sessionRetry) {
       originalRequest._sessionRetry = true;

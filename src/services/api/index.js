@@ -5,6 +5,11 @@
     logout: "/auth/logout",
     session: "/auth/session",
   },
+  systemAnnouncements: {
+    current: "/system-announcements/current",
+    list: "/system-announcements",
+    end: (id) => `/system-announcements/${id}/end`,
+  },
   users: {
     list: "/users",
     byId: (id) => `/users/${id}`,
@@ -80,6 +85,7 @@
     results: "/production/results",
     batches: "/production/batches",
     pendingPackaging: "/production/packaging/pending",
+    packagingPackers: "/production/packaging/packers",
     packingReports: "/production/packaging/reports",
     justifiedShortages: "/production/packaging/shortages",
     damages: "/production/damages",

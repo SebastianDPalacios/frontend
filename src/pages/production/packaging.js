@@ -5,7 +5,6 @@ import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import PackagingBatchWorkPanel from "components/organisms/production/PackagingBatchWorkPanel";
 import PackingReadyPanel from "components/organisms/production/PackingReadyPanel";
 import PendingPackagingBatches from "components/organisms/production/PendingPackagingBatches";
-import employeesService from "services/employees/employees-service";
 import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
@@ -30,7 +29,14 @@ const formatUnits = (value) => {
 const getTodayInputValue = () => toDateInputValue();
 
 const getErrorMessage = (error, fallback) => {
-  return error?.response?.data?.message || error?.message || fallback;
+  const status = Number(error?.response?.status || 0);
+  const message = error?.response?.data?.message || error?.message || "";
+
+  if (status === 403 || /permiso requerido|required permission/i.test(message)) {
+    return "No tienes permiso para registrar conteos. Solicita al administrador asignarte el rol Empaquetador o el permiso de Conteo y empaque.";
+  }
+
+  return message || fallback;
 };
 
 const getRegisteredQty = (item) =>
@@ -74,7 +80,7 @@ const ProductionPackagingPage = () => {
       setError(null);
       try {
         const [employeesResponse, pendingResponse] = await Promise.all([
-          employeesService.getEmployees({ status: "active", page: 1, pageSize: 200 }),
+          productionService.getPackagingPackers(),
           productionService.getPendingPackaging(),
         ]);
 
@@ -89,6 +95,15 @@ const ProductionPackagingPage = () => {
 
         const employeeRows = normalizeRows(employeesResponse.data);
         const pendingRows = normalizeRows(pendingResponse.data);
+
+        if (!employeeRows.length) {
+          setError(
+            "No hay empleados empaquetadores activos configurados. Solicita al administrador vincular el usuario a un empleado con cargo Empaquetador."
+          );
+          setEmployees([]);
+          setPendingBatches(pendingRows);
+          return;
+        }
 
         setEmployees(employeeRows);
         setPendingBatches(pendingRows);

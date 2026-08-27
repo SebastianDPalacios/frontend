@@ -46,6 +46,10 @@ class ProductionService {
     return GetEndpoint(endpoints.production.pendingPackaging, { params });
   }
 
+  async getPackagingPackers(params = {}) {
+    return GetEndpoint(endpoints.production.packagingPackers, { params });
+  }
+
   async createPackingReport(payload) {
     return PostEndpoint(endpoints.production.packingReports, payload);
   }

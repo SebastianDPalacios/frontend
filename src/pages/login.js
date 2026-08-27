@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 import { Alert, Avatar, Box, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
@@ -20,6 +21,17 @@ const operationHighlights = [
 
 const Login = () => {
   const router = useRouter();
+  const [maintenance, setMaintenance] = useState(null);
+
+  useEffect(() => {
+    if (router.query.maintenance !== "1") return;
+    try {
+      const stored = window.sessionStorage.getItem("systemMaintenance");
+      setMaintenance(stored ? JSON.parse(stored) : {});
+    } catch (error) {
+      setMaintenance({});
+    }
+  }, [router.query.maintenance]);
 
   const { values, errors, touched, isSubmitting, submitError, handleChange, handleBlur, handleSubmit } = useForm(
     { identifier: "", password: "" },
@@ -190,6 +202,15 @@ const Login = () => {
             {submitError && (
               <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
                 {submitError}
+              </Alert>
+            )}
+
+            {maintenance && (
+              <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 2 }}>
+                <Typography sx={{ fontWeight: 800 }}>Sistema temporalmente bloqueado</Typography>
+                <Typography variant="body2">
+                  {maintenance.message || "Hay un mantenimiento programado. Intenta ingresar nuevamente cuando finalice."}
+                </Typography>
               </Alert>
             )}
 

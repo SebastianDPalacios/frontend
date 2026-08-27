@@ -58,10 +58,13 @@ class AuthService {
 
   async logout() {
     const sessionId = Cookies.get(authConfig.storageSessionIdKeyName);
-    if (sessionId) {
-      await PostEndpoint(endpoints.auth.logout, { sessionId: Number(sessionId) });
+    try {
+      if (sessionId) {
+        await PostEndpoint(endpoints.auth.logout, { sessionId: Number(sessionId) });
+      }
+    } finally {
+      clearSessionData();
     }
-    clearSessionData();
   }
 
   async changePassword(newPassword) {

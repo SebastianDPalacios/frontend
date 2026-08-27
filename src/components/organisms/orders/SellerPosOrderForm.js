@@ -314,36 +314,31 @@ const SellerPosOrderForm = ({
           },
         }}
       >
-        <DialogTitle sx={{ pb: 1, px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 2.5 }, flexShrink: 0 }}>
+        <DialogTitle sx={{ pb: { xs: 0.5, sm: 1 }, px: { xs: 2, sm: 3 }, pt: { xs: 1.25, sm: 2.5 }, flexShrink: 0 }}>
           <Typography sx={{ fontWeight: 900, fontSize: { xs: 25, sm: 21 }, lineHeight: 1.15 }}>{captureProduct?.name}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: 19, sm: 16 }, fontWeight: 700 }}>
+          <Typography color="text.secondary" sx={{ mt: { xs: 0.25, sm: 0.75 }, fontSize: { xs: 19, sm: 16 }, fontWeight: 700 }}>
             ${formatCurrencyValue(captureProduct?.base_price, 0)} por {captureProduct?.unit || "unidad"}
           </Typography>
         </DialogTitle>
-        <DialogContent sx={{ px: { xs: 2, sm: 3 }, overflowY: "auto" }}>
-          <Stack spacing={1.5}>
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1 }}>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.75, sm: 2 }, overflowY: "auto" }}>
+          <Stack spacing={{ xs: 0.75, sm: 1.5 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: { xs: 0.75, sm: 1 } }}>
               {getModes(captureProduct).map((mode) => (
                 <Button
                   key={mode.value}
                   variant={orderMode === mode.value ? "contained" : "outlined"}
                   color="secondary"
                   onClick={() => setOrderMode(mode.value)}
-                  sx={{ minHeight: { xs: 64, sm: 54 }, px: 1, fontSize: { xs: 16, sm: 14 }, fontWeight: 900, lineHeight: 1.2 }}
+                  sx={{ minHeight: { xs: 52, sm: 54 }, px: 0.75, py: 0.5, fontSize: { xs: 16, sm: 14 }, fontWeight: 900, lineHeight: 1.15 }}
                 >
                   {mode.label}
                 </Button>
               ))}
             </Box>
-            <Chip
-              label="Captura por valor"
-              color="secondary"
-              sx={{ alignSelf: "flex-start", height: 32, fontSize: 13, fontWeight: 900, px: 0.5 }}
-            />
             <Paper
               variant="outlined"
               sx={{
-                p: { xs: 1.25, sm: 1 },
+                p: { xs: 0.5, sm: 1 },
                 borderRadius: 2.5,
                 display: "grid",
                 gridTemplateColumns: { xs: "56px minmax(0, 1fr) 56px", sm: "48px minmax(0, 1fr) 48px" },
@@ -356,8 +351,8 @@ const SellerPosOrderForm = ({
                 title="Limpiar valor"
                 onClick={() => setCaptureValue("")}
                 sx={{
-                  width: { xs: 52, sm: 44 },
-                  height: { xs: 52, sm: 44 },
+                  width: { xs: 48, sm: 44 },
+                  height: { xs: 48, sm: 44 },
                   bgcolor: "text.primary",
                   color: "background.paper",
                   "&:hover": { bgcolor: "text.primary" },
@@ -375,22 +370,22 @@ const SellerPosOrderForm = ({
                 aria-label="Borrar último número"
                 title="Borrar último número"
                 onClick={() => setCaptureValue((value) => value.slice(0, -1))}
-                sx={{ width: { xs: 52, sm: 44 }, height: { xs: 52, sm: 44 } }}
+                sx={{ width: { xs: 48, sm: 44 }, height: { xs: 48, sm: 44 } }}
               >
                 <ArrowBackRoundedIcon sx={{ fontSize: { xs: 34, sm: 29 } }} />
               </IconButton>
             </Paper>
             {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: { xs: 0.65, sm: 1 } }}>
               {keypadKeys.map((key) => (
-                <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: { xs: 60, sm: 50 }, fontSize: { xs: 23, sm: 18 }, fontWeight: 900 }}>{key}</Button>
+                <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: { xs: 54, sm: 50 }, py: 0.5, fontSize: { xs: 27, sm: 18 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
               ))}
             </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: { xs: 1.5, sm: 2 }, pt: { xs: 1.25, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>
-          <Button onClick={() => setCaptureProduct(null)} sx={{ minHeight: { xs: 54, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Cancelar</Button>
-          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct} sx={{ minHeight: { xs: 54, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Agregar al carrito</AppButton>
+        <DialogActions sx={{ p: { xs: 0.75, sm: 2 }, pt: { xs: 0.75, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>
+          <Button onClick={() => setCaptureProduct(null)} sx={{ minHeight: { xs: 48, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Cancelar</Button>
+          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct} sx={{ minHeight: { xs: 48, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Agregar al carrito</AppButton>
         </DialogActions>
       </Dialog>
 

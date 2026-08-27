@@ -168,12 +168,14 @@ const PackingReadyPanel = ({
                       <TextField
                         select
                         fullWidth
-                        label="Motivo dano"
+                        label="Motivo del daño"
                         value={row.damage_reason || "packaging"}
                         onChange={(event) => updatePackingRow(key, { damage_reason: event.target.value })}
                       >
-                        <MenuItem value="packaging">Empaque</MenuItem>
+                        <MenuItem value="production">Producción</MenuItem>
+                        <MenuItem value="oven">Horneo</MenuItem>
                         <MenuItem value="cut">Corte</MenuItem>
+                        <MenuItem value="packaging">Empaque</MenuItem>
                       </TextField>
                     </Grid>
                   ) : null}

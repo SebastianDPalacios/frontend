@@ -6,7 +6,12 @@ import {
   Box,
   Collapse,
   Container,
+  Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   IconButton,
   List,
@@ -39,6 +44,7 @@ import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
 import productionService from "services/production/production-service";
+import systemAnnouncementsService from "services/system/system-announcements-service";
 import navigationItems from "configs/navigation";
 import {
   bakerOnlyPaths,
@@ -168,6 +174,25 @@ const UserLayout = ({ children }) => {
   const [accountAnchor, setAccountAnchor] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [systemAnnouncement, setSystemAnnouncement] = useState(null);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+
+  const loadSystemAnnouncement = useCallback(async () => {
+    try {
+      const response = await systemAnnouncementsService.getCurrent();
+      const announcement = response?.data || null;
+      setSystemAnnouncement(announcement);
+      if (!announcement) {
+        setAnnouncementOpen(false);
+        return;
+      }
+
+      const dismissedId = window.sessionStorage.getItem("dismissedSystemAnnouncementId");
+      setAnnouncementOpen(String(announcement.id) !== dismissedId);
+    } catch (error) {
+      // El interceptor global gestiona el bloqueo y redirige al inicio de sesion.
+    }
+  }, []);
 
   const loadNotifications = useCallback(async () => {
     if (isSalesOnlyUser(currentUser)) {
@@ -241,6 +266,32 @@ const UserLayout = ({ children }) => {
       window.removeEventListener("focus", refreshOnFocus);
     };
   }, [currentUser?.id, currentUser?.user_id, loadNotifications]);
+
+  useEffect(() => {
+    loadSystemAnnouncement();
+    const refreshOnFocus = () => loadSystemAnnouncement();
+    const refreshInterval = window.setInterval(loadSystemAnnouncement, 30000);
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [loadSystemAnnouncement]);
+
+  useEffect(() => {
+    if (!systemAnnouncement?.force_logout_at) return undefined;
+    const delay = new Date(systemAnnouncement.force_logout_at).getTime() - Date.now() + 250;
+    if (delay <= 0) return undefined;
+    const timer = window.setTimeout(loadSystemAnnouncement, delay);
+    return () => window.clearTimeout(timer);
+  }, [systemAnnouncement?.force_logout_at, loadSystemAnnouncement]);
+
+  const dismissSystemAnnouncement = () => {
+    if (systemAnnouncement?.id) {
+      window.sessionStorage.setItem("dismissedSystemAnnouncementId", String(systemAnnouncement.id));
+    }
+    setAnnouncementOpen(false);
+  };
 
   const onLogout = async () => {
     setAccountAnchor(null);
@@ -454,6 +505,30 @@ const UserLayout = ({ children }) => {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <Dialog open={announcementOpen} onClose={dismissSystemAnnouncement} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900 }}>Aviso importante del sistema</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ whiteSpace: "pre-wrap", fontSize: 17, lineHeight: 1.65 }}>
+            {systemAnnouncement?.message}
+          </Typography>
+          {systemAnnouncement?.force_logout_at && (
+            <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "warning.light" }}>
+              <Typography sx={{ fontWeight: 800 }}>
+                El sistema se bloqueara y cerrara las sesiones el {new Date(systemAnnouncement.force_logout_at).toLocaleString("es-CO")}.
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                Guarda el trabajo pendiente antes de esa hora.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          {hasPermission(currentUser, "roles.manage") && (
+            <Button onClick={() => router.push("/settings/system-announcements")}>Administrar aviso</Button>
+          )}
+          <Button variant="contained" color="secondary" onClick={dismissSystemAnnouncement}>Entendido</Button>
+        </DialogActions>
+      </Dialog>
       <AppBar position="fixed" elevation={0} color="primary" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 1, sm: 2 } }}>
           <IconButton color="inherit" edge="start" onClick={() => setMobileOpen((prev) => !prev)} sx={{ mr: 2, display: { md: "none" } }}>

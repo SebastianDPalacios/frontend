@@ -20,6 +20,10 @@ const defaultValues = {
   totalsFontSize: 11.5,
   deliverFontSize: 15,
   footerFontSize: 9,
+  showOrderGrossSale: true,
+  showOrderCreditApplied: true,
+  showOrderCollectedSale: true,
+  showOrderExchange: true,
   showGrossSale: true,
   showCreditApplied: true,
   showCollectedSale: true,
@@ -51,6 +55,13 @@ const visibilityFields = [
   ["showCreditGenerated", "Saldo generado"],
   ["showGifts", "Obsequios"],
   ["showCommission", "Comision"],
+];
+
+const orderVisibilityFields = [
+  ["showOrderGrossSale", "Venta bruta por pedido"],
+  ["showOrderCreditApplied", "Saldo aplicado por pedido"],
+  ["showOrderCollectedSale", "Venta cobrada por pedido"],
+  ["showOrderExchange", "Cambio entregado por pedido"],
 ];
 
 const numericValue = (value, fallback) => {
@@ -124,15 +135,18 @@ const SettlementTicketPreview = ({ values }) => {
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px" }}>
                   <span>Pedido #{index + 1}</span><strong>{collected}</strong>
                 </Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
+                {print.showOrderGrossSale ? <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
                   <span>Venta bruta</span><span>{gross}</span>
-                </Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
+                </Box> : null}
+                {print.showOrderCreditApplied ? <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
                   <span>Saldo aplicado</span><span>-{credit}</span>
-                </Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
+                </Box> : null}
+                {print.showOrderCollectedSale ? <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
                   <span>Venta cobrada</span><span>{collected}</span>
-                </Box>
+                </Box> : null}
+                {print.showOrderExchange && index === 0 ? <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
+                  <span>Cambio entregado</span><span>$ 5.000</span>
+                </Box> : null}
               </Box>
             ))}
             <Box sx={{ my: "7px", borderTop: "1px dashed #111" }} />
@@ -280,6 +294,16 @@ const DailySettlementTicketSettingsPage = () => {
               <EditorPanel title="Elementos visibles del resumen" subtitle="Elige que conceptos apareceran antes del valor final a entregar.">
                 <Grid container spacing={1}>
                   {visibilityFields.map(([name, label]) => (
+                    <Grid item xs={12} sm={6} key={name}>
+                      <FormControlLabel control={<Switch checked={Boolean(values[name])} onChange={(event) => setValues((current) => ({ ...current, [name]: event.target.checked }))} />} label={`Mostrar ${label.toLowerCase()}`} />
+                    </Grid>
+                  ))}
+                </Grid>
+              </EditorPanel>
+
+              <EditorPanel title="Detalle visible de cada pedido" subtitle="Elige que valores se muestran debajo de cada cliente y pedido.">
+                <Grid container spacing={1}>
+                  {orderVisibilityFields.map(([name, label]) => (
                     <Grid item xs={12} sm={6} key={name}>
                       <FormControlLabel control={<Switch checked={Boolean(values[name])} onChange={(event) => setValues((current) => ({ ...current, [name]: event.target.checked }))} />} label={`Mostrar ${label.toLowerCase()}`} />
                     </Grid>

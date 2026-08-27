@@ -64,6 +64,10 @@ const defaultSettlementPrintSettings = {
   totalsFontSize: 11.5,
   deliverFontSize: 15,
   footerFontSize: 9,
+  showOrderGrossSale: true,
+  showOrderCreditApplied: true,
+  showOrderCollectedSale: true,
+  showOrderExchange: true,
   showGrossSale: true,
   showCreditApplied: true,
   showCollectedSale: true,
@@ -88,6 +92,10 @@ const settlementPrintFields = [
 ];
 
 const settlementVisibilityFields = [
+  "showOrderGrossSale",
+  "showOrderCreditApplied",
+  "showOrderCollectedSale",
+  "showOrderExchange",
   "showGrossSale",
   "showCreditApplied",
   "showCollectedSale",
@@ -180,16 +188,16 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
           <span>Pedido #${orderNumber}</span>
           <strong>${money.format(collectedSale)}</strong>
         </div>
-        <div class="values muted">
+        ${print.showOrderGrossSale ? `<div class="values muted">
           <span>Venta bruta</span>
           <span>${money.format(grossSale)}</span>
-        </div>
-        ${creditUsed > 0 ? `<div class="values muted"><span>Saldo aplicado</span><span>-${money.format(creditUsed)}</span></div>` : ""}
-        <div class="values muted">
+        </div>` : ""}
+        ${print.showOrderCreditApplied && creditUsed > 0 ? `<div class="values muted"><span>Saldo aplicado</span><span>-${money.format(creditUsed)}</span></div>` : ""}
+        ${print.showOrderCollectedSale ? `<div class="values muted">
           <span>Venta cobrada</span>
           <span>${money.format(collectedSale)}</span>
-        </div>
-        ${exchangeTotal > 0 ? `<div class="values muted"><span>Cambio entregado</span><span>${money.format(exchangeTotal)}</span></div>` : ""}
+        </div>` : ""}
+        ${print.showOrderExchange && exchangeTotal > 0 ? `<div class="values muted"><span>Cambio entregado</span><span>${money.format(exchangeTotal)}</span></div>` : ""}
         ${exchangeCollected > 0 ? `<div class="values muted"><span>Excedente cobrado</span><span>${money.format(exchangeCollected)}</span></div>` : ""}
       </div>
     `;
