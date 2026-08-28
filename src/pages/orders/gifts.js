@@ -13,6 +13,7 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -40,6 +41,7 @@ const emptyForm = {
 };
 
 const GiftsPage = () => {
+  const compactView = useMediaQuery("(max-width:1024px)", { noSsr: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [branches, setBranches] = useState([]);
@@ -188,37 +190,37 @@ const GiftsPage = () => {
       title="Obsequios"
       subtitle="Registra pan regalado sin mezclarlo con venta, vendaje, comision o factura POS."
     >
-      <Stack spacing={3}>
-        <Grid container spacing={2.5}>
+      <Stack spacing={{ xs: 2, md: 3 }}>
+        <Grid container spacing={{ xs: 1.25, md: 2.5 }}>
           <Grid item xs={12} md={4}>
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 4, height: "100%" }}>
+            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 4, height: "100%" }}>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <CardGiftcardRoundedIcon color="secondary" />
                 <Box>
-                  <Typography variant="body2" color="text.secondary">Obsequios del dia</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 900 }}>{Number(summary.gift_count || 0)}</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 17, md: 14 } }}>Obsequios del día</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 32, md: 34 } }}>{Number(summary.gift_count || 0)}</Typography>
                 </Box>
               </Stack>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={6} md={4}>
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 4, height: "100%" }}>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <Inventory2RoundedIcon color="success" />
                 <Box>
-                  <Typography variant="body2" color="text.secondary">Valor operativo</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 900 }}>${formatCurrencyValue(summary.gift_total || 0, 0)}</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Valor</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 24, sm: 28, md: 34 } }}>${formatCurrencyValue(summary.gift_total || 0, 0)}</Typography>
                 </Box>
               </Stack>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={6} md={4}>
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 4, height: "100%" }}>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <PersonRoundedIcon color="info" />
                 <Box>
-                  <Typography variant="body2" color="text.secondary">Regla</Typography>
-                  <Typography sx={{ fontWeight: 900 }}>No suma a venta ni comision</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Importante</Typography>
+                  <Typography sx={{ fontWeight: 900, fontSize: { xs: 16, md: 16 } }}>No suma a ventas</Typography>
                 </Box>
               </Stack>
             </Paper>
@@ -229,16 +231,16 @@ const GiftsPage = () => {
           <Stack spacing={2.5}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 900 }}>Registrar obsequio</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Selecciona el cliente, agrega productos regalados y guarda el registro independiente.
+                <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 26, md: 20 } }}>Nuevo obsequio</Typography>
+                <Typography color="text.secondary" sx={{ fontSize: { xs: 17, md: 14 } }}>
+                  Selecciona quién lo recibe y agrega los productos.
                 </Typography>
               </Box>
-              <Chip label="Independiente de pedidos" color="success" variant="outlined" />
+              {!compactView ? <Chip label="Independiente de pedidos" color="success" variant="outlined" /> : null}
             </Stack>
 
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} sx={{ display: { xs: "none", md: "block" } }}>
                 <TextField select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => updateForm("branchId", event.target.value)}>
                   {branches.map((branch) => (
                     <MenuItem key={branch.id} value={String(branch.id)}>{getDisplayName(branch)}</MenuItem>
@@ -246,11 +248,16 @@ const GiftsPage = () => {
                 </TextField>
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField select fullWidth label="Cliente que recibe" value={form.customerId} onChange={(event) => updateForm("customerId", event.target.value)}>
-                  {customers.map((customer) => (
-                    <MenuItem key={customer.id} value={String(customer.id)}>{getDisplayName(customer)}</MenuItem>
-                  ))}
-                </TextField>
+                <Autocomplete
+                  fullWidth
+                  options={customers}
+                  value={customers.find((customer) => String(customer.id) === String(form.customerId)) || null}
+                  onChange={(_, value) => updateForm("customerId", value?.id ? String(value.id) : "")}
+                  getOptionLabel={(option) => getDisplayName(option)}
+                  isOptionEqualToValue={(option, value) => Number(option.id) === Number(value.id)}
+                  noOptionsText="No se encontraron clientes"
+                  renderInput={(params) => <TextField {...params} label="Buscar cliente" placeholder="Nombre o identificación" />}
+                />
               </Grid>
               <Grid item xs={12} md={4}>
                 <BalanceDatePicker
@@ -273,7 +280,7 @@ const GiftsPage = () => {
                   getOptionLabel={(option) => option?.name || "Producto"}
                   isOptionEqualToValue={(option, value) => Number(option.id) === Number(value.id)}
                   noOptionsText="No hay productos disponibles"
-                  renderInput={(params) => <TextField {...params} label="Producto regalado" />}
+                  renderInput={(params) => <TextField {...params} label="Buscar producto para regalar" />}
                   renderOption={(props, option) => (
                     <Box component="li" {...props} sx={{ display: "block", py: 1.25 }}>
                       <Typography sx={{ fontWeight: 900 }}>{option.name}</Typography>
@@ -302,7 +309,7 @@ const GiftsPage = () => {
                   startIcon={<AddRoundedIcon />}
                   onClick={addGiftLine}
                   disabled={!form.product || !form.quantity}
-                  sx={{ minHeight: 52 }}
+                  sx={{ minHeight: { xs: 60, md: 52 }, fontSize: { xs: 18, md: 15 } }}
                 >
                   Agregar
                 </Button>
@@ -310,7 +317,7 @@ const GiftsPage = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Notas del obsequio"
+                  label="Notas (opcional)"
                   value={form.notes}
                   onChange={(event) => updateForm("notes", event.target.value)}
                   inputProps={{ maxLength: 255 }}
@@ -321,15 +328,15 @@ const GiftsPage = () => {
             <Divider />
 
             {!giftLines.length ? (
-              <Alert severity="info">Aun no has agregado productos de obsequio.</Alert>
+              <Alert severity="info" sx={{ fontSize: { xs: 16, md: 14 } }}>Agrega el primer producto que vas a obsequiar.</Alert>
             ) : (
               <Stack spacing={1.25}>
                 {giftLines.map((line) => (
-                  <Paper key={line.id} variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
+                  <Paper key={line.id} variant="outlined" sx={{ p: { xs: 2, md: 1.5 }, borderRadius: 3 }}>
                     <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "space-between" }}>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>{line.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography sx={{ fontWeight: 900, overflowWrap: "anywhere", fontSize: { xs: 20, md: 16 } }}>{line.name}</Typography>
+                        <Typography color="text.secondary" sx={{ fontSize: { xs: 17, md: 14 } }}>
                           {formatInventoryQuantity(line.quantity, line.unit)} {line.unit || "unidades"}
                         </Typography>
                       </Box>
@@ -343,7 +350,7 @@ const GiftsPage = () => {
                   <Typography color="text.secondary">
                     Valor operativo seleccionado: <strong>${formatCurrencyValue(totalSelectedValue, 0)}</strong>
                   </Typography>
-                  <AppButton color="secondary" loading={saving} onClick={saveGift} sx={{ minWidth: 220 }}>
+                  <AppButton color="secondary" loading={saving} onClick={saveGift} fullWidth={compactView} sx={{ minWidth: 220, minHeight: { xs: 62, md: 48 }, fontSize: { xs: 18, md: 15 } }}>
                     Guardar obsequio
                   </AppButton>
                 </Stack>
@@ -355,8 +362,8 @@ const GiftsPage = () => {
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 4 }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", mb: 2 }}>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900 }}>Obsequios registrados</Typography>
-              <Typography variant="body2" color="text.secondary">Registros independientes del {form.giftDate}.</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 24, md: 20 } }}>Obsequios del día</Typography>
+              <Typography color="text.secondary" sx={{ fontSize: { xs: 16, md: 14 } }}>{form.giftDate}</Typography>
             </Box>
             <Chip label={`${gifts.length} registro(s)`} variant="outlined" color="success" />
           </Stack>
@@ -367,13 +374,13 @@ const GiftsPage = () => {
           ) : null}
           <Stack spacing={1.5}>
             {gifts.map((gift) => (
-              <Paper key={gift.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={gift.id} variant="outlined" sx={{ p: { xs: 2.25, md: 2 }, borderRadius: 4 }}>
                 <Stack spacing={1.5}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
                     <Box>
-                      <Typography sx={{ fontWeight: 900 }}>{gift.customer_name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Vendedor: {gift.sales_agent_name || "Sin vendedor"} | Registrado por: {gift.created_by_name || "Sin usuario"}
+                      <Typography sx={{ fontWeight: 900, fontSize: { xs: 21, md: 16 } }}>{gift.customer_name}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: { xs: 15, md: 14 } }}>
+                        {compactView ? `Registrado por ${gift.created_by_name || "usuario"}` : `Vendedor: ${gift.sales_agent_name || "Sin vendedor"} | Registrado por: ${gift.created_by_name || "Sin usuario"}`}
                       </Typography>
                     </Box>
                     <Chip label={`$${formatCurrencyValue(gift.total_commercial_value || 0, 0)}`} variant="outlined" color="success" />
@@ -383,8 +390,8 @@ const GiftsPage = () => {
                     {(gift.items || []).map((item) => (
                       <Grid item xs={12} md={6} key={`${gift.id}-${item.product_id}`}>
                         <Box sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover" }}>
-                          <Typography sx={{ fontWeight: 900 }}>{item.product_name}</Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography sx={{ fontWeight: 900, fontSize: { xs: 18, md: 16 } }}>{item.product_name}</Typography>
+                          <Typography color="text.secondary" sx={{ fontSize: { xs: 16, md: 14 } }}>
                             {formatInventoryQuantity(item.quantity)} unidad(es) | {item.category_name || "Sin categoria"}
                           </Typography>
                         </Box>

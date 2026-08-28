@@ -174,6 +174,15 @@ const threeFieldGridSx = {
   },
 };
 
+const mergeTicketSettings = (settings = {}) => ({
+  ...initialValues,
+  ...settings,
+  settlementPrint: {
+    ...initialValues.settlementPrint,
+    ...(settings.settlementPrint || {}),
+  },
+});
+
 const fontSizeGroups = [
   {
     title: "Encabezado",
@@ -533,10 +542,7 @@ const PosTicketSettingsPage = () => {
         return;
       }
 
-      setValues({
-        ...initialValues,
-        ...(response.data || {}),
-      });
+      setValues(mergeTicketSettings(response.data));
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al cargar la configuracion"));
     } finally {
@@ -612,7 +618,7 @@ const PosTicketSettingsPage = () => {
         return;
       }
 
-      setValues({ ...initialValues, ...(response.data || {}) });
+      setValues(mergeTicketSettings(response.data));
       toast.success("Ticket POS actualizado");
     } catch (requestError) {
       toast.error(getErrorMessage(requestError, "Error de red al guardar el ticket"));

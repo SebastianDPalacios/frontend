@@ -49,7 +49,11 @@ const lineLabels = {
 };
 
 const getItemLineLabel = (item, displayLineType) => {
-  const includesBonus = Number(item?.includes_bonus || 0) === 1;
+  const includesBonus = [true, 1, "1", "true", "yes", "si", "sí"].includes(
+    typeof item?.includes_bonus === "string"
+      ? item.includes_bonus.trim().toLowerCase()
+      : item?.includes_bonus
+  );
 
   if (includesBonus && ["sale", "sale_bonus"].includes(displayLineType)) {
     return "Venta con vendaje incluido";
