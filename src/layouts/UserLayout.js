@@ -382,10 +382,17 @@ const UserLayout = ({ children }) => {
       }}
     >
       <Box sx={{ px: 1, mb: 2.25 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0, fontWeight: 800 }}>
+        <Typography
+          variant="overline"
+          color="text.secondary"
+          sx={{ letterSpacing: 0, fontWeight: 800, fontSize: { xs: salesOnly ? 14 : 12, md: 12 } }}
+        >
           Navegacion
         </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontWeight: 900, lineHeight: 1.1, fontSize: { xs: salesOnly ? 24 : 20, md: 20 } }}
+        >
           Panaderia
         </Typography>
       </Box>
@@ -394,7 +401,14 @@ const UserLayout = ({ children }) => {
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: "block", px: 1.25, mb: 0.75, textTransform: "uppercase", fontWeight: 800 }}
+            sx={{
+              display: "block",
+              px: 1.25,
+              mb: 0.75,
+              textTransform: "uppercase",
+              fontWeight: 800,
+              fontSize: { xs: salesOnly ? 13 : 12, md: 12 },
+            }}
           >
             {section.section}
           </Typography>
@@ -413,8 +427,8 @@ const UserLayout = ({ children }) => {
                       sx={{
                         borderRadius: 2,
                         mb: 0.5,
-                        minHeight: 46,
-                        px: 1.5,
+                        minHeight: { xs: salesOnly ? 60 : 46, md: 46 },
+                        px: { xs: salesOnly ? 2 : 1.5, md: 1.5 },
                         color: groupSelected ? "primary.main" : "text.primary",
                         "&.Mui-selected": {
                           bgcolor: "rgba(219, 91, 39, 0.12)",
@@ -424,10 +438,22 @@ const UserLayout = ({ children }) => {
                         },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
+                      <ListItemIcon
+                        sx={{
+                          minWidth: { xs: salesOnly ? 44 : 34, md: 34 },
+                          color: "inherit",
+                          "& .MuiSvgIcon-root": { fontSize: { xs: salesOnly ? 28 : 20, md: 20 } },
+                        }}
+                      >
+                        {renderIcon(item.icon)}
+                      </ListItemIcon>
                       <ListItemText
                         primary={item.title}
-                        primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2, fontWeight: 800 }}
+                        primaryTypographyProps={{
+                          sx: { fontSize: { xs: salesOnly ? 18 : 14, md: 14 } },
+                          lineHeight: 1.25,
+                          fontWeight: 800,
+                        }}
                       />
                       {groupOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                     </ListItemButton>
@@ -444,8 +470,8 @@ const UserLayout = ({ children }) => {
                               onClick={onNavigate(child.path)}
                               sx={{
                                 borderRadius: 2,
-                                minHeight: 38,
-                                pl: 1.5,
+                                minHeight: { xs: salesOnly ? 54 : 38, md: 38 },
+                                pl: { xs: salesOnly ? 2 : 1.5, md: 1.5 },
                                 mb: 0.25,
                                 borderLeft: "2px solid",
                                 borderLeftColor: childSelected ? "primary.main" : "rgba(17, 24, 39, 0.12)",
@@ -460,7 +486,11 @@ const UserLayout = ({ children }) => {
                             >
                               <ListItemText
                                 primary={childTitle}
-                                primaryTypographyProps={{ fontSize: 13, lineHeight: 1.2, fontWeight: childSelected ? 800 : 600 }}
+                                primaryTypographyProps={{
+                                  sx: { fontSize: { xs: salesOnly ? 17 : 13, md: 13 } },
+                                  lineHeight: 1.25,
+                                  fontWeight: childSelected ? 800 : 600,
+                                }}
                               />
                             </ListItemButton>
                           );
@@ -480,8 +510,8 @@ const UserLayout = ({ children }) => {
                   onClick={onNavigate(item.path)}
                   sx={{
                     borderRadius: 2,
-                    minHeight: 46,
-                    px: 1.5,
+                    minHeight: { xs: salesOnly ? 60 : 46, md: 46 },
+                    px: { xs: salesOnly ? 2 : 1.5, md: 1.5 },
                     color: selected ? "primary.main" : "text.primary",
                     "&.Mui-selected": {
                       bgcolor: "rgba(219, 91, 39, 0.12)",
@@ -491,8 +521,23 @@ const UserLayout = ({ children }) => {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 34, color: "inherit" }}>{renderIcon(item.icon)}</ListItemIcon>
-                  <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: 14, lineHeight: 1.2, fontWeight: 800 }} />
+                  <ListItemIcon
+                    sx={{
+                      minWidth: { xs: salesOnly ? 44 : 34, md: 34 },
+                      color: "inherit",
+                      "& .MuiSvgIcon-root": { fontSize: { xs: salesOnly ? 28 : 20, md: 20 } },
+                    }}
+                  >
+                    {renderIcon(item.icon)}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.title}
+                    primaryTypographyProps={{
+                      sx: { fontSize: { xs: salesOnly ? 18 : 14, md: 14 } },
+                      lineHeight: 1.25,
+                      fontWeight: 800,
+                    }}
+                  />
                 </ListItemButton>
               );
             })}
@@ -676,7 +721,11 @@ const UserLayout = ({ children }) => {
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: mobileDrawerWidth, maxWidth: drawerWidth },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: salesOnly ? "92vw" : mobileDrawerWidth,
+              maxWidth: salesOnly ? 360 : drawerWidth,
+            },
           }}
         >
           <Toolbar />
