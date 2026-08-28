@@ -32,9 +32,35 @@ const findBreadcrumbs = (pathname) => {
 const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, children }) => {
   const router = useRouter();
   const breadcrumbItems = breadcrumbs || findBreadcrumbs(router.pathname);
+  const isOrdersPage = router.pathname.startsWith("/orders/");
 
   return (
-    <Box>
+    <Box
+      sx={isOrdersPage ? {
+        "@media (max-width: 1024px)": {
+          "& .MuiTypography-body1, & .MuiTypography-body2": {
+            fontSize: "18px",
+            lineHeight: 1.4,
+          },
+          "& .MuiInputBase-input, & .MuiSelect-select": {
+            fontSize: "18px",
+          },
+          "& .MuiInputLabel-root, & .MuiFormHelperText-root": {
+            fontSize: "16px",
+          },
+          "& .MuiButton-root": {
+            fontSize: "17px",
+            minHeight: 48,
+          },
+          "& .MuiChip-label": {
+            fontSize: "16px",
+          },
+          "& .MuiTableCell-root": {
+            fontSize: "16px",
+          },
+        },
+      } : undefined}
+    >
       {breadcrumbItems.length > 0 ? (
         <Breadcrumbs
           separator={<ChevronRightRoundedIcon fontSize="small" />}

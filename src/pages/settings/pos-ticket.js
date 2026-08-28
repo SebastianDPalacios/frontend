@@ -45,6 +45,7 @@ const initialValues = {
   customerNeighborhoodLabel: "Barrio/Zona",
   customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
+  showProductCategories: true,
   requestedLabel: "Solicitado",
   unitLabel: "UND",
   showItemDetail: true,
@@ -235,8 +236,8 @@ const fontSizeGroups = [
 ];
 
 const previewItems = [
-  { name: "PAN ROYAL 2.000", category: "PAN DE SAL", type: "VENTA", qty: 5, value: "$ 10.500" },
-  { name: "Mogicon 500", category: "PAN DE DULCE", type: "VENDAJE", qty: 1, value: "$ 5.251" },
+  { name: "PAN ROYAL 2.000", category: "PAN DE SAL", type: "VENTA CON VENDAJE INCLUIDO", qty: 5, value: "$ 10.500" },
+  { name: "Mogicon 500", category: "PAN DE DULCE", type: "SOLO VENDAJE", qty: 1, value: "$ 5.251" },
 ];
 
 const getErrorMessage = (error, fallback) =>
@@ -428,20 +429,33 @@ const PosTicketPreview = ({ values }) => {
       </Typography>
 
       {Object.entries(groupedItems).map(([category, items]) => (
-        <Box key={category} sx={{ mt: 1 }}>
-          <Box sx={{ border: "1px solid #111", bgcolor: "#eee", py: 0.5, textAlign: "center", fontSize: scale.category, fontWeight: 900 }}>
-            {category}
-          </Box>
+        <Box key={category} sx={{ mt: values.showProductCategories ? 1 : 0 }}>
+          {values.showProductCategories ? (
+            <Box sx={{ border: "1px solid #111", bgcolor: "#eee", py: 0.5, textAlign: "center", fontSize: scale.category, fontWeight: 900 }}>
+              {category}
+            </Box>
+          ) : null}
           {items.map((item) => (
             <Box key={`${item.category}-${item.name}-${item.type}`} sx={{ py: 1, borderBottom: "1px dashed #777" }}>
-              <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}>
-                <Box component="strong" sx={{ fontSize: scale.product }}>{item.name}</Box>
-                <Box component="span" sx={{ border: "1px solid #111", px: 0.5, fontSize: scale.type, fontWeight: 900 }}>
-                  {item.type}
-                </Box>
-              </Stack>
-              <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 64px minmax(70px, auto)", alignItems: "center", gap: 1, mt: 0.5 }}>
-                <span />
+              <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 42px minmax(74px, auto)", alignItems: "center", gap: 0.6 }}>
+                <Stack sx={{ minWidth: 0, alignItems: "flex-start", gap: 0.4 }}>
+                  <Box component="strong" sx={{ fontSize: scale.product, overflowWrap: "anywhere" }}>{item.name}</Box>
+                  <Box
+                    component="span"
+                    sx={{
+                      maxWidth: "100%",
+                      border: "1px solid #111",
+                      borderRadius: "2px",
+                      px: 0.5,
+                      fontSize: scale.type,
+                      fontWeight: 900,
+                      lineHeight: 1.12,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {item.type}
+                  </Box>
+                </Stack>
                 <Box sx={{ textAlign: "center", fontWeight: 900 }}>
                   <Box sx={{ fontSize: scale.quantity, lineHeight: 1 }}>{item.qty}</Box>
                   <Box sx={{ fontSize: scale.quantityLabel, lineHeight: 1 }}>{values.unitLabel || "UND"}</Box>
@@ -846,6 +860,7 @@ const PosTicketSettingsPage = () => {
                     ["showBranchContact", "Mostrar contacto de sucursal"],
                     ["showDeliveryDate", "Mostrar fecha de entrega"],
                     ["showSeller", "Mostrar vendedor"],
+                    ["showProductCategories", "Mostrar categorias de productos"],
                   ].map(([name, label]) => (
                     <Box key={name} sx={{ minWidth: 0 }}>
                       <FormControlLabel

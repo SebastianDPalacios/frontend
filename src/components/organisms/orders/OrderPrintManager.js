@@ -43,9 +43,19 @@ const formatDateTime = (value) => {
 const lineLabels = {
   sale: "Venta",
   sale_bonus: "Venta + vendaje",
-  bonus: "Vendaje",
+  bonus: "Solo vendaje",
   gift: "Obsequio",
   exchange: "Cambio",
+};
+
+const getItemLineLabel = (item, displayLineType) => {
+  const includesBonus = Number(item?.includes_bonus || 0) === 1;
+
+  if (includesBonus && ["sale", "sale_bonus"].includes(displayLineType)) {
+    return "Venta con vendaje incluido";
+  }
+
+  return lineLabels[displayLineType] || displayLineType;
 };
 
 const defaultTicketSettings = {
@@ -72,6 +82,7 @@ const defaultTicketSettings = {
   customerNeighborhoodLabel: "Barrio/Zona",
   customerPhoneLabel: "Tel",
   detailTitle: "DETALLE SOLICITADO",
+  showProductCategories: true,
   requestedLabel: "Solicitado",
   unitLabel: "UND",
   showItemDetail: true,
@@ -277,6 +288,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const rows = Array.from(groupedItems.entries()).map(([categoryName, categoryItems]) => {
     const itemRows = categoryItems.map((item) => {
       const displayLineType = item.display_line_type || item.line_type;
+      const displayLineLabel = getItemLineLabel(item, displayLineType);
       const displayQuantity = item.display_quantity ?? item.quantity;
       const value = item.display_value ?? (item.line_type === "sale" ? item.line_total : item.commercial_value);
       const requestDetail = item.display_request_detail ?? (item.capture_mode === "amount" && item.requested_amount
@@ -285,25 +297,24 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
 
       return `
         <div class="item">
-          <div class="item-head">
-            <span class="item-name">${escapeHtml(item.product_name)}</span>
-            <span class="type type-${escapeHtml(displayLineType)}">${escapeHtml(lineLabels[displayLineType] || displayLineType)}</span>
-          </div>
-          <div class="item-values">
-            <span></span>
+          <div class="item-main">
+            <div class="item-head">
+              <span class="item-name">${escapeHtml(item.product_name)}</span>
+              <span class="type type-${escapeHtml(displayLineType)}">${escapeHtml(displayLineLabel)}</span>
+            </div>
             <span class="qty-box">
               <span class="qty">${number.format(Number(displayQuantity || 0))}</span>
               <span class="qty-label">${escapeHtml(ticketSettings.unitLabel || "UND")}</span>
             </span>
-            <strong>${money.format(Number(value || 0))}</strong>
+            <strong class="item-value">${money.format(Number(value || 0))}</strong>
           </div>
           ${ticketSettings.showItemDetail && requestDetail ? `<div class="item-detail">${escapeHtml(requestDetail)}</div>` : ""}
         </div>`;
     }).join("");
 
     return `
-      <div class="category-block">
-        <div class="category-title">${escapeHtml(categoryName)}</div>
+      <div class="category-block${ticketSettings.showProductCategories ? "" : " category-hidden"}">
+        ${ticketSettings.showProductCategories ? `<div class="category-title">${escapeHtml(categoryName)}</div>` : ""}
         ${itemRows}
       </div>`;
   }).join("");
@@ -337,17 +348,18 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
         .customer-phone { font-size: ${scale.phone}px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; }
         .order-number { padding: 5px; border: 1px solid #111; text-align: center; font-size: ${scale.orderNumber}px; font-weight: 900; }
         .category-block { margin-top: 7px; break-inside: avoid; }
+        .category-block.category-hidden { margin-top: 0; }
         .category-title { padding: 3px 4px; border: 1px solid #111; background: #eee; font-size: ${scale.category}px; font-weight: 900; text-align: center; text-transform: uppercase; }
-        .item { padding: 7px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
-        .item-head { display: flex; justify-content: space-between; gap: 5px; align-items: baseline; }
+        .item { padding: 7px 0 6px; border-bottom: 1px dashed #777; break-inside: avoid; }
+        .item-main { display: grid; grid-template-columns: minmax(0, 1fr) 42px minmax(19mm, auto); gap: 5px; align-items: center; }
+        .item-head { display: grid; min-width: 0; justify-items: start; gap: 3px; }
         .item-name { min-width: 0; font-weight: 900; font-size: ${scale.item}px; overflow-wrap: anywhere; }
-        .item-values { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(18mm, auto); gap: 4px; align-items: center; margin-top: 3px; }
-        .item-values strong { font-size: ${scale.productValue}px; white-space: nowrap; text-align: right; }
+        .item-value { font-size: ${scale.productValue}px; white-space: nowrap; text-align: right; }
         .qty-box { display: grid; justify-items: center; text-align: center; }
         .qty { font-size: ${scale.qty}px; font-weight: 900; letter-spacing: 0; line-height: 1; }
         .qty-label { font-size: ${scale.quantityLabel}px; font-weight: 900; line-height: 1; }
         .item-detail { margin-top: 2px; color: #333; font-size: ${scale.itemDetail}px; }
-        .type { flex: 0 0 auto; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: ${scale.type}px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+        .type { display: inline-block; max-width: 100%; padding: 1px 4px; border: 1px solid #111; border-radius: 2px; font-size: ${scale.type}px; font-weight: 900; line-height: 1.12; text-transform: uppercase; overflow-wrap: anywhere; }
         .totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; margin-top: 8px; font-size: ${scale.summary}px; }
         .totals strong { text-align: right; }
         .total { padding-top: 5px; border-top: 2px solid #111; font-size: ${scale.total}px; font-weight: 900; }

@@ -217,8 +217,8 @@ const SellerPosOrderForm = ({
           <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", py: 0.5 }}>
             <IconButton onClick={() => setCartOpen(false)} sx={{ width: 48, height: 48 }}><ArrowBackRoundedIcon sx={{ fontSize: 32 }} /></IconButton>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 28, sm: 20 } }}>Tu pedido</Typography>
-              <Typography color="text.secondary" sx={{ fontSize: { xs: 18, sm: 12 } }}>{selectedLines.length} producto(s)</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 28, sm: 28 } }}>Tu pedido</Typography>
+              <Typography color="text.secondary" sx={{ fontSize: { xs: 18, sm: 18 } }}>{selectedLines.length} producto(s)</Typography>
             </Box>
           </Stack>
 
@@ -234,18 +234,18 @@ const SellerPosOrderForm = ({
                 <Paper key={entry.id} variant="outlined" sx={{ p: { xs: 2.25, sm: 1.5 }, borderRadius: 3, minHeight: { xs: 154, sm: "auto" }, display: "flex", alignItems: "center" }}>
                   <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", width: "100%" }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 900, fontSize: { xs: 24, sm: 16 }, lineHeight: 1.2 }}>{product?.name}</Typography>
-                      <Typography color="text.secondary" sx={{ fontSize: { xs: 18, sm: 12 }, mt: 0.75, fontWeight: 600 }}>
+                      <Typography sx={{ fontWeight: 900, fontSize: { xs: 24, sm: 24 }, lineHeight: 1.2 }}>{product?.name}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: { xs: 18, sm: 18 }, mt: 0.75, fontWeight: 600 }}>
                         {getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode}
                       </Typography>
                       <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: "wrap", rowGap: 0.75 }}>
-                        <Chip variant="outlined" label={`${calculation.quantity} unidades`} sx={{ height: { xs: 40, sm: 24 }, fontSize: { xs: 17, sm: 13 }, fontWeight: 700 }} />
+                        <Chip variant="outlined" label={`${calculation.quantity} unidades`} sx={{ height: 40, fontSize: 17, fontWeight: 700 }} />
                         {getBonusQuantity(entry) > 0 ? (
-                          <Chip color="success" label={`+ ${getBonusQuantity(entry)} de vendaje`} sx={{ height: { xs: 40, sm: 24 }, fontSize: { xs: 17, sm: 13 }, fontWeight: 800 }} />
+                          <Chip color="success" label={`+ ${getBonusQuantity(entry)} de vendaje`} sx={{ height: 40, fontSize: 17, fontWeight: 800 }} />
                         ) : null}
                       </Stack>
                     </Box>
-                    <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap", fontSize: { xs: 25, sm: 16 } }}>
+                    <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap", fontSize: { xs: 25, sm: 25 } }}>
                       {["bonus", "gift"].includes(entry.orderMode)
                         ? "Sin cobro"
                         : `$${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}`}
@@ -268,7 +268,7 @@ const SellerPosOrderForm = ({
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 filterOptions={filterCustomers}
                 noOptionsText="No encontramos clientes"
-                renderInput={(params) => <TextField {...params} label="Buscar cliente asignado" placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 68, sm: 56 }, fontSize: { xs: 21, sm: 16 }, fontWeight: { xs: 600, sm: 400 } }, "& .MuiInputLabel-root": { fontSize: { xs: 19, sm: 16 } } }} />}
+                renderInput={(params) => <TextField {...params} label="Buscar cliente asignado" placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
                 renderOption={(props, customer) => (
                   <Box component="li" {...props} key={customer.id} sx={{ py: 1.25 }}>
                     <Box>
@@ -280,7 +280,7 @@ const SellerPosOrderForm = ({
                   </Box>
                 )}
               />
-              <TextField fullWidth multiline minRows={3} label="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} inputProps={{ maxLength: 255 }} sx={{ "& .MuiInputBase-root": { fontSize: { xs: 21, sm: 16 } }, "& .MuiInputLabel-root": { fontSize: { xs: 19, sm: 16 } } }} />
+              <TextField fullWidth multiline minRows={3} label="Notas" value={notes} onChange={(event) => setNotes(event.target.value)} inputProps={{ maxLength: 255 }} sx={{ "& .MuiInputBase-root": { fontSize: 21 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />
             </Stack>
           </Paper>
 
@@ -294,7 +294,7 @@ const SellerPosOrderForm = ({
               largeOnMobile
             />
           </Paper>
-          <AppButton fullWidth color="secondary" disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: { xs: 76, sm: 54 }, fontSize: { xs: 20, sm: 16 }, fontWeight: 900 }}>
+          <AppButton fullWidth color="secondary" disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 76, fontSize: 20, fontWeight: 900 }}>
             Revisar y guardar pedido
           </AppButton>
         </>
