@@ -41,12 +41,23 @@ const filterCustomers = createFilterOptions({
     customer?.neighborhood,
   ].filter(Boolean).join(" "),
 });
+const filterSellers = createFilterOptions({
+  stringify: (seller) => [
+    getDisplayName(seller),
+    seller?.username,
+    seller?.email,
+  ].filter(Boolean).join(" "),
+});
 
 const SellerPosOrderForm = ({
   loading,
   saving,
   error,
   customers,
+  canAssignSeller,
+  sellers,
+  sellerId,
+  setSellerId,
   products,
   productCategories,
   selectedCategoryId,
@@ -134,8 +145,11 @@ const SellerPosOrderForm = ({
   return (
     <Stack spacing={2} sx={{ pb: 10 }}>
       {error ? <Alert severity="error">{error}</Alert> : null}
-      {!loading && customers.length === 0 ? (
-        <Alert severity="warning">No tienes clientes asignados.</Alert>
+      {!loading && canAssignSeller && !sellerId ? (
+        <Alert severity="info">Selecciona un vendedor para consultar sus clientes.</Alert>
+      ) : null}
+      {!loading && (!canAssignSeller || sellerId) && customers.length === 0 ? (
+        <Alert severity="warning">{canAssignSeller ? "Este vendedor no tiene clientes asignados." : "No tienes clientes asignados."}</Alert>
       ) : null}
 
       {!cartOpen ? (
@@ -259,16 +273,33 @@ const SellerPosOrderForm = ({
 
           <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 2 }, borderRadius: 3 }}>
             <Stack spacing={2}>
+              {canAssignSeller ? (
+                <Autocomplete
+                  fullWidth
+                  options={sellers}
+                  value={sellers.find((seller) => String(seller.id) === String(sellerId)) || null}
+                  onChange={(_event, seller) => {
+                    setSellerId(seller ? String(seller.id) : "");
+                    setCustomerId("");
+                  }}
+                  getOptionLabel={(seller) => getDisplayName(seller)}
+                  isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                  filterOptions={filterSellers}
+                  noOptionsText="No encontramos vendedores"
+                  renderInput={(params) => <TextField {...params} label="Buscar vendedor" placeholder="Nombre, usuario o correo" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
+                />
+              ) : null}
               <Autocomplete
                 fullWidth
+                disabled={canAssignSeller && !sellerId}
                 options={customers}
                 value={customers.find((customer) => String(customer.id) === String(customerId)) || null}
                 onChange={(_event, customer) => setCustomerId(customer ? String(customer.id) : "")}
                 getOptionLabel={(customer) => getDisplayName(customer)}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 filterOptions={filterCustomers}
-                noOptionsText="No encontramos clientes"
-                renderInput={(params) => <TextField {...params} label="Buscar cliente asignado" placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
+                noOptionsText={canAssignSeller && !sellerId ? "Selecciona primero un vendedor" : "No encontramos clientes"}
+                renderInput={(params) => <TextField {...params} label={canAssignSeller ? "Buscar cliente del vendedor" : "Buscar cliente asignado"} placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
                 renderOption={(props, customer) => (
                   <Box component="li" {...props} key={customer.id} sx={{ py: 1.25 }}>
                     <Box>
@@ -294,7 +325,7 @@ const SellerPosOrderForm = ({
               largeOnMobile
             />
           </Paper>
-          <AppButton fullWidth color="secondary" disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 76, fontSize: 20, fontWeight: 900 }}>
+          <AppButton fullWidth color="secondary" disabled={loading || (canAssignSeller && !sellerId) || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 76, fontSize: 20, fontWeight: 900 }}>
             Revisar y guardar pedido
           </AppButton>
         </>

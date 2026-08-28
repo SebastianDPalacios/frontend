@@ -146,8 +146,9 @@ const createSelectedLine = (product) => ({
 
 const AtomicOrderForm = () => {
   const currentUser = authService.getCurrentUser();
-  const sellerPosMode = useMediaQuery("(max-width:1024px)", { noSsr: true })
-    && isSalesOnlyUser(currentUser);
+  const compactViewport = useMediaQuery("(max-width:1024px)", { noSsr: true });
+  const sellerPosMode = compactViewport
+    && (isSalesOnlyUser(currentUser) || isAdministrativeUser(currentUser));
   const showCreditDetails = isAdministrativeUser(currentUser);
   const canAssignSeller = isAdministrativeUser(currentUser);
   const [loading, setLoading] = useState(true);
@@ -497,7 +498,11 @@ const AtomicOrderForm = () => {
         loading={loading}
         saving={saving}
         error={error}
-        customers={customers}
+        customers={availableCustomers}
+        canAssignSeller={canAssignSeller}
+        sellers={sellers}
+        sellerId={sellerId}
+        setSellerId={setSellerId}
         products={products}
         productCategories={productCategories}
         selectedCategoryId={selectedCategoryId}

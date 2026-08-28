@@ -1,14 +1,16 @@
 import { Box, useMediaQuery } from "@mui/material";
 import AtomicOrderForm from "components/organisms/orders/AtomicOrderForm";
-import { isSalesOnlyUser } from "configs/access";
+import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
 import authService from "services/auth/auth-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 
 const OrdersCountPage = () => {
-  const compactSellerView = useMediaQuery("(max-width:1024px)", { noSsr: true })
-    && isSalesOnlyUser(authService.getCurrentUser());
+  const compactViewport = useMediaQuery("(max-width:1024px)", { noSsr: true });
+  const currentUser = authService.getCurrentUser();
+  const compactOrderView = compactViewport
+    && (isSalesOnlyUser(currentUser) || isAdministrativeUser(currentUser));
 
-  if (compactSellerView) {
+  if (compactOrderView) {
     return <Box sx={{ mx: { xs: -1, sm: 0 } }}><AtomicOrderForm /></Box>;
   }
 
