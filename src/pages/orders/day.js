@@ -121,6 +121,23 @@ const BalancePanel = ({ title, emptyText, items }) => (
   </Paper>
 );
 
+const MobileSummaryRow = ({ label, value, color = "text.primary" }) => (
+  <Stack
+    direction="row"
+    sx={{
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 48,
+      py: 1,
+      borderTop: 1,
+      borderColor: "divider",
+    }}
+  >
+    <Typography sx={{ fontSize: 17, fontWeight: 700 }}>{label}</Typography>
+    <Typography sx={{ fontSize: 20, fontWeight: 950, color }}>{value}</Typography>
+  </Stack>
+);
+
 const OrdersDayPage = () => {
   const currentUser = authService.getCurrentUser() || {};
   const salesOnly = isSalesOnlyUser(currentUser);
@@ -231,7 +248,12 @@ const OrdersDayPage = () => {
   }, [periodOrders]);
 
   return (
-    <FlowPageLayout title="Resumen de pedidos" subtitle="Consulta el balance operativo por dia, semana, quincena, mes o semestre">
+    <FlowPageLayout
+      title="Resumen de pedidos"
+      subtitle="Consulta tus ventas, ganancias y pedidos del periodo."
+      hideBreadcrumbsOnMobile
+      compactHeaderOnMobile
+    >
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -248,16 +270,29 @@ const OrdersDayPage = () => {
         }}
       >
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", lg: "center" } }}>
-          <Box>
+          <Box sx={{ display: { xs: "none", sm: "block" } }}>
             <Typography variant="h5" sx={{ fontWeight: 900 }}>
               Balance {selectedPeriodLabel.toLowerCase()}
             </Typography>
-            <Typography color="text.secondary">
+            <Typography color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
               Del {dateRange.from} al {dateRange.to}. Venta, pedidos activos y avance de inventario.
             </Typography>
           </Box>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{
+              alignItems: "center",
+              display: { xs: "grid", sm: "flex" },
+              gridTemplateColumns: { xs: "minmax(108px, 0.8fr) minmax(0, 1.65fr)", sm: "none" },
+              flexWrap: { sm: "wrap" },
+              width: { xs: "100%", sm: "auto" },
+              "& .MuiInputBase-root": { minHeight: { xs: 52, sm: "auto" }, fontSize: { xs: 17, sm: "inherit" } },
+              "& .MuiButton-root": { minHeight: { xs: 52, sm: 40 }, fontSize: { xs: 16, sm: "inherit" } },
+              "& > .MuiFormControl-root": { minWidth: 0, width: "100%" },
+            }}
+          >
             <TextField select size="small" label="Periodo" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: { sm: 160 } }}>
               {periodOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -292,20 +327,34 @@ const OrdersDayPage = () => {
                 </TextField>
               </>
             ) : null}
-            <AppButton color="secondary" component={Link} href="/orders/count">
-              Crear pedido
-            </AppButton>
-            <Button color="secondary" variant="outlined" component={Link} href="/orders/history">
-              Gestion diaria
-            </Button>
-            <Button color="secondary" variant="outlined" component={Link} href="/orders/historical">
-              Historico
-            </Button>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, auto)" }, gap: 1, width: { xs: "100%", sm: "auto" }, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+              <AppButton color="secondary" component={Link} href="/orders/count" sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                Crear pedido
+              </AppButton>
+              <Button color="secondary" variant="outlined" component={Link} href="/orders/history">
+                Gestion diaria
+              </Button>
+              <Button color="secondary" variant="outlined" component={Link} href="/orders/historical">
+                Historico
+              </Button>
+            </Box>
           </Stack>
         </Stack>
       </Paper>
 
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+      <Paper variant="outlined" sx={{ display: { xs: "block", sm: "none" }, borderRadius: 4, p: 2, mb: 2 }}>
+        <Typography color="text.secondary" sx={{ fontSize: 16, fontWeight: 700 }}>
+          {salesOnly ? (period === "daily" ? "Ganancia del día" : "Ganancia del periodo") : "Valor del periodo"}
+        </Typography>
+        <Typography sx={{ mt: 0.25, mb: 1.25, fontSize: 34, lineHeight: 1.15, fontWeight: 950, color: "secondary.main" }}>
+          {formatMoney(salesOnly ? periodEarnings : periodAmount)}
+        </Typography>
+        <MobileSummaryRow label="Pedidos" value={periodOrders.length} />
+        <MobileSummaryRow label="Venta promedio" value={formatMoney(averageTicket)} />
+        <MobileSummaryRow label="Despachados" value={dispatchedOrders} color="success.main" />
+      </Paper>
+
+      <Grid container spacing={1.5} sx={{ display: { xs: "none", sm: "flex" }, mb: 2.5 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <MetricCard
             label={salesOnly ? (period === "daily" ? "Ganancia del día" : "Ganancia del periodo") : "Valor del periodo"}
@@ -332,11 +381,11 @@ const OrdersDayPage = () => {
               <Typography variant="h6" sx={{ fontWeight: 900 }}>
                 Avance del periodo
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
                 Relacion entre pedidos despachados y pedidos activos del rango seleccionado.
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", "& .MuiChip-root": { height: { xs: 36, sm: 32 }, fontSize: { xs: 14, sm: "inherit" } } }}>
               <Chip label={`${productionOrders} en produccion/listos`} color="warning" variant="outlined" />
               <Chip label={`${cancelledOrders} cancelados`} color={cancelledOrders ? "error" : "default"} variant="outlined" />
               <Chip label={`${completedFlow}% despachado`} color={completedFlow >= 100 ? "success" : "info"} />
@@ -356,7 +405,7 @@ const OrdersDayPage = () => {
       </Paper>
 
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={6} sx={{ display: salesOnly ? { xs: "none", md: "block" } : "block" }}>
           <BalancePanel title="Clientes con mayor venta" emptyText="Sin clientes en este periodo." items={customerBalances} />
         </Grid>
         <Grid item xs={12} md={6}>

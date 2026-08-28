@@ -187,17 +187,19 @@ const GiftsPage = () => {
 
   return (
     <FlowPageLayout
-      title="Obsequios"
-      subtitle="Registra pan regalado sin mezclarlo con venta, vendaje, comision o factura POS."
+      title="Regalos"
+      subtitle="Registra pan regalado. No se cuenta como venta."
+      hideBreadcrumbsOnMobile
+      compactHeaderOnMobile
     >
       <Stack spacing={{ xs: 2, md: 3 }}>
-        <Grid container spacing={{ xs: 1.25, md: 2.5 }}>
+        <Grid container spacing={{ xs: 1.25, md: 2.5 }} sx={{ display: { xs: "none", sm: "grid" } }}>
           <Grid item xs={12} md={4}>
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 4, height: "100%" }}>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <CardGiftcardRoundedIcon color="secondary" />
                 <Box>
-                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 17, md: 14 } }}>Obsequios del día</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 17, md: 14 } }}>Regalos hoy</Typography>
                   <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 32, md: 34 } }}>{Number(summary.gift_count || 0)}</Typography>
                 </Box>
               </Stack>
@@ -208,7 +210,7 @@ const GiftsPage = () => {
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <Inventory2RoundedIcon color="success" />
                 <Box>
-                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Valor</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Valor total</Typography>
                   <Typography variant="h4" sx={{ fontWeight: 900, fontSize: { xs: 24, sm: 28, md: 34 } }}>${formatCurrencyValue(summary.gift_total || 0, 0)}</Typography>
                 </Box>
               </Stack>
@@ -219,8 +221,8 @@ const GiftsPage = () => {
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <PersonRoundedIcon color="info" />
                 <Box>
-                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Importante</Typography>
-                  <Typography sx={{ fontWeight: 900, fontSize: { xs: 16, md: 16 } }}>No suma a ventas</Typography>
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 16, md: 14 } }}>Recuerda</Typography>
+                  <Typography sx={{ fontWeight: 900, fontSize: { xs: 16, md: 16 } }}>No se cobra</Typography>
                 </Box>
               </Stack>
             </Paper>
@@ -231,12 +233,12 @@ const GiftsPage = () => {
           <Stack spacing={2.5}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 26, md: 20 } }}>Nuevo obsequio</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 26, md: 20 } }}>Registrar nuevo regalo</Typography>
                 <Typography color="text.secondary" sx={{ fontSize: { xs: 17, md: 14 } }}>
-                  Selecciona quién lo recibe y agrega los productos.
+                  Paso 1: Selecciona el cliente. Paso 2: Agrega los productos.
                 </Typography>
               </Box>
-              {!compactView ? <Chip label="Independiente de pedidos" color="success" variant="outlined" /> : null}
+              {!compactView ? <Chip label="No se cuenta como venta" color="success" variant="outlined" /> : null}
             </Stack>
 
             <Grid container spacing={2}>
@@ -262,7 +264,7 @@ const GiftsPage = () => {
               <Grid item xs={12} md={4}>
                 <BalanceDatePicker
                   fullWidth
-                  label="Fecha obsequio"
+                  label="Fecha del regalo"
                   value={form.giftDate}
                   maxDate={today}
                   onChange={(value) => {
@@ -280,7 +282,7 @@ const GiftsPage = () => {
                   getOptionLabel={(option) => option?.name || "Producto"}
                   isOptionEqualToValue={(option, value) => Number(option.id) === Number(value.id)}
                   noOptionsText="No hay productos disponibles"
-                  renderInput={(params) => <TextField {...params} label="Buscar producto para regalar" />}
+                  renderInput={(params) => <TextField {...params} label="Producto a regalar" />}
                   renderOption={(props, option) => (
                     <Box component="li" {...props} sx={{ display: "block", py: 1.25 }}>
                       <Typography sx={{ fontWeight: 900 }}>{option.name}</Typography>
@@ -328,7 +330,7 @@ const GiftsPage = () => {
             <Divider />
 
             {!giftLines.length ? (
-              <Alert severity="info" sx={{ fontSize: { xs: 16, md: 14 } }}>Agrega el primer producto que vas a obsequiar.</Alert>
+              <Alert severity="info" sx={{ fontSize: { xs: 16, md: 14 } }}>Agrega el primer producto para regalar.</Alert>
             ) : (
               <Stack spacing={1.25}>
                 {giftLines.map((line) => (
@@ -347,11 +349,11 @@ const GiftsPage = () => {
                   </Paper>
                 ))}
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between" }}>
-                  <Typography color="text.secondary">
-                    Valor operativo seleccionado: <strong>${formatCurrencyValue(totalSelectedValue, 0)}</strong>
+                  <Typography color="text.secondary" sx={{ fontSize: { xs: 18, md: 14 } }}>
+                    <strong sx={{ fontWeight: 900 }}>Total del regalo: ${formatCurrencyValue(totalSelectedValue, 0)}</strong>
                   </Typography>
                   <AppButton color="secondary" loading={saving} onClick={saveGift} fullWidth={compactView} sx={{ minWidth: 220, minHeight: { xs: 62, md: 48 }, fontSize: { xs: 18, md: 15 } }}>
-                    Guardar obsequio
+                    Guardar regalo
                   </AppButton>
                 </Stack>
               </Stack>
@@ -362,7 +364,7 @@ const GiftsPage = () => {
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 4 }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", mb: 2 }}>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 24, md: 20 } }}>Obsequios del día</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, fontSize: { xs: 24, md: 20 } }}>Regalos del día</Typography>
               <Typography color="text.secondary" sx={{ fontSize: { xs: 16, md: 14 } }}>{form.giftDate}</Typography>
             </Box>
             <Chip label={`${gifts.length} registro(s)`} variant="outlined" color="success" />

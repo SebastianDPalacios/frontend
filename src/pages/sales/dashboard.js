@@ -46,24 +46,24 @@ const SalesMetric = ({ title, value, helper, icon, color = "secondary" }) => (
     variant="outlined"
     sx={{
       borderRadius: 4,
-      p: { xs: 2, sm: 2.25 },
+      p: { xs: 2.5, sm: 2.25 },
       height: "100%",
       bgcolor: "background.paper",
     }}
   >
     <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-      <Avatar sx={{ bgcolor: `${color}.main`, color: `${color}.contrastText`, width: 46, height: 46 }}>
+      <Avatar sx={{ bgcolor: `${color}.main`, color: `${color}.contrastText`, width: 56, height: 56 }}>
         {icon}
       </Avatar>
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography sx={{ fontSize: { xs: 17, sm: 14 }, color: "text.secondary", fontWeight: 500 }}>
           {title}
         </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 950, lineHeight: 1.05 }}>
+        <Typography sx={{ fontWeight: 950, lineHeight: 1.05, fontSize: { xs: 32, sm: 28 } }}>
           {value}
         </Typography>
         {helper ? (
-          <Typography variant="caption" color="text.secondary">
+          <Typography sx={{ fontSize: { xs: 16, sm: 13 }, color: "text.secondary" }}>
             {helper}
           </Typography>
         ) : null}
@@ -77,7 +77,7 @@ const SalesAction = ({ title, description, href, label, icon, primary = false })
     variant="outlined"
     sx={{
       borderRadius: 4,
-      p: { xs: 2, sm: 2.5 },
+      p: { xs: 2.5, sm: 2.5 },
       height: "100%",
       borderColor: primary ? "secondary.main" : "divider",
       bgcolor: primary ? "rgba(221, 93, 38, 0.05)" : "background.paper",
@@ -85,20 +85,20 @@ const SalesAction = ({ title, description, href, label, icon, primary = false })
   >
     <Stack spacing={2} sx={{ height: "100%" }}>
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
-        <Avatar sx={{ bgcolor: primary ? "secondary.main" : "action.hover", color: primary ? "common.white" : "text.primary" }}>
+        <Avatar sx={{ bgcolor: primary ? "secondary.main" : "action.hover", color: primary ? "common.white" : "text.primary", width: 56, height: 56 }}>
           {icon}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h6" sx={{ fontWeight: 950, lineHeight: 1.15 }}>
+          <Typography sx={{ fontWeight: 950, lineHeight: 1.15, fontSize: { xs: 22, sm: 18 } }}>
             {title}
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography sx={{ mt: 0.5, fontSize: { xs: 17, sm: 14 }, color: "text.secondary" }}>
             {description}
           </Typography>
         </Box>
       </Stack>
       <Box sx={{ flexGrow: 1 }} />
-      <AppButton component={Link} href={href} color="secondary" variant={primary ? "contained" : "outlined"} fullWidth>
+      <AppButton component={Link} href={href} color="secondary" variant={primary ? "contained" : "outlined"} fullWidth sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: 18, sm: 15 }, fontWeight: 900 }}>
         {label}
       </AppButton>
     </Stack>
@@ -153,34 +153,36 @@ const SalesDashboardPage = () => {
   return (
     <FlowPageLayout
       title="Dashboard de ventas"
-      subtitle="Tus accesos principales para trabajar el dia sin perderte."
+      subtitle="Aquí está todo: captura pedidos, mira el resumen y reporta cambios."
+      hideBreadcrumbsOnMobile
+      compactHeaderOnMobile
       breadcrumbs={[]}
     >
-      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+      {error ? <Alert severity="error" sx={{ mb: 2, fontSize: { xs: 18, md: 16 } }}>{error}</Alert> : null}
 
       <Paper
         variant="outlined"
         sx={{
           borderRadius: 4,
-          p: { xs: 2, md: 3 },
+          p: { xs: 2.5, md: 3 },
           mb: 2.5,
           bgcolor: "background.paper",
         }}
       >
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 950 }}>
+            <Typography sx={{ fontWeight: 950, fontSize: { xs: 32, md: 28 } }}>
               Hola, {getUserLabel(currentUser)}
             </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              Hoy es {today}. Desde aqui puedes capturar pedidos, revisar el resumen y reportar cambios.
+            <Typography sx={{ color: "text.secondary", mt: 0.5, fontSize: { xs: 18, md: 16 } }}>
+              Hoy es {today}. Desde aquí puedes capturar pedidos, revisar el resumen y reportar cambios.
             </Typography>
           </Box>
-          <Chip icon={<CalendarTodayIcon />} label="Jornada de ventas" variant="outlined" sx={{ alignSelf: { xs: "flex-start", md: "center" } }} />
+          <Chip icon={<CalendarTodayIcon />} label="Jornada de ventas" variant="outlined" sx={{ alignSelf: { xs: "flex-start", md: "center" }, fontSize: { xs: 16, md: 14 }, height: { xs: 40, md: 32 }, "& .MuiChip-label": { px: 1.5 } }} />
         </Stack>
       </Paper>
 
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <SalesMetric title="Pedidos de hoy" value={loading ? "..." : orders.length} helper={`${draftOrders} en borrador`} icon={<ShoppingCartIcon />} color="secondary" />
         </Grid>
@@ -191,28 +193,28 @@ const SalesDashboardPage = () => {
           <SalesMetric title="Clientes asignados" value={loading ? "..." : baseData.customers.length} helper="Cartera disponible" icon={<StorefrontIcon />} color="primary" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <SalesMetric title="Venta activa" value={loading ? "..." : formatMoney(salesAmount)} helper={`${baseData.products.length} productos visibles`} icon={<PaymentsIcon />} color="warning" />
+          <SalesMetric title="Venta activa" value={loading ? "..." : formatMoney(salesAmount)} helper={`${baseData.products.length} productos`} icon={<PaymentsIcon />} color="warning" />
         </Grid>
       </Grid>
 
-      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, mb: 2.5 }}>
-        <Stack spacing={1.25}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Stack spacing={2}>
           <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", gap: 1 }}>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 950 }}>
+              <Typography sx={{ fontWeight: 950, fontSize: { xs: 28, md: 22 } }}>
                 Avance de entregas
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Relacion entre pedidos activos y pedidos entregados de hoy.
+              <Typography sx={{ color: "text.secondary", fontSize: { xs: 18, md: 16 }, mt: 0.5 }}>
+                Relación entre pedidos activos y pedidos entregados de hoy.
               </Typography>
             </Box>
-            <Chip label={`${progress}% entregado`} color={progress >= 100 && activeOrders.length > 0 ? "success" : "default"} />
+            <Chip label={`${progress}% entregado`} color={progress >= 100 && activeOrders.length > 0 ? "success" : "default"} sx={{ fontSize: { xs: 16, md: 14 }, height: { xs: 40, md: 32 } }} />
           </Stack>
           <LinearProgress
             variant="determinate"
             value={progress}
             sx={{
-              height: 10,
+              height: 12,
               borderRadius: 999,
               bgcolor: "action.hover",
               "& .MuiLinearProgress-bar": { borderRadius: 999 },
@@ -221,11 +223,11 @@ const SalesDashboardPage = () => {
         </Stack>
       </Paper>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2.5}>
         <Grid item xs={12} md={4}>
           <SalesAction
             title="Ventas"
-            description="Registra una venta nueva para tus clientes asignados."
+            description="Registra una venta nueva para tus clientes."
             href="/orders/count"
             label="Ir a ventas"
             icon={<ShoppingCartIcon />}
@@ -235,7 +237,7 @@ const SalesDashboardPage = () => {
         <Grid item xs={12} md={4}>
           <SalesAction
             title="Ver resumen"
-            description="Consulta los pedidos del dia, estado y avance."
+            description="Consulta los pedidos del día, estado y avance."
             href="/orders/day"
             label="Abrir resumen"
             icon={<LocalShippingIcon />}
@@ -243,10 +245,10 @@ const SalesDashboardPage = () => {
         </Grid>
         <Grid item xs={12} md={4}>
           <SalesAction
-            title="Cambios y devoluciones"
-            description="Reporta productos devueltos dentro de la politica permitida."
+            title="Devoluciones"
+            description="Reporta productos devueltos dentro de la política permitida."
             href="/orders/returns"
-            label="Reportar cambio"
+            label="Reportar devolución"
             icon={<AssignmentReturnIcon />}
           />
         </Grid>

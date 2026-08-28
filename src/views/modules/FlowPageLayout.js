@@ -29,7 +29,15 @@ const findBreadcrumbs = (pathname) => {
   return [];
 };
 
-const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, children }) => {
+const FlowPageLayout = ({
+  title,
+  subtitle,
+  links = [],
+  breadcrumbs = null,
+  hideBreadcrumbsOnMobile = false,
+  compactHeaderOnMobile = false,
+  children,
+}) => {
   const router = useRouter();
   const breadcrumbItems = breadcrumbs || findBreadcrumbs(router.pathname);
   const isOrdersPage = router.pathname.startsWith("/orders/");
@@ -65,6 +73,7 @@ const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, child
         <Breadcrumbs
           separator={<ChevronRightRoundedIcon fontSize="small" />}
           sx={{
+            display: hideBreadcrumbsOnMobile ? { xs: "none", sm: "flex" } : "flex",
             mb: 1.25,
             color: "text.secondary",
             "& .MuiBreadcrumbs-separator": { mx: 0.75 },
@@ -112,10 +121,17 @@ const FlowPageLayout = ({ title, subtitle, links = [], breadcrumbs = null, child
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={2}
-        sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "flex-end" }, mb: links.length > 0 ? 2 : 3 }}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", md: "flex-end" },
+          mb: {
+            xs: compactHeaderOnMobile ? 2 : links.length > 0 ? 2 : 3,
+            md: links.length > 0 ? 2 : 3,
+          },
+        }}
       >
         <Box>
-          <Typography variant="h4" sx={{ mb: 1, fontSize: { xs: 24, sm: 30 } }}>
+          <Typography variant="h4" sx={{ mb: compactHeaderOnMobile ? { xs: 0.5, sm: 1 } : 1, fontSize: { xs: 24, sm: 30 } }}>
             {title}
           </Typography>
           <Typography variant="body2" color="text.secondary">
