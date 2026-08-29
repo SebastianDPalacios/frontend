@@ -10,13 +10,22 @@ const formatPlanDate = (value) => {
 };
 
 const getStatusLabel = (status) => {
+  if (status === "cancelled") return "Cancelada";
   if (status === "completed") return "Completada";
   if (status === "viewed") return "Vista";
   return "Asignada";
 };
 
-const ProductionPlanCard = ({ plan, formatNumber, onViewItem, onEditPlan }) => (
-  <Paper variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
+const ProductionPlanCard = ({ plan, formatNumber, onEditPlan, onCancelPlan, cancelling }) => (
+  <Paper
+    variant="outlined"
+    sx={{
+      borderRadius: 2,
+      p: 2,
+      borderColor: plan.status === "cancelled" ? "error.main" : undefined,
+      bgcolor: plan.status === "cancelled" ? "rgba(211, 47, 47, 0.025)" : undefined,
+    }}
+  >
     <Stack
       direction={{ xs: "column", sm: "row" }}
       spacing={1}
@@ -31,18 +40,25 @@ const ProductionPlanCard = ({ plan, formatNumber, onViewItem, onEditPlan }) => (
       <Chip
         size="small"
         label={getStatusLabel(plan.status)}
-        color={plan.status === "viewed" || plan.status === "completed" ? "success" : "warning"}
+        color={plan.status === "cancelled" ? "error" : plan.status === "viewed" || plan.status === "completed" ? "success" : "warning"}
         variant="outlined"
       />
-      {onEditPlan ? (
-        <AppButton variant="outlined" color="secondary" onClick={() => onEditPlan(plan)}>
-          Editar plan
-        </AppButton>
-      ) : null}
+      <Stack direction="row" spacing={1}>
+        {onEditPlan && plan.status !== "cancelled" ? (
+          <AppButton variant="outlined" color="secondary" onClick={() => onEditPlan(plan)}>
+            Editar plan
+          </AppButton>
+        ) : null}
+        {onCancelPlan && plan.status !== "cancelled" ? (
+          <AppButton variant="outlined" color="error" disabled={cancelling} onClick={() => onCancelPlan(plan)}>
+            {cancelling ? "Cancelando..." : "Cancelar plan"}
+          </AppButton>
+        ) : null}
+      </Stack>
     </Stack>
 
     <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-      El panadero la inicia y finaliza desde su usuario en Mi produccion asignada.
+      Esta lista es solo informativa. La produccion real se registra libremente en Produccion realizada.
     </Typography>
 
     <Stack spacing={1}>
@@ -69,16 +85,6 @@ const ProductionPlanCard = ({ plan, formatNumber, onViewItem, onEditPlan }) => (
               </Stack>
             </Box>
 
-            {onViewItem ? (
-              <AppButton
-                variant="outlined"
-                color="secondary"
-                onClick={() => onViewItem(plan, item)}
-                sx={{ flexShrink: 0 }}
-              >
-                Ver detalle
-              </AppButton>
-            ) : null}
           </Stack>
         </Box>
       ))}

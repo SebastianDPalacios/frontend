@@ -46,12 +46,12 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
 
   useEffect(() => { loadPlans(); }, [loadPlans]);
 
-  const rows = useMemo(() => plans.flatMap((plan) => normalizeRows(plan.product_assignments).map((product) => ({
+  const rows = useMemo(() => plans.filter((plan) => isHistory || plan.status !== "cancelled").flatMap((plan) => normalizeRows(plan.product_assignments).map((product) => ({
     ...product,
     planId: plan.id,
     plannedDate: String(plan.planned_date || "").split("T")[0],
     branchName: plan.branch_name,
-  }))), [plans]);
+  }))), [isHistory, plans]);
 
   return (
     <FlowPageLayout

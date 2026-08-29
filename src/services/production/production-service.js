@@ -54,6 +54,10 @@ class ProductionService {
     return PostEndpoint(endpoints.production.packingReports, payload);
   }
 
+  async getPackingHistory(params = {}) {
+    return GetEndpoint(endpoints.production.packagingHistory, { params });
+  }
+
   async getJustifiedShortages(params = {}) {
     return GetEndpoint(endpoints.production.justifiedShortages, { params });
   }
@@ -79,6 +83,10 @@ class ProductionService {
 
   async updatePlan(planId, payload) {
     return PutEndpoint(endpoints.production.planById(planId), payload);
+  }
+
+  async cancelPlan(planId) {
+    return PostEndpoint(endpoints.production.cancelPlan(planId), {});
   }
 
   async getMyPlans(params = {}) {

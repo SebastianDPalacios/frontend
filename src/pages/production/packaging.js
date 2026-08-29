@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Grid } from "@mui/material";
+import { Alert, Paper, Tab, Tabs, Grid } from "@mui/material";
 import toast from "react-hot-toast";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
-import PackagingBatchWorkPanel from "components/organisms/production/PackagingBatchWorkPanel";
 import PackingReadyPanel from "components/organisms/production/PackingReadyPanel";
+import PackagingHistoryPanel from "components/organisms/production/PackagingHistoryPanel";
 import PendingPackagingBatches from "components/organisms/production/PendingPackagingBatches";
 import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
@@ -12,8 +12,6 @@ import { normalizeRows } from "views/modules/flow-utils";
 const numberFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 3,
 });
-
-const formatNumber = (value) => numberFormatter.format(Number(value || 0));
 
 const formatUnits = (value) => {
   const numberValue = Number(value || 0);
@@ -39,9 +37,6 @@ const getErrorMessage = (error, fallback) => {
   return message || fallback;
 };
 
-const getRegisteredQty = (item) =>
-  Number(item?.packed_quantity || 0) + Number(item?.damaged_quantity || 0) + Number(item?.missing_quantity || 0);
-
 const batchStatusLabels = {
   pending_packaging: "Pendiente",
   partially_packed: "Parcial",
@@ -59,12 +54,12 @@ const formatShortDate = (value) => {
 };
 
 const ProductionPackagingPage = () => {
+  const [activeView, setActiveView] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [pendingBatches, setPendingBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [selectedOutputId, setSelectedOutputId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [savingPacking, setSavingPacking] = useState(false);
   const [packingForm, setPackingForm] = useState({
@@ -136,7 +131,6 @@ const ProductionPackagingPage = () => {
     [pendingBatches, selectedBatchId]
   );
   const selectedItems = useMemo(() => normalizeRows(selectedBatch?.items), [selectedBatch]);
-  const selectedOutput = selectedItems.find((item) => String(item.production_batch_output_id) === String(selectedOutputId)) || selectedItems[0] || null;
   const packers = employees.filter((employee) => employee.job_type === "packer");
   const totalCounted = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.counted_quantity || 0), 0);
   const totalPacked = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.packed_quantity || 0), 0);
@@ -144,13 +138,6 @@ const ProductionPackagingPage = () => {
   const totalMissing = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.missing_quantity || 0), 0);
 
   useEffect(() => {
-    setSelectedOutputId((current) => {
-      if (selectedItems.some((item) => String(item.production_batch_output_id) === String(current))) {
-        return current;
-      }
-      return selectedItems[0]?.production_batch_output_id ? String(selectedItems[0].production_batch_output_id) : "";
-    });
-
     setPackingRows((current) => {
       const next = {};
       selectedItems.forEach((item) => {
@@ -299,7 +286,21 @@ const ProductionPackagingPage = () => {
         </Alert>
       ) : null}
 
-      <Grid container spacing={2}>
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 2, overflow: "hidden" }}>
+        <Tabs
+          value={activeView}
+          onChange={(_event, value) => setActiveView(value)}
+          variant="fullWidth"
+          textColor="secondary"
+          indicatorColor="secondary"
+          sx={{ "& .MuiTab-root": { minHeight: 58, fontWeight: 900, fontSize: { xs: 14, sm: 16 } } }}
+        >
+          <Tab value="pending" label={`Pendientes (${pendingBatches.length})`} />
+          <Tab value="history" label="Historial de conteos" />
+        </Tabs>
+      </Paper>
+
+      {activeView === "pending" ? <Grid container spacing={2}>
         <Grid item xs={12} lg={4}>
           <PendingPackagingBatches
             batchStatusLabels={batchStatusLabels}
@@ -312,20 +313,6 @@ const ProductionPackagingPage = () => {
         </Grid>
 
         <Grid item xs={12} lg={8}>
-          <PackagingBatchWorkPanel
-            formatNumber={formatNumber}
-            formatUnits={formatUnits}
-            getRegisteredQty={getRegisteredQty}
-            selectedBatch={selectedBatch}
-            selectedItems={selectedItems}
-            selectedOutput={selectedOutput}
-            setSelectedOutputId={setSelectedOutputId}
-            totalCounted={totalCounted}
-            totalDamaged={totalDamaged}
-            totalMissing={totalMissing}
-            totalPacked={totalPacked}
-          />
-
           <PackingReadyPanel
             clearPackingRow={clearPackingRow}
             createPackingReport={createPackingReport}
@@ -345,7 +332,7 @@ const ProductionPackagingPage = () => {
             updatePackingRow={updatePackingRow}
           />
         </Grid>
-      </Grid>
+      </Grid> : <PackagingHistoryPanel />}
     </FlowPageLayout>
   );
 };

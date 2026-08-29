@@ -21,13 +21,34 @@ const PackingReadyPanel = ({
   updatePackingRow,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
-    <Stack spacing={0.5} sx={{ mb: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 900 }}>
-        Registrar conteo y empaque
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Primero cuenta el producto real. Solo lo empacado entra a inventario; danados y faltantes quedan como control operativo.
-      </Typography>
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={2}
+      sx={{ mb: 2.5, justifyContent: "space-between", alignItems: { xs: "stretch", md: "flex-start" } }}
+    >
+      <Box>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+          {selectedBatch ? `Registrar conteo · Lote #${selectedBatch.production_batch_id}` : "Registrar conteo y empaque"}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {selectedBatch
+            ? `${selectedBatch.recipe_name || "Produccion"} · ${String(selectedBatch.produced_date || "").split("T")[0]} · ${selectedBatch.branch_name || "Sucursal"}`
+            : "Selecciona un lote pendiente para comenzar."}
+        </Typography>
+        {selectedBatch ? (
+          <Typography variant="caption" color="text.secondary">
+            {selectedItems.length} {selectedItems.length === 1 ? "producto" : "productos"}. Solo lo empacado entra a inventario.
+          </Typography>
+        ) : null}
+      </Box>
+      {selectedBatch ? (
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+          <Chip label={`${formatUnits(totalCounted)} contados`} color="info" variant="outlined" />
+          <Chip label={`${formatUnits(totalPacked)} a inventario`} color="success" variant="outlined" />
+          <Chip label={`${formatUnits(totalDamaged)} danados`} color="error" variant="outlined" />
+          <Chip label={`${formatUnits(totalMissing)} faltantes`} color="warning" variant="outlined" />
+        </Stack>
+      ) : null}
     </Stack>
 
     <Grid container spacing={2} sx={{ alignItems: "flex-start", mb: 2 }}>
@@ -233,12 +254,9 @@ const PackingReadyPanel = ({
       spacing={2}
       sx={{ mt: 2, justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
     >
-      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-        <Chip label={`Conteo: ${formatUnits(totalCounted)}`} color="info" variant="outlined" />
-        <Chip label={`Inventario: ${formatUnits(totalPacked)}`} color="success" variant="outlined" />
-        <Chip label={`${formatUnits(totalDamaged)} danados`} color="error" variant="outlined" />
-        <Chip label={`${formatUnits(totalMissing)} faltantes`} color="warning" variant="outlined" />
-      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        Revisa las cantidades antes de registrar. Esta accion actualiza el inventario con lo empacado.
+      </Typography>
       <AppButton color="secondary" onClick={createPackingReport} disabled={savingPacking || !selectedBatch}>
         {savingPacking ? "Registrando..." : "Registrar conteo"}
       </AppButton>

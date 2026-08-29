@@ -20,6 +20,7 @@ import ColombianCurrencyField, { formatCurrencyValue } from "components/atoms/Co
 import CaptureModeSwitch from "components/atoms/CaptureModeSwitch";
 import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
+import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
@@ -117,6 +118,14 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
   const saveExisting = async (item, remove = false) => {
     const draft = drafts[item.id] || toDraft(item);
     const requestedLineType = draft.lineType;
+    const amountError = !remove ? getInvalidUnitSaleAmount(
+      { ...item, unit: item.product_unit, base_price: item.unit_price },
+      { ...draft, orderMode: requestedLineType }
+    ) : null;
+    if (amountError) {
+      toast.error(amountError.message);
+      return;
+    }
     setSavingKey(`item-${item.id}`);
     try {
       if ((remove || requestedLineType !== "sale_bonus") && item.bonus_item) {
@@ -194,6 +203,11 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
   const addLine = async () => {
     if (!selectedNewProduct || Number(newLine.value || 0) <= 0) {
       toast.error("Selecciona un producto e ingresa un valor o cantidad");
+      return;
+    }
+    const amountError = getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType });
+    if (amountError) {
+      toast.error(amountError.message);
       return;
     }
     setSavingKey("new");
@@ -356,6 +370,10 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
             <TableBody>
               {displayItems.map((item) => {
                 const draft = drafts[item.id] || toDraft(item);
+                const amountError = getInvalidUnitSaleAmount(
+                  { ...item, unit: item.product_unit, base_price: item.unit_price },
+                  { ...draft, orderMode: draft.lineType }
+                );
 
                 return (
                   <TableRow key={item.id} hover>
@@ -408,6 +426,8 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                               [item.id]: { ...draft, value: event.target.value },
                             }))
                           }
+                          error={amountError?.message}
+                          helperText={amountError?.message}
                         />
                       ) : (
                         <TextField
@@ -524,6 +544,8 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                     name="new-line-value"
                     value={newLine.value}
                     onChange={(event) => setNewLine((current) => ({ ...current, value: event.target.value }))}
+                    error={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType })?.message}
+                    helperText={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType })?.message}
                   />
                 ) : (
                   <TextField
@@ -541,7 +563,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                   fullWidth
                   variant="contained"
                   color="secondary"
-                  disabled={Boolean(savingKey)}
+                    disabled={Boolean(savingKey) || Boolean(getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType }))}
                   onClick={addLine}
                   sx={{ minHeight: 48 }}
                 >

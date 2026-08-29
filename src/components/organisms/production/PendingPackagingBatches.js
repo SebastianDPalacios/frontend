@@ -13,7 +13,7 @@ const PendingPackagingBatches = ({
     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>
-          1. Lotes para contar
+          Lotes pendientes
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Elige el lote. Aqui solo se muestran productos, no cantidades del panadero.

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, useMediaQuery } from "@mui/material";
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import toast from "react-hot-toast";
 import ProductionPlanAssignmentForm from "components/organisms/production/ProductionPlanAssignmentForm";
 import ProductionPlanDesktopForm from "components/organisms/production/ProductionPlanDesktopForm";
 import ProductionPlanOverview from "components/organisms/production/ProductionPlanOverview";
 import ProductionWorkDialog from "components/organisms/production/ProductionWorkDialog";
+import AppButton from "@core/components/ui/AppButton";
 import authService from "services/auth/auth-service";
 import { isProductionOnlyUser } from "configs/access";
 import catalogService from "services/catalog/catalog-service";
@@ -111,6 +112,8 @@ const ProductionPlanningPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState("");
+  const [cancellingPlanId, setCancellingPlanId] = useState("");
+  const [planToCancel, setPlanToCancel] = useState(null);
   const [formResetToken, setFormResetToken] = useState(0);
   const [startingItemId, setStartingItemId] = useState("");
   const [finishingItemId, setFinishingItemId] = useState("");
@@ -427,6 +430,24 @@ const ProductionPlanningPage = () => {
       setFinishingItemId("");
     }
   };
+
+  const cancelPlan = async (plan) => {
+    if (cancellingPlanId) return;
+    setCancellingPlanId(String(plan.id));
+    setError(null);
+    try {
+      const response = await productionService.cancelPlan(plan.id);
+      if (response?.code !== 1) throw new Error(response?.message || "No se pudo cancelar el plan.");
+      toast.success(response.message || "Plan informativo cancelado");
+      setPlanToCancel(null);
+      if (String(editingPlanId) === String(plan.id)) resetPlanForm();
+      await loadData();
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, "Error de red al cancelar el plan."));
+    } finally {
+      setCancellingPlanId("");
+    }
+  };
   return (
     <FlowPageLayout
       title="Producción del día siguiente"
@@ -494,6 +515,8 @@ const ProductionPlanningPage = () => {
         onStartItem={startPlanItem}
         onViewItem={openWorkDialog}
         onEditPlan={editPlan}
+        onCancelPlan={setPlanToCancel}
+        cancellingPlanId={cancellingPlanId}
         canEditPlan={userCanEditPlan}
       />
 
@@ -508,6 +531,52 @@ const ProductionPlanningPage = () => {
         onClose={() => setWorkDialog({ plan: null, item: null, canFinish: true })}
         onFinish={finishPlanItem}
       />
+
+      <Dialog
+        open={Boolean(planToCancel)}
+        onClose={() => !cancellingPlanId && setPlanToCancel(null)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: 4, overflow: "hidden" } }}
+      >
+        <Box sx={{ height: 7, bgcolor: "error.main" }} />
+        <DialogTitle sx={{ px: { xs: 2.5, sm: 3 }, pt: 3, pb: 1, fontWeight: 950 }}>
+          Cancelar lista informativa
+        </DialogTitle>
+        <DialogContent sx={{ px: { xs: 2.5, sm: 3 }, pt: "8px !important" }}>
+          <Stack spacing={2}>
+            <Typography color="text.secondary">
+              Esta accion no elimina produccion ni modifica inventario. El panadero dejara de ver esta lista como vigente.
+            </Typography>
+            <Box sx={{ p: 2, borderRadius: 3, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}>
+              <Typography sx={{ fontWeight: 900 }}>{planToCancel?.baker_name || "Panadero asignado"}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {String(planToCancel?.planned_date || "").split("T")[0]} · {planToCancel?.branch_name || "Sucursal"}
+              </Typography>
+            </Box>
+            <Alert severity="warning">Podras consultar esta lista en el historial, pero ya no podra editarse.</Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: { xs: 2.5, sm: 3 }, pt: 1, gap: 1, flexDirection: { xs: "column-reverse", sm: "row" } }}>
+          <AppButton
+            fullWidth
+            variant="outlined"
+            color="inherit"
+            disabled={Boolean(cancellingPlanId)}
+            onClick={() => setPlanToCancel(null)}
+          >
+            Volver
+          </AppButton>
+          <AppButton
+            fullWidth
+            color="error"
+            disabled={Boolean(cancellingPlanId)}
+            onClick={() => cancelPlan(planToCancel)}
+          >
+            {cancellingPlanId ? "Cancelando..." : "Si, cancelar lista"}
+          </AppButton>
+        </DialogActions>
+      </Dialog>
     </FlowPageLayout>
   );
 };
