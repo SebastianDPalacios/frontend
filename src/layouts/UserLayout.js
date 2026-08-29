@@ -52,8 +52,10 @@ import {
   hasPermission,
   isBakerOnlyUser,
   isPackagingOnlyUser,
+  isProductionOnlyUser,
   isSalesOnlyUser,
   packagingOnlyPaths,
+  productionOnlyPaths,
   salesOnlyPaths,
 } from "configs/access";
 
@@ -77,9 +79,12 @@ const getUserInitials = (user) => {
 
 const filterNavigationByUser = (items, user) => {
   const salesOnly = isSalesOnlyUser(user);
+  const productionOnly = isProductionOnlyUser(user);
   const bakerOnly = isBakerOnlyUser(user);
   const packagingOnly = isPackagingOnlyUser(user);
-  const focusedPaths = salesOnly
+  const focusedPaths = productionOnly
+    ? productionOnlyPaths
+    : salesOnly
     ? salesOnlyPaths
     : packagingOnly
       ? packagingOnlyPaths

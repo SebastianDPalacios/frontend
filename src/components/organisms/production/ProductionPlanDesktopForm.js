@@ -122,7 +122,9 @@ const ProductionPlanDesktopForm = ({
             <Typography variant="body2">
               {row.requestMode === "units"
                 ? `${formatNumber(row.requestedQuantity)} unidades · ${formatArrobas(row.plannedArrobas)} arrobas`
-                : `${formatArrobas(row.requestedQuantity)} arrobas · ${formatNumber(row.estimatedUnits)} unidades`}
+                : row.requestMode === "bags"
+                  ? `${formatNumber(row.requestedQuantity)} bultos · sin equivalencia`
+                  : `${formatArrobas(row.requestedQuantity)} arrobas · ${formatNumber(row.estimatedUnits)} unidades`}
             </Typography>
           </Stack>
         ))}

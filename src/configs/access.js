@@ -1,4 +1,5 @@
 export const SALES_ONLY_HOME = "/sales/dashboard";
+export const PRODUCTION_HOME = "/production/planning";
 export const BAKER_HOME = "/production/my-plan";
 export const PACKAGING_HOME = "/production/packaging";
 
@@ -17,12 +18,15 @@ export const bakerOnlyPaths = [
   "/production/history",
 ];
 
+export const productionOnlyPaths = ["/production/planning"];
+
 export const packagingOnlyPaths = [
   "/dashboards/analytics",
   "/production/packaging",
 ];
 
 const administrativeRoles = ["ADMIN", "SUPER_ADMIN", "ADMINISTRATIVO", "ADMINISTRATIVE"];
+const productionRoles = ["PRODUCCION", "PRODUCTION"];
 const bakerRoles = ["PANADERO", "BAKER"];
 const packagingRoles = ["EMPAQUETADOR", "PACKER", "PACKAGING", "CONTADOR", "CONTEO", "COUNTER"];
 
@@ -88,6 +92,12 @@ export const isSalesOnlyUser = (user) => {
   return roles.includes("VENTAS") && !roles.some((role) => administrativeRoles.includes(role));
 };
 
+export const isProductionOnlyUser = (user) => {
+  const roles = normalizeRoleCodes(Array.isArray(user?.roles) ? user.roles : []);
+  return roles.some((role) => productionRoles.includes(role))
+    && !roles.some((role) => administrativeRoles.includes(role));
+};
+
 export const hasBakerProfile = (user) => {
   return getOperationalCodes(user).some((code) => bakerRoles.includes(code));
 };
@@ -129,6 +139,10 @@ export const getHomePathForUser = (user) => {
     return SALES_ONLY_HOME;
   }
 
+  if (isProductionOnlyUser(user)) {
+    return PRODUCTION_HOME;
+  }
+
   if (isBakerOnlyUser(user)) {
     return BAKER_HOME;
   }
@@ -147,6 +161,10 @@ const pathIsAllowed = (pathname, allowedPaths) => {
 export const canAccessPath = (user, pathname) => {
   if (isSalesOnlyUser(user)) {
     return pathIsAllowed(pathname, salesOnlyPaths);
+  }
+
+  if (isProductionOnlyUser(user)) {
+    return pathIsAllowed(pathname, productionOnlyPaths);
   }
 
   if (isPackagingOnlyUser(user)) {

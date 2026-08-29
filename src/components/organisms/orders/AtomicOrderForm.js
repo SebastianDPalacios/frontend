@@ -38,8 +38,8 @@ import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow
 const today = toDateInputValue();
 
 const orderModes = [
-  { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
+  { value: "sale", label: "Venta" },
   { value: "bonus", label: "Solo vendaje" },
   { value: "gift", label: "Obsequio" },
   { value: "exchange", label: "Cambio" },
@@ -69,7 +69,7 @@ const isPastryProduct = (product) => {
 const getOrderModesForProduct = (product) => {
   if (Number(product?.includes_bonus || 0) === 1) {
     return [
-      { value: "sale_bonus", label: "Venta con vendaje incluido" },
+      { value: "sale", label: "Venta con vendaje incluido" },
       { value: "bonus", label: "Solo vendaje" },
       { value: "gift", label: "Obsequio" },
       { value: "exchange", label: "Cambio" },
@@ -139,7 +139,7 @@ const getDisplayedEntryValue = (entry, calculation) => (
 const createSelectedLine = (product) => ({
   id: `${product.id}-${Date.now()}`,
   productId: Number(product.id),
-  orderMode: Number(product.includes_bonus || 0) === 1 ? "sale_bonus" : "sale",
+  orderMode: "sale",
   captureMode: "amount",
   value: "",
 });
@@ -254,13 +254,10 @@ const AtomicOrderForm = () => {
   const preparedOrder = useMemo(() => {
     const preparedRows = selectedLines.map((entry) => {
       const product = productsById.get(Number(entry.productId));
-      const normalizedEntry = Number(product?.includes_bonus || 0) === 1 && entry.orderMode === "sale"
-        ? { ...entry, orderMode: "sale_bonus" }
-        : entry;
       return {
-        entry: normalizedEntry,
+        entry,
         product,
-        calculation: calculateEntry(product, normalizedEntry),
+        calculation: calculateEntry(product, entry),
       };
     });
 
@@ -856,7 +853,7 @@ const AtomicOrderForm = () => {
                       <Chip
                         size="small"
                         color={["sale_bonus", "bonus", "gift"].includes(orderMode) ? "success" : "default"}
-                        label={lineLabels[orderMode]}
+                        label={getOrderModesForProduct(product).find((mode) => mode.value === orderMode)?.label || lineLabels[orderMode]}
                       />
                     </Stack>
                     <Typography variant="body2" color="text.secondary">

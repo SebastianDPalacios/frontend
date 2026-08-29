@@ -22,7 +22,7 @@ const ProductionPlanRecipeTable = ({ rows, recipes, onChange, onRemove, formatNu
         const requested = Number(row.requestedQuantity || 0);
         const yieldPerArroba = Number(selected?.expected_quantity || 0);
         const estimated = row.requestMode === "units" ? requested / yieldPerArroba : requested * yieldPerArroba;
-        const hasEstimate = selected && requested > 0 && Number.isFinite(estimated);
+        const hasEstimate = row.requestMode !== "bags" && selected && requested > 0 && Number.isFinite(estimated);
 
         return (
           <Paper
@@ -69,14 +69,16 @@ const ProductionPlanRecipeTable = ({ rows, recipes, onChange, onRemove, formatNu
                       onClick={() => onChange(index, { requestMode: "units", requestedQuantity: "" })}>Unidades</Button>
                     <Button fullWidth size="large" color="secondary" variant={row.requestMode === "arrobas" ? "contained" : "outlined"}
                       onClick={() => onChange(index, { requestMode: "arrobas", requestedQuantity: "" })}>Arrobas</Button>
+                    <Button fullWidth size="large" color="secondary" variant={row.requestMode === "bags" ? "contained" : "outlined"}
+                      onClick={() => onChange(index, { requestMode: "bags", requestedQuantity: "" })}>Bultos</Button>
                   </Stack>
                 </Grid>
                 <Grid item xs={12}>
                   <TextField fullWidth type="number"
-                    label={row.requestMode === "units" ? "¿Cuántas unidades?" : "¿Cuántas arrobas?"}
+                    label={row.requestMode === "units" ? "¿Cuántas unidades?" : row.requestMode === "bags" ? "¿Cuántos bultos?" : "¿Cuántas arrobas?"}
                     value={row.requestedQuantity}
                     onChange={(event) => onChange(index, { requestedQuantity: event.target.value })}
-                    inputProps={{ min: row.requestMode === "units" ? 1 : 0.1, step: row.requestMode === "units" ? 1 : "0.1" }} />
+                    inputProps={{ min: row.requestMode === "arrobas" ? 0.1 : 1, step: row.requestMode === "arrobas" ? "0.1" : 1 }} />
                 </Grid>
               </Grid>
 
@@ -92,7 +94,7 @@ const ProductionPlanRecipeTable = ({ rows, recipes, onChange, onRemove, formatNu
                   {selected ? (
                     <Box sx={{ mb: 2 }}>
                       <Typography sx={{ fontWeight: 800 }}>Receta: {selected.recipeName}</Typography>
-                      <Typography color="text.secondary">Rendimiento: {formatNumber(yieldPerArroba)} unidades por arroba</Typography>
+                      {row.requestMode !== "bags" ? <Typography color="text.secondary">Rendimiento: {formatNumber(yieldPerArroba)} unidades por arroba</Typography> : null}
                       {hasEstimate ? (
                         <Typography sx={{ mt: 0.5, fontWeight: 900 }}>
                           Equivalencia: {row.requestMode === "units" ? formatArrobas(estimated) : formatNumber(estimated)} {row.requestMode === "units" ? "arrobas" : "unidades"}

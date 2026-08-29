@@ -1,14 +1,14 @@
 import { MenuItem, TextField } from "@mui/material";
 
 const lineTypes = [
-  { value: "sale", label: "Venta" },
   { value: "sale_bonus", label: "Venta + vendaje" },
+  { value: "sale", label: "Venta" },
   { value: "bonus", label: "Solo vendaje" },
   { value: "gift", label: "Obsequio" },
   { value: "exchange", label: "Cambio" },
 ];
 
-const OrderLineTypeSelect = ({ value, onChange, disabled = false }) => (
+const OrderLineTypeSelect = ({ value, onChange, disabled = false, options = lineTypes }) => (
   <TextField
     select
     fullWidth
@@ -18,7 +18,7 @@ const OrderLineTypeSelect = ({ value, onChange, disabled = false }) => (
     onChange={(event) => onChange(event.target.value)}
     disabled={disabled}
   >
-    {lineTypes.map((type) => (
+    {options.map((type) => (
       <MenuItem key={type.value} value={type.value}>
         {type.label}
       </MenuItem>

@@ -65,21 +65,24 @@ const ProductionPlanDesktopTable = ({ rows, recipes, onChange, onMove, onRemove,
                       onChange={(event) => onChange(index, { requestMode: event.target.value, requestedQuantity: "" })}>
                       <MenuItem value="units">Por unidades</MenuItem>
                       <MenuItem value="arrobas">Por arrobas</MenuItem>
+                      <MenuItem value="bags">Por bultos</MenuItem>
                     </TextField>
                   </TableCell>
                   <TableCell>
                     <TextField fullWidth size="small" type="number"
-                      label={row.requestMode === "units" ? "Unidades" : "Arrobas"}
+                      label={row.requestMode === "units" ? "Unidades" : row.requestMode === "bags" ? "Bultos" : "Arrobas"}
                       value={row.requestedQuantity}
                       onChange={(event) => onChange(index, { requestedQuantity: event.target.value })}
-                      inputProps={{ min: row.requestMode === "units" ? 1 : 0.001, step: row.requestMode === "units" ? 1 : "0.001" }} />
+                      inputProps={{ min: row.requestMode === "arrobas" ? 0.001 : 1, step: row.requestMode === "arrobas" ? "0.001" : 1 }} />
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 800 }}>
-                      {selected && requested > 0 && Number.isFinite(estimated)
+                      {row.requestMode === "bags"
+                        ? "Sin equivalencia"
+                        : selected && requested > 0 && Number.isFinite(estimated)
                         ? `${row.requestMode === "units" ? formatArrobas(estimated) : formatNumber(estimated)} ${row.requestMode === "units" ? "arrobas" : "unidades"}` : "—"}
                     </Typography>
-                    {selected ? <Typography variant="caption" color="text.secondary">Rendimiento: {formatNumber(yieldPerArroba)} unidades/arroba</Typography> : null}
+                    {selected && row.requestMode !== "bags" ? <Typography variant="caption" color="text.secondary">Rendimiento: {formatNumber(yieldPerArroba)} unidades/arroba</Typography> : null}
                   </TableCell>
                   <TableCell>
                     <Typography sx={{ fontWeight: 700 }}>{selected?.recipeName || "Selecciona un producto"}</Typography>

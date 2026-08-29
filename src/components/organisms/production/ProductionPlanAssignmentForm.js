@@ -26,13 +26,14 @@ const ProductionPlanAssignmentForm = ({
   onSubmit,
   editing = false,
   onCancelEdit,
+  resetToken,
 }) => {
   const [step, setStep] = useState(0);
   const productsComplete = rows.every((row) => row.productId && row.recipeId && Number(row.requestedQuantity) > 0);
 
   useEffect(() => {
     setStep(0);
-  }, [editing]);
+  }, [editing, resetToken]);
 
   return (
     <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 3 }, mb: 3 }}>
@@ -150,7 +151,9 @@ const ProductionPlanAssignmentForm = ({
                   <Typography sx={{ textAlign: "right", fontWeight: 700 }}>
                     {row.requestMode === "units"
                       ? `${formatNumber(row.requestedQuantity)} unidades`
-                      : `${formatArrobas(row.requestedQuantity)} arrobas`}
+                      : row.requestMode === "bags"
+                        ? `${formatNumber(row.requestedQuantity)} bultos`
+                        : `${formatArrobas(row.requestedQuantity)} arrobas`}
                   </Typography>
                 </Stack>
               ))}

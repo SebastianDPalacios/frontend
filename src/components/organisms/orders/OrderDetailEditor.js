@@ -31,7 +31,9 @@ const emptyNewLine = {
 };
 
 const toDraft = (item) => ({
-  lineType: item.display_line_type || item.line_type || "sale",
+  lineType: Number(item.includes_bonus || 0) === 1 && item.line_type === "sale"
+    ? "sale"
+    : item.display_line_type || item.line_type || "sale",
   originalLineType: item.line_type || "sale",
   captureMode: item.capture_mode || "quantity",
   value:
@@ -47,6 +49,15 @@ const lineTypeLabels = {
   gift: "Obsequio",
   exchange: "Cambio",
 };
+
+const getLineTypesForProduct = (product) => Number(product?.includes_bonus || 0) === 1
+  ? [
+      { value: "sale", label: "Venta con vendaje incluido" },
+      { value: "bonus", label: "Solo vendaje" },
+      { value: "gift", label: "Obsequio" },
+      { value: "exchange", label: "Cambio" },
+    ]
+  : undefined;
 
 const mergeSaleBonusItems = (items = []) => {
   const bonusByProduct = new Map();
@@ -359,13 +370,16 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                     <TableCell sx={{ minWidth: 180 }}>
                       <OrderLineTypeSelect
                         value={draft.lineType}
+                        options={getLineTypesForProduct(item)}
                         disabled={!canEdit}
                         onChange={(lineType) =>
                           setDrafts((current) => ({ ...current, [item.id]: { ...draft, lineType } }))
                         }
                       />
                       <Typography variant="caption" color="text.secondary">
-                        Actual: {lineTypeLabels[item.display_line_type || item.line_type] || item.line_type || "-"}
+                        Actual: {Number(item.includes_bonus || 0) === 1 && item.line_type === "sale"
+                          ? "Venta con vendaje incluido"
+                          : lineTypeLabels[item.display_line_type || item.line_type] || item.line_type || "-"}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 180 }}>
@@ -481,7 +495,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                   fullWidth
                   label="Producto"
                   value={newLine.productId}
-                  onChange={(event) => setNewLine((current) => ({ ...current, productId: event.target.value }))}
+                  onChange={(event) => setNewLine((current) => ({ ...current, productId: event.target.value, lineType: "sale" }))}
                 >
                   {products.map((product) => (
                     <MenuItem key={product.id} value={String(product.id)}>
@@ -493,6 +507,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
               <Grid item xs={12} sm={6} md={3}>
                 <OrderLineTypeSelect
                   value={newLine.lineType}
+                  options={getLineTypesForProduct(selectedNewProduct)}
                   onChange={(lineType) => setNewLine((current) => ({ ...current, lineType }))}
                 />
               </Grid>

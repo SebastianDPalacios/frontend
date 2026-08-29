@@ -7,6 +7,7 @@ import ProductionPlanDesktopForm from "components/organisms/production/Productio
 import ProductionPlanOverview from "components/organisms/production/ProductionPlanOverview";
 import ProductionWorkDialog from "components/organisms/production/ProductionWorkDialog";
 import authService from "services/auth/auth-service";
+import { isProductionOnlyUser } from "configs/access";
 import catalogService from "services/catalog/catalog-service";
 import employeesService from "services/employees/employees-service";
 import productionService from "services/production/production-service";
@@ -76,12 +77,10 @@ const calculatePlanRow = (recipes, row) => {
   const { recipe, output } = getRecipeOutput(recipes, row);
   const requestedQuantity = Number(row.requestedQuantity || 0);
   const yieldPerArroba = Number(output?.expected_quantity || 0);
-  const plannedArrobas = row.requestMode === "arrobas"
-    ? requestedQuantity
-    : requestedQuantity / yieldPerArroba;
   const estimatedUnits = row.requestMode === "units"
     ? requestedQuantity
-    : requestedQuantity * yieldPerArroba;
+    : row.requestMode === "bags" ? 0 : requestedQuantity * yieldPerArroba;
+  const plannedArrobas = row.requestMode === "bags" ? 0 : row.requestMode === "arrobas" ? requestedQuantity : estimatedUnits / yieldPerArroba;
   return {
     recipe,
     output,
@@ -108,10 +107,11 @@ const ProductionPlanningPage = () => {
     const code = typeof role === "string" ? role : role?.code || role?.name;
     return ["ADMIN", "SUPER_ADMIN"].includes(String(code || "").toUpperCase());
   });
-  const canManage = isAdministrator || (currentUser.permissions || []).includes("production.manage");
+  const canManage = isAdministrator || isProductionOnlyUser(currentUser) || (currentUser.permissions || []).includes("production.manage");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState("");
+  const [formResetToken, setFormResetToken] = useState(0);
   const [startingItemId, setStartingItemId] = useState("");
   const [finishingItemId, setFinishingItemId] = useState("");
   const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
@@ -215,7 +215,7 @@ const ProductionPlanningPage = () => {
     const recipeGroups = new Map();
     const products = rows.map((row) => {
       const calculated = calculatePlanRow(recipes, row);
-      if (calculated.recipe && calculated.output) {
+      if (calculated.recipe && calculated.output && row.requestMode !== "bags") {
         const key = String(calculated.recipe.id);
         const current = recipeGroups.get(key) || {
           recipeId: calculated.recipe.id,
@@ -240,6 +240,7 @@ const ProductionPlanningPage = () => {
 
   const resetPlanForm = () => {
     setEditingPlanId("");
+    setFormResetToken((current) => current + 1);
     setRows([emptyPlanRow()]);
     setForm((current) => ({
       ...current,
@@ -311,8 +312,8 @@ const ProductionPlanningPage = () => {
       setError("Un producto no puede aparecer dos veces dentro del mismo plan.");
       return;
     }
-    if (rows.some((row) => row.requestMode === "units" && !Number.isInteger(Number(row.requestedQuantity)))) {
-      setError("Las solicitudes por unidades deben usar cantidades enteras.");
+    if (rows.some((row) => ["units", "bags"].includes(row.requestMode) && !Number.isInteger(Number(row.requestedQuantity)))) {
+      setError("Las solicitudes por unidades o bultos deben usar cantidades enteras.");
       return;
     }
 
@@ -429,7 +430,7 @@ const ProductionPlanningPage = () => {
   return (
     <FlowPageLayout
       title="Producción del día siguiente"
-      subtitle="Planifica cada producto por unidades o arrobas; el sistema utiliza internamente su receta vigente."
+      subtitle="Planifica cada producto por unidades, arrobas o bultos; el sistema utiliza internamente su receta vigente."
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificación...</Alert> : null}
@@ -457,6 +458,7 @@ const ProductionPlanningPage = () => {
           onSubmit={savePlan}
           editing={Boolean(editingPlanId)}
           onCancelEdit={resetPlanForm}
+          resetToken={formResetToken}
         /> : <ProductionPlanDesktopForm
           branches={branches}
           bakers={bakers}
