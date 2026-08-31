@@ -196,6 +196,7 @@ const InventoryMovementsPage = () => {
           name: getDisplayName(product),
           unit: product.unit || "unit",
           quantity_on_hand: product.quantity_on_hand || 0,
+          sku: product.sku || product.code || "",
         }));
 
         const materialItems = materials.map((material) => ({
@@ -208,6 +209,7 @@ const InventoryMovementsPage = () => {
           purchase_package_name: material.purchase_package_name || null,
           purchase_package_quantity: material.purchase_package_quantity || null,
           inventory_usage_type: material.inventory_usage_type || "production",
+          sku: material.sku || material.code || "",
         }));
 
         setBranches(branchRows);
@@ -287,7 +289,8 @@ const InventoryMovementsPage = () => {
 
     return items.filter((item) => {
       const matchesType = itemTypeFilter === "all" || item.item_type === itemTypeFilter;
-      const matchesSearch = !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
+      const searchable = `${item.name} ${item.sku || ""}`.toLocaleLowerCase("es");
+      const matchesSearch = !normalizedSearch || searchable.includes(normalizedSearch);
       return matchesType && matchesSearch;
     });
   }, [itemTypeFilter, items, search]);

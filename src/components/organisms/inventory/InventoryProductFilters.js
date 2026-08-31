@@ -1,6 +1,6 @@
 import { Grid, MenuItem, Paper, TextField, Typography } from "@mui/material";
 
-const InventoryProductFilters = ({ branches, selectedBranch, onBranchChange, getDisplayName }) => (
+const InventoryProductFilters = ({ branches, selectedBranch, onBranchChange, search, onSearchChange, getDisplayName }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
     <Grid container spacing={2} sx={{ alignItems: "center" }}>
       <Grid item xs={12} md={4}>
@@ -12,10 +12,11 @@ const InventoryProductFilters = ({ branches, selectedBranch, onBranchChange, get
           ))}
         </TextField>
       </Grid>
-      <Grid item xs={12} md={8}>
-        <Typography variant="body2" color="text.secondary">
-          Revisa existencias de producto terminado por sucursal. Los valores se muestran en la unidad base del producto.
-        </Typography>
+      <Grid item xs={12} md={4}>
+        <TextField fullWidth label="Buscar producto" placeholder="Nombre o codigo" value={search} onChange={(event) => onSearchChange(event.target.value)} />
+      </Grid>
+      <Grid item xs={12} md={4}>
+        <Typography variant="body2" color="text.secondary">Revisa existencias de producto terminado por sucursal.</Typography>
       </Grid>
     </Grid>
   </Paper>

@@ -5,10 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -44,14 +40,6 @@ const orderModes = [
   { value: "gift", label: "Obsequio" },
   { value: "exchange", label: "Cambio" },
 ];
-
-const lineLabels = {
-  sale: "Venta",
-  sale_bonus: "Venta + vendaje",
-  bonus: "Vendaje",
-  gift: "Obsequio",
-  exchange: "Cambio",
-};
 
 const preferredCategoryOrder = [
   "Pan de sal",
@@ -173,7 +161,6 @@ const AtomicOrderForm = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedLines, setSelectedLines] = useState([]);
   const [customerCredit, setCustomerCredit] = useState({ balance_amount: 0, ledger: [] });
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -422,6 +409,7 @@ const AtomicOrderForm = () => {
   };
 
   const validateBeforeConfirmation = () => {
+    if (saving) return;
     setError("");
     if (canAssignSeller && !sellerId) {
       setError("Selecciona el vendedor al que se asignara el pedido");
@@ -448,7 +436,7 @@ const AtomicOrderForm = () => {
       setError("El vendaje seleccionado supera el limite disponible");
       return;
     }
-    setConfirmOpen(true);
+    save();
   };
 
   const save = async () => {
@@ -474,16 +462,13 @@ const AtomicOrderForm = () => {
       });
       if (response?.code !== 1) {
         setError(response?.message || "No se pudo guardar el pedido");
-        setConfirmOpen(false);
         return;
       }
       toast.success(`Pedido #${response.data.order_id} guardado`);
-      setConfirmOpen(false);
       setSelectedLines([]);
       setNotes("");
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || "Error al guardar el pedido");
-      setConfirmOpen(false);
     } finally {
       setSaving(false);
     }
@@ -517,10 +502,6 @@ const AtomicOrderForm = () => {
         addConfiguredProduct={addConfiguredProduct}
         removeLine={removeLine}
         onReview={validateBeforeConfirmation}
-        confirmOpen={confirmOpen}
-        setConfirmOpen={setConfirmOpen}
-        selectedCustomer={selectedCustomer}
-        onSave={save}
       />
     );
   }
@@ -810,93 +791,16 @@ const AtomicOrderForm = () => {
             <AppButton
               fullWidth
               color="secondary"
-              disabled={loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0}
+              disabled={saving || loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0}
               onClick={validateBeforeConfirmation}
               sx={{ mt: 2.5, minHeight: 48 }}
             >
-              Revisar pedido
+              {saving ? "Guardando..." : "Guardar pedido"}
             </AppButton>
           </Paper>
         </Grid>
       </Grid>
 
-      <Dialog open={confirmOpen} onClose={() => !saving && setConfirmOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Confirmar lo que vamos a vender</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            <Box>
-              <Typography sx={{ fontWeight: 900 }}>{selectedCustomer?.name || "Cliente"}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Entrega: {deliveryDate}
-              </Typography>
-            </Box>
-
-            <Stack divider={<Divider flexItem />}>
-              {preparedOrder.rows.map(({ entry, product, calculation }) => {
-                const orderMode = isPastryProduct(product) && ["sale_bonus", "bonus"].includes(entry.orderMode)
-                  ? "sale"
-                  : entry.orderMode;
-                const automaticBonus = orderMode === "sale_bonus" && preparedOrder.bonusEnabled
-                  ? calculateAutomaticBonus(
-                      product,
-                      calculation.requestedValue * (Number(settings.bonus_percent || 0) / 100),
-                      settings.bonus_max_company_loss_amount
-                    )
-                  : { quantity: 0 };
-                const totalQuantity = calculation.quantity + automaticBonus.quantity;
-
-                return (
-                <Stack key={entry.id} direction="row" spacing={2} sx={{ py: 1.25, justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                      <Typography sx={{ fontWeight: 800 }}>{product.name}</Typography>
-                      <Chip
-                        size="small"
-                        color={["sale_bonus", "bonus", "gift"].includes(orderMode) ? "success" : "default"}
-                        label={getOrderModesForProduct(product).find((mode) => mode.value === orderMode)?.label || lineLabels[orderMode]}
-                      />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {totalQuantity} unidades
-                      {orderMode === "sale_bonus" && automaticBonus.quantity > 0
-                        ? ` (${calculation.quantity} venta + ${automaticBonus.quantity} vendaje)`
-                        : ""}
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontWeight: 900, whiteSpace: "nowrap" }}>
-                    {!["bonus", "gift"].includes(orderMode)
-                      ? `$${formatCurrencyValue(getDisplayedEntryValue(entry, calculation), 0)}`
-                      : "Sin cobro"}
-                  </Typography>
-                </Stack>
-                );
-              })}
-            </Stack>
-
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <OrderDraftSummary
-                summary={preparedOrder.summary}
-                settings={settings}
-                creditAvailable={creditAvailable}
-                creditRedeemed={creditRedeemedAmount}
-                showCreditDetails={showCreditDetails}
-              />
-            </Paper>
-
-            <Alert severity="info">
-              Al confirmar se creara el pedido en estado borrador. Podras editarlo antes de enviarlo a despacho.
-            </Alert>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button color="secondary" variant="outlined" onClick={() => setConfirmOpen(false)} disabled={saving}>
-            Volver
-          </Button>
-          <AppButton color="secondary" loading={saving} onClick={save}>
-            Confirmar y guardar
-          </AppButton>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 };

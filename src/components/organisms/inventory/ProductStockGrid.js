@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Alert, Chip, Grid, Paper, Stack, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 
@@ -19,7 +18,7 @@ const StockChip = ({ quantity, minStock }) => {
   );
 };
 
-const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, formatInventoryQuantity }) => (
+const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, formatInventoryQuantity, onLoadStock }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 } }}>
     <Stack
       direction={{ xs: "column", sm: "row" }}
@@ -31,7 +30,9 @@ const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, fo
           Stock de productos
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          {rows.length} productos registrados. Los criticos aparecen primero.
+          {sortedRows.length === rows.length
+            ? `${rows.length} productos registrados. Los criticos aparecen primero.`
+            : `${sortedRows.length} de ${rows.length} productos coinciden con la busqueda.`}
         </Typography>
       </Stack>
     </Stack>
@@ -42,7 +43,7 @@ const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, fo
       </Alert>
     ) : null}
     {loading ? <Alert severity="info">Cargando stock de productos...</Alert> : null}
-    {!loading && rows.length === 0 ? <Alert severity="info">No hay productos para mostrar.</Alert> : null}
+    {!loading && sortedRows.length === 0 ? <Alert severity="info">No hay productos que coincidan con la busqueda.</Alert> : null}
 
     <Grid container spacing={2}>
       {sortedRows.map((row) => {
@@ -93,8 +94,8 @@ const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, fo
                   </Grid>
                 </Grid>
 
-                <AppButton component={Link} href="/inventory/movements" variant="outlined" color="secondary">
-                  Cargar movimiento
+                <AppButton onClick={() => onLoadStock(row)} variant="outlined" color="secondary">
+                  Agregar stock
                 </AppButton>
               </Stack>
             </Paper>

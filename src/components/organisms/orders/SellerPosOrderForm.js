@@ -75,10 +75,6 @@ const SellerPosOrderForm = ({
   addConfiguredProduct,
   removeLine,
   onReview,
-  confirmOpen,
-  setConfirmOpen,
-  selectedCustomer,
-  onSave,
 }) => {
   const [cartOpen, setCartOpen] = useState(false);
   const [captureProduct, setCaptureProduct] = useState(null);
@@ -325,8 +321,8 @@ const SellerPosOrderForm = ({
               largeOnMobile
             />
           </Paper>
-          <AppButton fullWidth color="secondary" disabled={loading || (canAssignSeller && !sellerId) || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 76, fontSize: 20, fontWeight: 900 }}>
-            Revisar y guardar pedido
+          <AppButton fullWidth color="secondary" disabled={saving || loading || (canAssignSeller && !sellerId) || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0} onClick={onReview} sx={{ minHeight: 76, fontSize: 20, fontWeight: 900 }}>
+            {saving ? "Guardando..." : "Guardar pedido"}
           </AppButton>
         </>
       )}
@@ -420,37 +416,6 @@ const SellerPosOrderForm = ({
         </DialogActions>
       </Dialog>
 
-      <Dialog open={confirmOpen} onClose={() => !saving && setConfirmOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { m: 1.5, borderRadius: 3 } }}>
-        <DialogTitle>Confirmar pedido</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            <Typography sx={{ fontWeight: 900 }}>{selectedCustomer?.name || "Cliente"}</Typography>
-            <Stack divider={<Divider flexItem />}>
-              {preparedOrder.rows.map(({ entry, product, calculation }) => (
-                <Stack key={entry.id} direction="row" spacing={1} sx={{ py: 1, justifyContent: "space-between" }}>
-                  <Box><Typography sx={{ fontWeight: 800 }}>{product?.name}</Typography><Typography variant="caption" color="text.secondary">{getModes(product).find((mode) => mode.value === entry.orderMode)?.label || entry.orderMode} · {getQuantityLabel(entry, calculation)}</Typography></Box>
-                  <Typography sx={{ fontWeight: 900 }}>
-                    {["bonus", "gift"].includes(entry.orderMode)
-                      ? "Sin cobro"
-                      : `$${formatCurrencyValue(entry.orderMode === "sale_bonus" ? calculation.requestedValue : calculation.commercialValue, 0)}`}
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-            <OrderDraftSummary
-              summary={preparedOrder.summary}
-              settings={settings}
-              creditAvailable={creditAvailable}
-              creditRedeemed={creditRedeemedAmount}
-              showCreditDetails={false}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button color="secondary" variant="outlined" disabled={saving} onClick={() => setConfirmOpen(false)}>Volver</Button>
-          <AppButton color="secondary" loading={saving} onClick={onSave}>Confirmar y guardar</AppButton>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 };

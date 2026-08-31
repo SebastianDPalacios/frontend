@@ -46,6 +46,11 @@ const formatDate = (value) => {
   return String(value).slice(0, 10);
 };
 
+const formatDisplayDate = (value) => {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${day}/${month}/${year}` : "-";
+};
+
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
 };
@@ -72,7 +77,7 @@ const MetricCard = ({ label, value, helper, color = "primary" }) => (
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 950, color: "text.primary", letterSpacing: 0 }}>
+      <Typography sx={{ fontSize: { xs: 25, sm: 32 }, lineHeight: 1.15, fontWeight: 950, color: "text.primary", letterSpacing: 0, overflowWrap: "anywhere" }}>
         {value}
       </Typography>
       {helper ? (
@@ -105,37 +110,23 @@ const BalancePanel = ({ title, emptyText, items }) => (
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 900 }} noWrap>
-                {item.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {item.orders} pedido{item.orders === 1 ? "" : "s"}
-              </Typography>
-            </Box>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
+              <Box sx={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", flexShrink: 0, bgcolor: index === 0 ? "secondary.main" : "action.selected", color: index === 0 ? "secondary.contrastText" : "text.primary", fontWeight: 900 }}>
+                {index + 1}
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 900 }} noWrap>{item.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {item.orders} pedido{item.orders === 1 ? "" : "s"}
+                </Typography>
+              </Box>
+            </Stack>
             <Typography sx={{ fontWeight: 950, fontSize: 18 }}>{formatMoney(item.amount)}</Typography>
           </Stack>
         </Paper>
       ))}
     </Stack>
   </Paper>
-);
-
-const MobileSummaryRow = ({ label, value, color = "text.primary" }) => (
-  <Stack
-    direction="row"
-    sx={{
-      alignItems: "center",
-      justifyContent: "space-between",
-      minHeight: 48,
-      py: 1,
-      borderTop: 1,
-      borderColor: "divider",
-    }}
-  >
-    <Typography sx={{ fontSize: 17, fontWeight: 700 }}>{label}</Typography>
-    <Typography sx={{ fontSize: 20, fontWeight: 950, color }}>{value}</Typography>
-  </Stack>
 );
 
 const OrdersDayPage = () => {
@@ -263,30 +254,35 @@ const OrdersDayPage = () => {
       <Paper
         variant="outlined"
         sx={{
-          borderRadius: 4,
-          p: { xs: 2, md: 2.5 },
-          mb: 2.5,
-          bgcolor: "background.paper",
+          borderRadius: 3,
+          p: { xs: 2, sm: 2.5, md: 3 },
+          mb: { xs: 2.5, md: 3 },
+          background: "linear-gradient(135deg, #ffffff 62%, rgba(239, 83, 5, 0.07) 100%)",
+          borderColor: "rgba(239, 83, 5, 0.18)",
         }}
       >
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", lg: "center" } }}>
-          <Box sx={{ display: { xs: "none", sm: "block" } }}>
+          <Box>
             <Typography variant="h5" sx={{ fontWeight: 900 }}>
               Balance {selectedPeriodLabel.toLowerCase()}
             </Typography>
-            <Typography color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
-              Del {dateRange.from} al {dateRange.to}. Venta, pedidos activos y avance de inventario.
+            <Typography color="text.secondary">
+              {formatDisplayDate(dateRange.from) === formatDisplayDate(dateRange.to)
+                ? formatDisplayDate(dateRange.from)
+                : `${formatDisplayDate(dateRange.from)} al ${formatDisplayDate(dateRange.to)}`}
             </Typography>
           </Box>
 
           <Stack
             direction="row"
             spacing={1.25}
+            useFlexGap
             sx={{
               alignItems: "center",
               display: { xs: "grid", sm: "flex" },
               gridTemplateColumns: { xs: "minmax(108px, 0.8fr) minmax(0, 1.65fr)", sm: "none" },
               flexWrap: { sm: "wrap" },
+              rowGap: { xs: 1.5, sm: 1.25 },
               width: { xs: "100%", sm: "auto" },
               "& .MuiInputBase-root": { minHeight: { xs: 52, sm: "auto" }, fontSize: { xs: 17, sm: "inherit" } },
               "& .MuiButton-root": { minHeight: { xs: 52, sm: 40 }, fontSize: { xs: 16, sm: "inherit" } },
@@ -327,7 +323,7 @@ const OrdersDayPage = () => {
                 </TextField>
               </>
             ) : null}
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, auto)" }, gap: 1, width: { xs: "100%", sm: "auto" }, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, auto)" }, gap: 1.25, width: { xs: "100%", sm: "auto" }, gridColumn: { xs: "1 / -1", sm: "auto" }, mt: { xs: 0.25, sm: 0 } }}>
               <AppButton color="secondary" component={Link} href="/orders/count" sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                 Crear pedido
               </AppButton>
@@ -342,19 +338,7 @@ const OrdersDayPage = () => {
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ display: { xs: "block", sm: "none" }, borderRadius: 4, p: 2, mb: 2 }}>
-        <Typography color="text.secondary" sx={{ fontSize: 16, fontWeight: 700 }}>
-          {salesOnly ? (period === "daily" ? "Ganancia del día" : "Ganancia del periodo") : "Valor del periodo"}
-        </Typography>
-        <Typography sx={{ mt: 0.25, mb: 1.25, fontSize: 34, lineHeight: 1.15, fontWeight: 950, color: "secondary.main" }}>
-          {formatMoney(salesOnly ? periodEarnings : periodAmount)}
-        </Typography>
-        <MobileSummaryRow label="Pedidos" value={periodOrders.length} />
-        <MobileSummaryRow label="Venta promedio" value={formatMoney(averageTicket)} />
-        <MobileSummaryRow label="Despachados" value={dispatchedOrders} color="success.main" />
-      </Paper>
-
-      <Grid container spacing={1.5} sx={{ display: { xs: "none", sm: "flex" }, mb: 2.5 }}>
+      <Grid container spacing={{ xs: 1.5, md: 2 }} sx={{ mb: { xs: 2.5, md: 3 } }}>
         <Grid item xs={12} sm={6} lg={3}>
           <MetricCard
             label={salesOnly ? (period === "daily" ? "Ganancia del día" : "Ganancia del periodo") : "Valor del periodo"}
@@ -363,10 +347,10 @@ const OrdersDayPage = () => {
             color="secondary"
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item xs={6} sm={6} lg={3}>
           <MetricCard label="Pedidos" value={periodOrders.length} helper={`${draftOrders} borrador, ${confirmedOrders} confirmados`} color="info" />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item xs={6} sm={6} lg={3}>
           <MetricCard label="Venta promedio" value={formatMoney(averageTicket)} helper="Sobre pedidos no cancelados" color="primary" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -374,7 +358,7 @@ const OrdersDayPage = () => {
         </Grid>
       </Grid>
 
-      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 2.5 }, mb: 2.5 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, sm: 2.5, md: 3 }, mb: { xs: 2.5, md: 3 } }}>
         <Stack spacing={1.25}>
           <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, gap: 2 }}>
             <Box>
@@ -385,7 +369,9 @@ const OrdersDayPage = () => {
                 Relacion entre pedidos despachados y pedidos activos del rango seleccionado.
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", "& .MuiChip-root": { height: { xs: 36, sm: 32 }, fontSize: { xs: 14, sm: "inherit" } } }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", "& .MuiChip-root": { height: { xs: 36, sm: 32 }, fontSize: { xs: 14, sm: "inherit" } } }}>
+              <Chip label={`${draftOrders} borrador${draftOrders === 1 ? "" : "es"}`} variant="outlined" />
+              <Chip label={`${confirmedOrders} confirmado${confirmedOrders === 1 ? "" : "s"}`} color="info" variant="outlined" />
               <Chip label={`${productionOrders} en produccion/listos`} color="warning" variant="outlined" />
               <Chip label={`${cancelledOrders} cancelados`} color={cancelledOrders ? "error" : "default"} variant="outlined" />
               <Chip label={`${completedFlow}% despachado`} color={completedFlow >= 100 ? "success" : "info"} />
@@ -404,7 +390,7 @@ const OrdersDayPage = () => {
         </Stack>
       </Paper>
 
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+      <Grid container spacing={{ xs: 2.5, md: 3 }} sx={{ mb: 3 }}>
         <Grid item xs={12} md={6} sx={{ display: salesOnly ? { xs: "none", md: "block" } : "block" }}>
           <BalancePanel title="Clientes con mayor venta" emptyText="Sin clientes en este periodo." items={customerBalances} />
         </Grid>

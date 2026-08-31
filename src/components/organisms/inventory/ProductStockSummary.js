@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Chip, Grid, Paper, Stack, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 
@@ -16,7 +15,7 @@ const ProductSummaryCard = ({ label, value, chipLabel, chipColor }) => (
   </Paper>
 );
 
-const ProductStockSummary = ({ emptyCount, lowCount }) => (
+const ProductStockSummary = ({ emptyCount, lowCount, onLoadStock }) => (
   <Grid container spacing={2} sx={{ mb: 2 }}>
     <Grid item xs={12} md={4}>
       <ProductSummaryCard
@@ -41,7 +40,7 @@ const ProductStockSummary = ({ emptyCount, lowCount }) => (
             Accion rapida
           </Typography>
           <Typography sx={{ fontWeight: 800 }}>Entrada de producto</Typography>
-          <AppButton component={Link} href="/inventory/movements" color="secondary">
+          <AppButton onClick={() => onLoadStock(null)} color="secondary">
             Cargar stock
           </AppButton>
         </Stack>
