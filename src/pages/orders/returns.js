@@ -5,11 +5,14 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   Divider,
   Grid,
   MenuItem,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -19,6 +22,7 @@ import ordersService from "services/orders/orders-service";
 import authService from "services/auth/auth-service";
 import { isAdministrativeUser } from "configs/access";
 import { normalizeRows } from "views/modules/flow-utils";
+import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 
 const reasonOptions = [
   { value: "expired", label: "Vencido" },
@@ -101,6 +105,10 @@ const SalesReturnsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingId, setProcessingId] = useState(null);
+  const [showPolicy, setShowPolicy] = useState(false);
+  const [trackingTab, setTrackingTab] = useState("pending");
+  const [trackingSearch, setTrackingSearch] = useState("");
+  const [trackingDate, setTrackingDate] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -166,7 +174,17 @@ const SalesReturnsPage = () => {
   );
   const dailyOrderNumberById = useMemo(() => getDailyOrderNumbers(openReturnOrders), [openReturnOrders]);
   const returnDailyOrderNumberById = useMemo(() => getDailyOrderNumbers(returns), [returns]);
-  const selectedDailyNumber = selectedOrder ? dailyOrderNumberById[String(selectedOrder.id)] : null;
+  const visibleReturns = useMemo(() => {
+    const search = trackingSearch.trim().toLocaleLowerCase("es");
+    return returns.filter((salesReturn) => {
+      const matchesTab = trackingTab === "pending"
+        ? salesReturn.status === "pending_authorization"
+        : salesReturn.status !== "pending_authorization";
+      const matchesDate = !trackingDate || formatDate(salesReturn.reported_at) === trackingDate;
+      const searchable = `${salesReturn.customer_name || ""} ${salesReturn.sales_agent_name || ""} ${(salesReturn.items || []).map((item) => item.returned_product_name).join(" ")}`.toLocaleLowerCase("es");
+      return matchesTab && matchesDate && (!search || searchable.includes(search));
+    });
+  }, [returns, trackingDate, trackingSearch, trackingTab]);
 
   useEffect(() => {
     if (!allowedDates.length) {
@@ -273,19 +291,28 @@ const SalesReturnsPage = () => {
       subtitle="Reporta productos y gestiona la autorizacion del vendedor"
     >
       <Stack spacing={3}>
-        <Alert severity="info">
-          El producto vence 15 dias despues de la entrega y puede reportarse hasta 2 dias despues
-          del vencimiento. El producto devuelto no vuelve al inventario vendible.
-        </Alert>
+        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}>
+            <Typography variant="body2" sx={{ fontWeight: 800 }}>Política de cambios y devoluciones</Typography>
+            <Button size="small" color="secondary" onClick={() => setShowPolicy((current) => !current)}>
+              {showPolicy ? "Ocultar política" : "Ver política"}
+            </Button>
+          </Stack>
+          <Collapse in={showPolicy}>
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              El producto vence 15 días después de la entrega y puede reportarse hasta 2 días después del vencimiento. El producto devuelto no vuelve al inventario vendible.
+            </Alert>
+          </Collapse>
+        </Paper>
 
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 4 }}>
           <Stack spacing={2}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                Registrar solicitud
+                Nueva devolución
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Selecciona el pedido entregado, el producto que vuelve y la cantidad para generar saldo a favor.
+                Busca el pedido y registra el producto que devuelve el cliente.
               </Typography>
             </Box>
             <Grid container spacing={2}>
@@ -337,7 +364,7 @@ const SalesReturnsPage = () => {
                     }))
                   }
                   renderInput={(params) => (
-                    <TextField {...params} label="1. Pedido entregado" placeholder="Busca por fecha, pedido o cliente" />
+                    <TextField {...params} label="Pedido entregado" placeholder="Busca por fecha, pedido o cliente" />
                   )}
                   renderOption={(props, order) => (
                     <Box component="li" {...props}>
@@ -353,11 +380,11 @@ const SalesReturnsPage = () => {
                   )}
                 />
               </Grid>
-              <Grid item xs={12} md={5}>
+              <Grid item xs={12} md={5} sx={{ display: selectedOrder ? "block" : "none" }}>
                 <TextField
                   select
                   fullWidth
-                  label="2. Producto devuelto"
+                  label="Producto devuelto"
                   value={form.orderItemId}
                   disabled={!form.orderId}
                   onChange={(event) =>
@@ -371,43 +398,12 @@ const SalesReturnsPage = () => {
                   ))}
                 </TextField>
               </Grid>
-              {selectedOrder ? (
-                <Grid item xs={12}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      borderRadius: 3,
-                      p: 2,
-                      bgcolor: "background.default",
-                      borderColor: "secondary.light",
-                    }}
-                  >
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={3}>
-                        <Typography variant="caption" color="text.secondary">Pedido</Typography>
-                        <Typography sx={{ fontWeight: 900 }}>Pedido #{selectedDailyNumber || "-"}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <Typography variant="caption" color="text.secondary">Cliente</Typography>
-                        <Typography sx={{ fontWeight: 900 }}>{selectedOrder.customer_name}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <Typography variant="caption" color="text.secondary">Vendedor</Typography>
-                        <Typography sx={{ fontWeight: 900 }}>{selectedOrder.sales_agent_name}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <Typography variant="caption" color="text.secondary">Reporte maximo</Typography>
-                        <Typography sx={{ fontWeight: 900 }}>{formatDateTime(selectedOrder.report_deadline_at)}</Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-              ) : null}
-              <Grid item xs={12} sm={6} md={2}>
+              <Grid item xs={12} sm={6} md={3} sx={{ display: selectedItem ? "block" : "none" }}>
                 <TextField
                   fullWidth
                   type="number"
-                  label="3. Cantidad"
+                  label="Cantidad"
+                  helperText={selectedItem ? `Máximo disponible: ${formatNumber(selectedItem.returnable_quantity)}` : ""}
                   value={form.quantity}
                   inputProps={{
                     min: 0,
@@ -419,11 +415,11 @@ const SalesReturnsPage = () => {
                   }
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4} sx={{ display: selectedItem ? "block" : "none" }}>
                 <TextField
                   select
                   fullWidth
-                  label="4. Motivo"
+                  label="Motivo"
                   value={form.reason}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, reason: event.target.value }))
@@ -436,24 +432,24 @@ const SalesReturnsPage = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} md={4} sx={{ display: selectedItem ? "block" : "none", ml: { md: "auto" }, order: 2 }}>
                 <Button
                   fullWidth
                   variant="contained"
                   color="secondary"
-                  disabled={saving || loading}
+                  disabled={saving || loading || Number(form.quantity || 0) <= 0}
                   onClick={createReturn}
                   sx={{ minHeight: 56 }}
                 >
-                  {saving ? "Registrando..." : "Enviar a autorizacion"}
+                  {saving ? "Registrando..." : "Enviar a autorización"}
                 </Button>
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} sx={{ display: selectedItem ? "block" : "none", order: 1 }}>
                 <TextField
                   fullWidth
                   multiline
                   minRows={2}
-                  label="Detalle del problema"
+                  label="Detalle del problema (opcional)"
                   value={form.notes}
                   inputProps={{ maxLength: 255 }}
                   onChange={(event) =>
@@ -462,26 +458,33 @@ const SalesReturnsPage = () => {
                 />
               </Grid>
             </Grid>
-
-            {selectedOrder ? (
-              <Alert severity="success">
-                Entregado: {formatDateTime(selectedOrder.actual_delivered_at)}. Vence:{" "}
-                {formatDateTime(selectedOrder.product_expires_at)}.
-              </Alert>
-            ) : null}
           </Stack>
         </Paper>
 
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, mb: 2 }}>
-            Solicitudes registradas
-          </Typography>
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 4 }}>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 900 }}>Seguimiento de solicitudes</Typography>
+              <Typography variant="body2" color="text.secondary">Consulta las solicitudes pendientes y las que ya fueron procesadas.</Typography>
+            </Box>
+            <Tabs value={trackingTab} onChange={(_, value) => setTrackingTab(value)} variant="fullWidth" textColor="secondary" indicatorColor="secondary">
+              <Tab value="pending" label={`Pendientes (${returns.filter((item) => item.status === "pending_authorization").length})`} />
+              <Tab value="history" label={`Historial (${returns.filter((item) => item.status !== "pending_authorization").length})`} />
+            </Tabs>
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} md={8}>
+                <TextField fullWidth size="small" label="Buscar solicitud" placeholder="Cliente, vendedor o producto" value={trackingSearch} onChange={(event) => setTrackingSearch(event.target.value)} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <BalanceDatePicker label="Fecha del reporte" value={trackingDate} onChange={setTrackingDate} />
+              </Grid>
+            </Grid>
           {loading ? <Alert severity="info">Cargando solicitudes...</Alert> : null}
-          {!loading && returns.length === 0 ? (
-            <Alert severity="info">No hay cambios o devoluciones registrados.</Alert>
+          {!loading && visibleReturns.length === 0 ? (
+            <Alert severity="info">No hay solicitudes que coincidan con los filtros.</Alert>
           ) : null}
           <Grid container spacing={2}>
-            {returns.map((salesReturn) => {
+            {visibleReturns.map((salesReturn) => {
               const status = statusConfig[salesReturn.status] || {
                 label: salesReturn.status,
                 color: "default",
@@ -576,7 +579,8 @@ const SalesReturnsPage = () => {
               );
             })}
           </Grid>
-        </Box>
+          </Stack>
+        </Paper>
       </Stack>
     </FlowPageLayout>
   );
