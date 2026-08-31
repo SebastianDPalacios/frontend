@@ -5,6 +5,7 @@ import {
   Box,
   Chip,
   CircularProgress,
+  LinearProgress,
   Button,
   Dialog, DialogActions, DialogContent, Divider, MenuItem, TextField,
   Paper,
@@ -69,6 +70,7 @@ const getInitials = (name) => {
 
 const CustomersPage = () => {
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [items, setItems] = useState([]);
   const [pendingCustomerId, setPendingCustomerId] = useState(null);
@@ -99,6 +101,7 @@ const CustomersPage = () => {
       setError(getApiErrorMessage(requestError, "Error de red al cargar clientes"));
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [debouncedSearch, page, pageSize]);
 
@@ -190,13 +193,19 @@ const CustomersPage = () => {
               Listado de clientes
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {loading ? "Cargando base comercial..." : `${items.length} cliente(s) registrados`}
+              {!hasLoaded ? "Cargando base comercial..." : `${items.length} cliente(s) registrados`}
             </Typography>
           </Box>
           <Chip label="Base comercial" color="secondary" variant="outlined" sx={{ fontWeight: 800 }} />
         </Stack>
 
-        {loading ? (
+        <LinearProgress
+          color="secondary"
+          aria-label="Actualizando listado de clientes"
+          sx={{ height: 3, visibility: loading && hasLoaded ? "visible" : "hidden" }}
+        />
+
+        {loading && !hasLoaded ? (
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", px: { xs: 2, md: 3 }, py: 3 }}>
             <CircularProgress size={22} />
             <Typography variant="body2" color="text.secondary">
@@ -211,7 +220,7 @@ const CustomersPage = () => {
           </Alert>
         ) : null}
 
-        {!loading ? (<>
+        {hasLoaded ? (<>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ p: 2 }}>
             <TextField fullWidth label="Buscar cliente" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
             <TextField select label="Por pagina" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>{[10, 20, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}</TextField>
