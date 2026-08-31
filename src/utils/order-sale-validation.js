@@ -2,7 +2,7 @@ import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import { isIntegerUnit } from "views/modules/flow-utils";
 
 const getInvalidUnitSaleAmount = (product, entry) => {
-  if (!["sale", "bonus", "gift", "exchange"].includes(entry?.orderMode) || entry?.captureMode !== "amount" || !isIntegerUnit(product?.unit)) {
+  if (!["sale", "sale_bonus", "bonus", "gift", "exchange"].includes(entry?.orderMode) || entry?.captureMode !== "amount" || !isIntegerUnit(product?.unit)) {
     return null;
   }
 
@@ -21,6 +21,7 @@ const getInvalidUnitSaleAmount = (product, entry) => {
 
   const modeLabel = {
     sale: "Venta",
+    sale_bonus: "Venta + vendaje",
     bonus: "Solo vendaje",
     gift: "Obsequio",
     exchange: "Cambio",
