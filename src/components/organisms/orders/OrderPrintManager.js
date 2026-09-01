@@ -37,7 +37,26 @@ const formatDateTime = (value) => {
   return new Intl.DateTimeFormat("es-CO", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Bogota",
   }).format(new Date(value));
+};
+
+const formatTicketDateTime = (value) => {
+  if (!value) return "-";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).replace("T", " ").slice(0, 19);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(parsed).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 };
 
 const lineLabels = {
@@ -386,7 +405,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       <div class="order-number">PEDIDO #${Number(order.id)}</div>
       <div class="rule"></div>
       <div class="meta">
-        <span class="order-date">Fecha: ${escapeHtml(String(order.created_at || order.order_date).replace("T", " ").slice(0, 19))}</span>
+        <span class="order-date">Fecha: ${escapeHtml(formatTicketDateTime(order.created_at || order.order_date))}</span>
         ${ticketSettings.showDeliveryDate ? `<span class="delivery-date">Entrega: ${escapeHtml(String(order.delivery_date || "Sin fecha").slice(0, 10))}</span>` : ""}
         ${ticketSettings.showSeller ? `<span class="seller">Vendedor: ${escapeHtml(order.sales_agent_name || "Sin vendedor")}</span>` : ""}
       </div>

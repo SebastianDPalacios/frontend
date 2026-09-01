@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import ordersService from "services/orders/orders-service";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 
-const editableStatuses = ["draft", "confirmed", "ready"];
+const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
 
 const OrderCustomerEditor = ({ order, onSaved }) => {
   const [editing, setEditing] = useState(false);
