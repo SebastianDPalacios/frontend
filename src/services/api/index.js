@@ -58,6 +58,7 @@
     deliver: (id) => `/orders/${id}/deliver`,
     deliveryDate: (id) => `/orders/${id}/delivery-date`,
     customer: (id) => `/orders/${id}/customer`,
+    seller: (id) => `/orders/${id}/seller`,
     commissions: "/orders/commissions",
     dailySettlement: "/orders/commissions/daily-settlement",
     gifts: "/orders/gifts",

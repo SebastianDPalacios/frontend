@@ -20,7 +20,7 @@ import ColombianCurrencyField, { formatCurrencyValue } from "components/atoms/Co
 import CaptureModeSwitch from "components/atoms/CaptureModeSwitch";
 import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
-import getInvalidUnitSaleAmount from "utils/order-sale-validation";
+import getInvalidUnitSaleAmount, { getSaleBonusUnitValue } from "utils/order-sale-validation";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
@@ -160,7 +160,9 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const product = products.find((candidate) => String(candidate.id) === String(item.product_id));
         const price = Number(product?.base_price || item.unit_price || 0);
         const taxPercent = Number(product?.tax_percent || product?.rate_percent || item.tax_percent || 0);
-        const rawQuantity = draft.captureMode === "quantity" ? Number(draft.value) : Number(draft.value) / price;
+        const rawQuantity = draft.captureMode === "quantity"
+          ? Number(draft.value)
+          : Number(draft.value) / getSaleBonusUnitValue(product || { unit_price: item.unit_price });
         const saleQuantity = isIntegerUnit(product?.unit || item.product_unit)
           ? Math.floor(rawQuantity)
           : Math.floor(rawQuantity * 1000) / 1000;
@@ -230,7 +232,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const taxPercent = Number(selectedNewProduct.tax_percent || selectedNewProduct.rate_percent || 0);
         const rawSaleQuantity = newLine.captureMode === "quantity"
           ? Number(newLine.value)
-          : Number(newLine.value) / price;
+          : Number(newLine.value) / getSaleBonusUnitValue(selectedNewProduct);
         const saleQuantity = isIntegerUnit(selectedNewProduct.unit)
           ? Math.floor(rawSaleQuantity)
           : Math.floor(rawSaleQuantity * 1000) / 1000;

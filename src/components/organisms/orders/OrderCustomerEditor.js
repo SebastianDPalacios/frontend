@@ -7,13 +7,13 @@ import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 
 const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
 
-const OrderCustomerEditor = ({ order, onSaved }) => {
+const OrderCustomerEditor = ({ order, onSaved, allowEdit = true }) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const canEdit = editableStatuses.includes(order?.status) && Boolean(order?.sales_agent_user_id);
+  const canEdit = allowEdit && editableStatuses.includes(order?.status) && Boolean(order?.sales_agent_user_id);
 
   const currentCustomer = useMemo(() => ({
     id: order?.customer_id,

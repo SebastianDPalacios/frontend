@@ -28,7 +28,7 @@ import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AppButton from "@core/components/ui/AppButton";
 import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import OrderDraftSummary from "components/molecules/OrderDraftSummary";
-import getInvalidUnitSaleAmount from "utils/order-sale-validation";
+import getInvalidUnitSaleAmount, { getSaleBonusUnitValue } from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
 
 const keypadKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "00", "000"];
@@ -113,10 +113,11 @@ const SellerPosOrderForm = ({
   };
 
   const unitPrice = Number(captureProduct?.base_price || 0);
-  const previewQuantity = unitPrice > 0
+  const captureUnitValue = orderMode === "sale_bonus" ? getSaleBonusUnitValue(captureProduct) : unitPrice;
+  const previewQuantity = captureUnitValue > 0
     ? (isIntegerUnit(captureProduct?.unit)
-        ? Math.floor(Number(captureValue || 0) / unitPrice)
-        : Math.floor((Number(captureValue || 0) / unitPrice) * 1000) / 1000)
+        ? Math.floor(Number(captureValue || 0) / captureUnitValue)
+        : Math.floor((Number(captureValue || 0) / captureUnitValue) * 1000) / 1000)
     : 0;
   const captureSaleError = getInvalidUnitSaleAmount(captureProduct, {
     orderMode,

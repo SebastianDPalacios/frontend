@@ -35,6 +35,7 @@ import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
 import OrderCustomerEditor from "components/organisms/orders/OrderCustomerEditor";
+import OrderSellerEditor from "components/organisms/orders/OrderSellerEditor";
 import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
@@ -1252,41 +1253,75 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             <Stack spacing={2}>
               <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 2.5 }, bgcolor: "background.default" }}>
                 <Stack spacing={2}>
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ minWidth: 0, flex: 1, alignItems: { sm: "flex-start" } }}>
-                      <OrderCustomerEditor
-                        order={detailOrder}
-                        onSaved={async (customer) => {
-                          const updatedCustomer = {
-                            customer_id: customer.id,
-                            customer_name: customer.name,
-                            customer_identification: customer.tax_id,
-                            customer_phone: customer.phone,
-                            customer_address: customer.address,
-                            customer_neighborhood: customer.neighborhood,
-                          };
-                          setDetailOrder((current) => current ? { ...current, ...updatedCustomer } : current);
-                          setOrders((current) => current.map((item) => (
-                            String(item.id) === String(detailOrder.id) ? { ...item, ...updatedCustomer } : item
-                          )));
-                          setRefreshKey((value) => value + 1);
-                        }}
-                      />
-                      <StatusChip status={detailOrder.status} />
-                    </Stack>
-                    <Box sx={{ minWidth: { md: 170 } }}>
-                      <Typography variant="caption" color="text.secondary">Total a cobrar</Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 900 }}>
-                        {formatMoney(detailOrder.amount_to_collect ?? detailOrder.grand_total)}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                  <Grid container spacing={2.5} sx={{ alignItems: "flex-start" }}>
+                    <Grid item xs={12} md={9}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={{ xs: 1.5, sm: 3 }}
+                        sx={{ alignItems: { sm: "flex-start" } }}
+                      >
+                        <Box sx={{ minWidth: { sm: 250 }, flex: { sm: "0 1 380px" } }}>
+                          <OrderSellerEditor
+                            order={detailOrder}
+                            canEdit={isAdministrator}
+                            onSaved={async (data) => {
+                              const updatedOrder = {
+                                sales_agent_user_id: data.sales_agent_user_id,
+                                sales_agent_name: data.seller?.full_name || data.seller?.username,
+                                customer_id: data.customer_id,
+                                customer_name: data.customer?.name,
+                                customer_identification: data.customer?.tax_id,
+                                customer_phone: data.customer?.phone,
+                                customer_address: data.customer?.address,
+                                customer_neighborhood: data.customer?.neighborhood,
+                              };
+                              setDetailOrder((current) => current ? { ...current, ...updatedOrder } : current);
+                              setOrders((current) => current.map((item) => (
+                                String(item.id) === String(detailOrder.id) ? { ...item, ...updatedOrder } : item
+                              )));
+                              setRefreshKey((value) => value + 1);
+                            }}
+                          />
+                        </Box>
+                        <OrderCustomerEditor
+                          order={detailOrder}
+                          allowEdit={false}
+                          onSaved={async (customer) => {
+                            const updatedCustomer = {
+                              customer_id: customer.id,
+                              customer_name: customer.name,
+                              customer_identification: customer.tax_id,
+                              customer_phone: customer.phone,
+                              customer_address: customer.address,
+                              customer_neighborhood: customer.neighborhood,
+                            };
+                            setDetailOrder((current) => current ? { ...current, ...updatedCustomer } : current);
+                            setOrders((current) => current.map((item) => (
+                              String(item.id) === String(detailOrder.id) ? { ...item, ...updatedCustomer } : item
+                            )));
+                            setRefreshKey((value) => value + 1);
+                          }}
+                        />
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Stack direction={{ xs: "row", md: "column" }} spacing={1} sx={{ alignItems: { xs: "center", md: "flex-start" } }}>
+                        <StatusChip status={detailOrder.status} />
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Total a cobrar</Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                            {formatMoney(detailOrder.amount_to_collect ?? detailOrder.grand_total)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Grid>
+                  </Grid>
 
                   <Grid container spacing={2} sx={{ alignItems: "center" }}>
                     <Grid item xs={12} sm={6} md={3}>
                       <OrderMetric label="Fecha pedido" value={formatDate(detailOrder.order_date)} />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={6}>
                       <TextField
                         fullWidth
                         size="small"
@@ -1299,7 +1334,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                         disabled={deliveryDateSaving || detailOrder.status === "cancelled"}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid item xs={12} sm={6} md={3}>
                       <AppButton
                         fullWidth
                         size="small"
@@ -1310,9 +1345,6 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                       >
                         {deliveryDateSaving ? "Guardando..." : "Guardar fecha"}
                       </AppButton>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <OrderMetric label="Vendedor" value={detailOrder.sales_agent_name || "Sin vendedor"} />
                     </Grid>
                   </Grid>
 

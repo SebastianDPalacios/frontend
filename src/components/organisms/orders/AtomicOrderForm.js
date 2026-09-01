@@ -28,7 +28,7 @@ import SellerPosOrderForm from "components/organisms/orders/SellerPosOrderForm";
 import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
 import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
-import getInvalidUnitSaleAmount from "utils/order-sale-validation";
+import getInvalidUnitSaleAmount, { getSaleBonusUnitValue } from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const today = toDateInputValue();
@@ -81,7 +81,8 @@ const calculateEntry = (product, entry) => {
   let quantity = Number(entry?.value || 0);
 
   if (entry?.captureMode === "amount" && price > 0) {
-    const raw = quantity / price;
+    const amountUnitValue = entry?.orderMode === "sale_bonus" ? getSaleBonusUnitValue(product) : price;
+    const raw = quantity / amountUnitValue;
     quantity = isIntegerUnit(product.unit) ? Math.floor(raw) : Math.floor(raw * 1000) / 1000;
   }
 
@@ -772,6 +773,12 @@ const AtomicOrderForm = () => {
                         )}
                       </Grid>
                     </Grid>
+
+                    {orderModeValue === "sale_bonus" && entry.captureMode === "amount" ? (
+                      <Typography variant="caption" color={invalidUnitSale ? "error" : "text.secondary"} sx={{ display: "block", mt: 1 }}>
+                        Valor unitario Venta + vendaje: ${formatCurrencyValue(getSaleBonusUnitValue(product), 0)}. Valores permitidos: múltiplos de este valor.
+                      </Typography>
+                    ) : null}
 
                     {calculation.quantity > 0 ? (
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5, alignItems: { sm: "center" }, flexWrap: "wrap" }}>

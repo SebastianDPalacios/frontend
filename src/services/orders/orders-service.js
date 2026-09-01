@@ -62,6 +62,13 @@ class OrdersService {
     return PutEndpoint(endpoints.orders.customer(orderId), { customer_id: customerId });
   }
 
+  async updateSeller(orderId, salesAgentUserId, customerId) {
+    return PutEndpoint(endpoints.orders.seller(orderId), {
+      sales_agent_user_id: salesAgentUserId,
+      customer_id: customerId,
+    });
+  }
+
   async getSalesCommissions(params = {}) {
     return GetEndpoint(endpoints.orders.commissions, { params });
   }
