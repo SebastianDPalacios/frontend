@@ -57,6 +57,7 @@
     dispatch: (id) => `/orders/${id}/dispatch`,
     deliver: (id) => `/orders/${id}/deliver`,
     deliveryDate: (id) => `/orders/${id}/delivery-date`,
+    customer: (id) => `/orders/${id}/customer`,
     commissions: "/orders/commissions",
     dailySettlement: "/orders/commissions/daily-settlement",
     gifts: "/orders/gifts",

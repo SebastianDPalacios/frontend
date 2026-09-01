@@ -144,6 +144,7 @@ const AtomicOrderForm = () => {
   const [error, setError] = useState("");
   const [branches, setBranches] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [sellers, setSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({
@@ -202,6 +203,34 @@ const AtomicOrderForm = () => {
     };
     load();
   }, [canAssignSeller]);
+
+  useEffect(() => {
+    if (!canAssignSeller || !sellerId) return undefined;
+    let active = true;
+    setCustomersLoading(true);
+    setCustomerId("");
+    ordersService.getBaseData({
+      onlyActive: 1,
+      page: 1,
+      pageSize: 200,
+      salesAgentUserId: sellerId,
+    }).then((response) => {
+      if (!active) return;
+      if (response?.code !== 1) {
+        setCustomers([]);
+        setError(response?.message || "No se pudieron consultar los clientes del vendedor");
+        return;
+      }
+      setCustomers(normalizeRows(response.data?.customers));
+    }).catch((requestError) => {
+      if (!active) return;
+      setCustomers([]);
+      setError(requestError?.response?.data?.message || requestError?.message || "Error al consultar clientes");
+    }).finally(() => {
+      if (active) setCustomersLoading(false);
+    });
+    return () => { active = false; };
+  }, [canAssignSeller, sellerId]);
 
   const productsById = useMemo(
     () => new Map(products.map((product) => [Number(product.id), product])),
@@ -481,6 +510,7 @@ const AtomicOrderForm = () => {
         saving={saving}
         error={error}
         customers={availableCustomers}
+        customersLoading={customersLoading}
         canAssignSeller={canAssignSeller}
         sellers={sellers}
         sellerId={sellerId}
@@ -553,6 +583,7 @@ const AtomicOrderForm = () => {
                 options={availableCustomers}
                 value={selectedCustomer}
                 disabled={!sellerId}
+                loading={customersLoading}
                 getOptionLabel={(option) => getDisplayName(option)}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 onChange={(_event, customer) => setCustomerId(customer?.id ? String(customer.id) : "")}

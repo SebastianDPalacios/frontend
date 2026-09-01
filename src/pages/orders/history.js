@@ -34,6 +34,7 @@ import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
+import OrderCustomerEditor from "components/organisms/orders/OrderCustomerEditor";
 import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
@@ -1252,19 +1253,27 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
               <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 2.5 }, bgcolor: "background.default" }}>
                 <Stack spacing={2}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mb: 0.5 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900, overflowWrap: "anywhere" }}>
-                          {detailOrder.customer_name || "Sin cliente"}
-                        </Typography>
-                        <StatusChip status={detailOrder.status} />
-                      </Stack>
-                      <Typography color="text.secondary">
-                        {[detailOrder.customer_phone, detailOrder.customer_address, detailOrder.customer_neighborhood]
-                          .filter(Boolean)
-                          .join(" · ") || "Sin datos de contacto"}
-                      </Typography>
-                    </Box>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ minWidth: 0, flex: 1, alignItems: { sm: "flex-start" } }}>
+                      <OrderCustomerEditor
+                        order={detailOrder}
+                        onSaved={async (customer) => {
+                          const updatedCustomer = {
+                            customer_id: customer.id,
+                            customer_name: customer.name,
+                            customer_identification: customer.tax_id,
+                            customer_phone: customer.phone,
+                            customer_address: customer.address,
+                            customer_neighborhood: customer.neighborhood,
+                          };
+                          setDetailOrder((current) => current ? { ...current, ...updatedCustomer } : current);
+                          setOrders((current) => current.map((item) => (
+                            String(item.id) === String(detailOrder.id) ? { ...item, ...updatedCustomer } : item
+                          )));
+                          setRefreshKey((value) => value + 1);
+                        }}
+                      />
+                      <StatusChip status={detailOrder.status} />
+                    </Stack>
                     <Box sx={{ minWidth: { md: 170 } }}>
                       <Typography variant="caption" color="text.secondary">Total a cobrar</Typography>
                       <Typography variant="h5" sx={{ fontWeight: 900 }}>

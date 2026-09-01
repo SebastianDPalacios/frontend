@@ -54,6 +54,7 @@ const SellerPosOrderForm = ({
   saving,
   error,
   customers,
+  customersLoading,
   canAssignSeller,
   sellers,
   sellerId,
@@ -288,6 +289,7 @@ const SellerPosOrderForm = ({
               <Autocomplete
                 fullWidth
                 disabled={canAssignSeller && !sellerId}
+                loading={customersLoading}
                 options={customers}
                 value={customers.find((customer) => String(customer.id) === String(customerId)) || null}
                 onChange={(_event, customer) => setCustomerId(customer ? String(customer.id) : "")}
