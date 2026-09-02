@@ -28,7 +28,7 @@ import SellerPosOrderForm from "components/organisms/orders/SellerPosOrderForm";
 import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
 import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
-import getInvalidUnitSaleAmount, { getSaleBonusUnitValue } from "utils/order-sale-validation";
+import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const today = toDateInputValue();
@@ -81,9 +81,10 @@ const calculateEntry = (product, entry) => {
   let quantity = Number(entry?.value || 0);
 
   if (entry?.captureMode === "amount" && price > 0) {
-    const amountUnitValue = entry?.orderMode === "sale_bonus" ? getSaleBonusUnitValue(product) : price;
-    const raw = quantity / amountUnitValue;
-    quantity = isIntegerUnit(product.unit) ? Math.floor(raw) : Math.floor(raw * 1000) / 1000;
+    const raw = quantity / price;
+    quantity = isIntegerUnit(product.unit)
+      ? (entry?.orderMode === "sale_bonus" ? Math.max(Math.floor(raw), 1) : Math.floor(raw))
+      : Math.floor(raw * 1000) / 1000;
   }
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -367,7 +368,7 @@ const AtomicOrderForm = () => {
     summary.bonusCompanyDifference = Math.max(summary.regulatedBonusTotal - summary.bonusGenerated, 0);
     summary.bonusExceeded = summary.regulatedBonusTotal > summary.allowedBonus + 0.01;
     const invalidUnitSales = preparedRows
-      .map((row) => getInvalidUnitSaleAmount(row.product, row.entry))
+      .map((row) => getInvalidUnitSaleAmount(row.product, row.entry, { bonusPercent: percent }))
       .filter(Boolean);
 
     return { rows: preparedRows, lines, summary, bonusEnabled, invalidUnitSales };
@@ -703,7 +704,11 @@ const AtomicOrderForm = () => {
                       settings.bonus_max_company_loss_amount
                     )
                   : { quantity: 0, commercialValue: 0 };
-                const invalidUnitSale = getInvalidUnitSaleAmount(product, { ...entry, orderMode: orderModeValue });
+                const invalidUnitSale = getInvalidUnitSaleAmount(
+                  product,
+                  { ...entry, orderMode: orderModeValue },
+                  { bonusPercent: settings.bonus_percent }
+                );
 
                 return (
                   <Box key={entry.id} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
@@ -773,12 +778,6 @@ const AtomicOrderForm = () => {
                         )}
                       </Grid>
                     </Grid>
-
-                    {orderModeValue === "sale_bonus" && entry.captureMode === "amount" ? (
-                      <Typography variant="caption" color={invalidUnitSale ? "error" : "text.secondary"} sx={{ display: "block", mt: 1 }}>
-                        Valor unitario Venta + vendaje: ${formatCurrencyValue(getSaleBonusUnitValue(product), 0)}. Valores permitidos: múltiplos de este valor.
-                      </Typography>
-                    ) : null}
 
                     {calculation.quantity > 0 ? (
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5, alignItems: { sm: "center" }, flexWrap: "wrap" }}>

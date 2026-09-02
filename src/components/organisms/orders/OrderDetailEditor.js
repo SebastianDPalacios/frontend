@@ -20,7 +20,7 @@ import ColombianCurrencyField, { formatCurrencyValue } from "components/atoms/Co
 import CaptureModeSwitch from "components/atoms/CaptureModeSwitch";
 import OrderLineTypeSelect from "components/atoms/OrderLineTypeSelect";
 import ordersService from "services/orders/orders-service";
-import getInvalidUnitSaleAmount, { getSaleBonusUnitValue } from "utils/order-sale-validation";
+import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivered"];
@@ -120,7 +120,8 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
     const requestedLineType = draft.lineType;
     const amountError = !remove ? getInvalidUnitSaleAmount(
       { ...item, unit: item.product_unit, base_price: item.unit_price },
-      { ...draft, orderMode: requestedLineType }
+      { ...draft, orderMode: requestedLineType },
+      { bonusPercent: salesSettings.bonus_percent }
     ) : null;
     if (amountError) {
       toast.error(amountError.message);
@@ -160,9 +161,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const product = products.find((candidate) => String(candidate.id) === String(item.product_id));
         const price = Number(product?.base_price || item.unit_price || 0);
         const taxPercent = Number(product?.tax_percent || product?.rate_percent || item.tax_percent || 0);
-        const rawQuantity = draft.captureMode === "quantity"
-          ? Number(draft.value)
-          : Number(draft.value) / getSaleBonusUnitValue(product || { unit_price: item.unit_price });
+        const rawQuantity = draft.captureMode === "quantity" ? Number(draft.value) : Number(draft.value) / price;
         const saleQuantity = isIntegerUnit(product?.unit || item.product_unit)
           ? Math.floor(rawQuantity)
           : Math.floor(rawQuantity * 1000) / 1000;
@@ -207,7 +206,11 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       toast.error("Selecciona un producto e ingresa un valor o cantidad");
       return;
     }
-    const amountError = getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType });
+    const amountError = getInvalidUnitSaleAmount(
+      selectedNewProduct,
+      { ...newLine, orderMode: newLine.lineType },
+      { bonusPercent: salesSettings.bonus_percent }
+    );
     if (amountError) {
       toast.error(amountError.message);
       return;
@@ -232,7 +235,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
         const taxPercent = Number(selectedNewProduct.tax_percent || selectedNewProduct.rate_percent || 0);
         const rawSaleQuantity = newLine.captureMode === "quantity"
           ? Number(newLine.value)
-          : Number(newLine.value) / getSaleBonusUnitValue(selectedNewProduct);
+          : Number(newLine.value) / price;
         const saleQuantity = isIntegerUnit(selectedNewProduct.unit)
           ? Math.floor(rawSaleQuantity)
           : Math.floor(rawSaleQuantity * 1000) / 1000;
