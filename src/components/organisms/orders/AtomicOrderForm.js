@@ -50,6 +50,30 @@ const preferredCategoryOrder = [
   "Tostados",
 ];
 
+const normalizeSellerName = (seller) => getDisplayName(seller)
+  .trim()
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "");
+
+const getPreferredSellerIndex = (seller) => {
+  const name = normalizeSellerName(seller);
+  if (name.includes("arturo") && name.includes("campos")) return 0;
+  if (name.includes("carlos") && name.includes("campos")) return 1;
+  if (name.includes("jairo") && name.includes("tovar")) return 2;
+  if (name.includes("wilson") && name.includes("viscue")) return 3;
+  return 4;
+};
+
+const sortPreferredSellers = (rows) => [...rows].sort((a, b) => {
+  const aName = normalizeSellerName(a);
+  const bName = normalizeSellerName(b);
+  const aIndex = getPreferredSellerIndex(a);
+  const bIndex = getPreferredSellerIndex(b);
+  if (aIndex !== bIndex) return aIndex - bIndex;
+  return aName.localeCompare(bName, "es");
+});
+
 const isPastryProduct = (product) => {
   return String(product?.category_name || "").toLowerCase().includes("pasteler");
 };
@@ -179,7 +203,7 @@ const AtomicOrderForm = () => {
         }
 
         const nextCustomers = normalizeRows(orderData.data?.customers);
-        const nextSellers = normalizeRows(orderData.data?.sellers);
+        const nextSellers = sortPreferredSellers(normalizeRows(orderData.data?.sellers));
         const nextProducts = normalizeRows(orderData.data?.products);
         const nextBranches = normalizeRows(orderData.data?.branches);
         setCustomers(nextCustomers);
@@ -307,6 +331,7 @@ const AtomicOrderForm = () => {
       const primaryType = orderMode === "sale_bonus" ? "sale" : orderMode;
       lines.push({
         key: `${entry.id}-${primaryType}`,
+        groupKey: String(entry.id),
         product,
         lineType: primaryType,
         uiLineType: orderMode,
@@ -329,6 +354,7 @@ const AtomicOrderForm = () => {
         if (automaticBonus.quantity > 0) {
           lines.push({
             key: `${entry.id}-bonus`,
+            groupKey: String(entry.id),
             product,
             lineType: "bonus",
             uiLineType: "sale_bonus",
@@ -483,6 +509,7 @@ const AtomicOrderForm = () => {
         p_notes: notes || null,
         p_credit_redeemed_amount: creditRedeemedAmount,
         p_items_json: preparedOrder.lines.map((line) => ({
+          line_group_key: line.groupKey,
           product_id: Number(line.product.id),
           line_type: line.lineType,
           ui_line_type: line.uiLineType,

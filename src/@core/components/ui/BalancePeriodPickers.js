@@ -352,7 +352,7 @@ export const BalanceWeekPicker = ({ label, value, onChange }) => {
   );
 };
 
-export const BalanceMonthPicker = ({ label, value, onChange, todayLabel = "Este mes" }) => {
+export const BalanceMonthPicker = ({ label, value, onChange, todayLabel = "Este mes", fullWidth = false }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [viewYear, setViewYear] = useState(() => Number(String(value || toMonthInputValue()).split("-")[0]));
   const open = Boolean(anchorEl);
@@ -378,6 +378,7 @@ export const BalanceMonthPicker = ({ label, value, onChange, todayLabel = "Este 
     <>
       <TextField
         size="small"
+        fullWidth={fullWidth}
         label={label}
         value={getMonthValueLabel(value)}
         onClick={(event) => setAnchorEl(event.currentTarget)}

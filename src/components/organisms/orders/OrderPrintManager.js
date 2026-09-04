@@ -210,6 +210,14 @@ const mergeTicketSettings = (settings) => ({
 
 
 const getItemProductKey = (item) => String(item.product_id || item.product_name || "");
+const belongsToSameSaleGroup = (sale, bonus) => {
+  const saleGroup = String(sale?.line_group_key || "");
+  const bonusGroup = String(bonus?.line_group_key || "");
+  if (saleGroup && bonusGroup && !saleGroup.startsWith("legacy-") && !bonusGroup.startsWith("legacy-")) {
+    return saleGroup === bonusGroup;
+  }
+  return getItemProductKey(sale) === getItemProductKey(bonus);
+};
 
 const mergeSaleBonusDisplayItems = (items = []) => {
   const usedBonusIndexes = new Set();
@@ -226,7 +234,7 @@ const mergeSaleBonusDisplayItems = (items = []) => {
       candidateIndex > index &&
       !usedBonusIndexes.has(candidateIndex) &&
       candidate.line_type === "bonus" &&
-      getItemProductKey(candidate) === getItemProductKey(item)
+      belongsToSameSaleGroup(item, candidate)
     );
 
     if (bonusIndex === -1) {

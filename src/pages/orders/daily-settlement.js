@@ -172,9 +172,7 @@ const CompactMetric = ({ label, value, helper }) => (
 const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSettings) => {
   const summary = data.summary || {};
   const print = normalizeSettlementPrintSettings(printSettings);
-  const dailyOrderNumbers = getDailyOrderNumbers(data.items || []);
   const rows = (data.items || []).map((item) => {
-    const orderNumber = dailyOrderNumbers[String(item.order_id)] || Number(item.order_id);
     const grossSale = Number(item.delivered_sales_total || 0);
     const creditUsed = Number(item.credit_redeemed_amount || 0);
     const collectedSale = Number(item.collected_sales_total ?? grossSale);
@@ -183,10 +181,9 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
 
     return `
       <div class="row">
-        <div class="customer">${escapeHtml(item.customer_name)}</div>
-        <div class="values">
-          <span>Pedido #${orderNumber}</span>
-          <strong>${money.format(collectedSale)}</strong>
+        <div class="row-main">
+          <div class="customer">${escapeHtml(item.customer_name)}</div>
+          <div class="amount">${money.format(collectedSale)}</div>
         </div>
         ${print.showOrderGrossSale ? `<div class="values muted">
           <span>Venta bruta</span>
@@ -226,8 +223,10 @@ const buildSettlementReceipt = (data, printSettings = defaultSettlementPrintSett
         .rule { margin: 7px 0; border-top: 1px dashed #111; }
         .meta { display: grid; gap: 3px; font-size: ${print.metaFontSize}px; }
         .meta strong { font-size: ${print.metaFontSize + 0.5}px; }
-        .row { padding: 5px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
-        .customer { font-size: ${print.customerFontSize}px; font-weight: 900; }
+        .row { padding: 3px 0; border-bottom: 1px dashed #777; break-inside: avoid; }
+        .row-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 7px; }
+        .customer { font-size: ${print.customerFontSize}px; font-weight: 900; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
+        .amount { text-align: right; white-space: nowrap; font-size: ${print.customerFontSize + 4}px; line-height: 1.1; font-weight: 900; }
         .values { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
         .muted { color: #444; font-size: ${print.mutedFontSize}px; }
         .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 8px; font-size: ${print.totalsFontSize}px; }

@@ -130,10 +130,10 @@ const SettlementTicketPreview = ({ values }) => {
               ["Cliente principal", "$ 42.000", "$ 45.000", "$ 3.000"],
               ["Cliente secundario", "$ 28.000", "$ 28.000", "$ 0"],
             ].map(([customer, collected, gross, credit], index) => (
-              <Box key={customer} sx={{ py: "5px", borderBottom: "1px dashed #777" }}>
-                <Box sx={{ fontSize: `${print.customerFontSize}px`, fontWeight: 900 }}>{customer}</Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px" }}>
-                  <span>Pedido #{index + 1}</span><strong>{collected}</strong>
+              <Box key={customer} sx={{ py: "3px", borderBottom: "1px dashed #777" }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "start", gap: "7px" }}>
+                  <Box sx={{ fontSize: `${print.customerFontSize}px`, fontWeight: 900, lineHeight: 1.2, whiteSpace: "normal", overflowWrap: "anywhere" }}>{customer}</Box>
+                  <Box sx={{ textAlign: "right", whiteSpace: "nowrap", fontSize: `${print.customerFontSize + 4}px`, lineHeight: 1.1, fontWeight: 900 }}>{collected}</Box>
                 </Box>
                 {print.showOrderGrossSale ? <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: "2px", color: "#444", fontSize: `${print.mutedFontSize}px` }}>
                   <span>Venta bruta</span><span>{gross}</span>

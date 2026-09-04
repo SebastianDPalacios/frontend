@@ -31,7 +31,8 @@ import OrderDraftSummary from "components/molecules/OrderDraftSummary";
 import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
 
-const keypadKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "00", "000"];
+const keypadNumberKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const keypadZeroKeys = ["0", "00", "000"];
 const filterCustomers = createFilterOptions({
   stringify: (customer) => [
     getDisplayName(customer),
@@ -81,16 +82,11 @@ const SellerPosOrderForm = ({
   const [captureProduct, setCaptureProduct] = useState(null);
   const [orderMode, setOrderMode] = useState("sale");
   const [captureValue, setCaptureValue] = useState("");
-  const [search, setSearch] = useState("");
-
   const visibleProducts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return products.filter((product) => {
-      const categoryMatches = !selectedCategoryId || String(product.category_id || "") === String(selectedCategoryId);
-      const searchMatches = !term || `${product.name || ""} ${product.sku || ""}`.toLowerCase().includes(term);
-      return categoryMatches && searchMatches;
-    });
-  }, [products, search, selectedCategoryId]);
+    return products.filter((product) => (
+      !selectedCategoryId || String(product.category_id || "") === String(selectedCategoryId)
+    ));
+  }, [products, selectedCategoryId]);
 
   const openCapture = (product) => {
     const modes = getModes(product);
@@ -178,25 +174,21 @@ const SellerPosOrderForm = ({
               </IconButton>
             </Stack>
             <TextField
-              fullWidth
-              size="small"
-              label="Buscar producto"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              sx={{ mt: 1.5 }}
-            />
-            <TextField
               select
               fullWidth
-              size="small"
               label="Categoría"
               value={selectedCategoryId}
               onChange={(event) => setSelectedCategoryId(event.target.value)}
-              sx={{ mt: 1.25 }}
+              SelectProps={{ MenuProps: { PaperProps: { sx: { maxHeight: "70dvh" } } } }}
+              sx={{
+                mt: 1.5,
+                "& .MuiInputBase-root": { minHeight: { xs: 68, sm: 60 }, fontSize: { xs: 22, sm: 19 }, fontWeight: 700 },
+                "& .MuiInputLabel-root": { fontSize: { xs: 20, sm: 18 } },
+              }}
             >
-              <MenuItem value="">Todas las categorías</MenuItem>
+              <MenuItem value="" sx={{ minHeight: 58, py: 1.5, fontSize: { xs: 22, sm: 19 } }}>Todas las categorías</MenuItem>
               {productCategories.map((category) => (
-                <MenuItem key={category.id} value={String(category.id)}>
+                <MenuItem key={category.id} value={String(category.id)} sx={{ minHeight: 58, py: 1.5, fontSize: { xs: 22, sm: 19 } }}>
                   {category.name}
                 </MenuItem>
               ))}
@@ -297,7 +289,12 @@ const SellerPosOrderForm = ({
                   isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                   filterOptions={filterSellers}
                   noOptionsText="No encontramos vendedores"
-                  renderInput={(params) => <TextField {...params} label="Buscar vendedor" placeholder="Nombre, usuario o correo" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
+                  renderInput={(params) => <TextField {...params} label="Buscar vendedor" placeholder="Nombre, usuario o correo" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 76, sm: 68 }, fontSize: { xs: 23, sm: 21 }, fontWeight: 700 }, "& .MuiInputLabel-root": { fontSize: { xs: 21, sm: 19 } } }} />}
+                  renderOption={(props, seller) => (
+                    <Box component="li" {...props} key={seller.id} sx={{ minHeight: 58, py: 1.5 }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: { xs: 21, sm: 19 } }}>{getDisplayName(seller)}</Typography>
+                    </Box>
+                  )}
                 />
               ) : null}
               <Autocomplete
@@ -423,11 +420,18 @@ const SellerPosOrderForm = ({
               </IconButton>
             </Paper>
             {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: { xs: 0.65, sm: 1 } }}>
-              {keypadKeys.map((key) => (
-                <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minHeight: { xs: 54, sm: 50 }, py: 0.5, fontSize: { xs: 27, sm: 18 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
-              ))}
-            </Box>
+            <Stack spacing={{ xs: 0.65, sm: 1 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: { xs: 0.65, sm: 1 } }}>
+                {keypadNumberKeys.map((key) => (
+                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 54, sm: 58 }, px: 0.5, py: 0.5, fontSize: { xs: 24, sm: 24 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
+                ))}
+              </Box>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: { xs: 0.65, sm: 1 } }}>
+                {keypadZeroKeys.map((key) => (
+                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 54, sm: 58 }, px: 0.5, py: 0.5, fontSize: { xs: 24, sm: 24 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
+                ))}
+              </Box>
+            </Stack>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: { xs: 0.75, sm: 2 }, pt: { xs: 0.75, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>

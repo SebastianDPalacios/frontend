@@ -1,6 +1,7 @@
 ﻿import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -33,6 +34,7 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
+import { BalanceDatePicker, BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
 import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
 import OrderCustomerEditor from "components/organisms/orders/OrderCustomerEditor";
 import OrderSellerEditor from "components/organisms/orders/OrderSellerEditor";
@@ -584,8 +586,18 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [showCancelled, setShowCancelled] = useState(false);
+  const [sellers, setSellers] = useState([]);
+  const [selectedSellerId, setSelectedSellerId] = useState("");
+  const [commissions, setCommissions] = useState([]);
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, order: null });
   const todayDate = useMemo(() => getTodayDate(), []);
+
+  useEffect(() => {
+    if (isTodayMode) return;
+    ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 200 }).then((response) => {
+      if (response?.code === 1) setSellers(normalizeRows(response.data?.sellers));
+    }).catch(() => setSellers([]));
+  }, [isTodayMode]);
 
   useEffect(() => {
     if (router.isReady && router.query.search) {
@@ -614,12 +626,18 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         const dateTo = isTodayMode
           ? todayDate
           : dateMode === "month" ? monthRange.dateTo : customDateTo;
-        const response = await ordersService.getOrders({
-          page: 1,
-          pageSize: isTodayMode ? 200 : 500,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
-        });
+        const [response, commissionsResponse] = await Promise.all([
+          ordersService.getOrders({
+            page: 1,
+            pageSize: isTodayMode ? 200 : 500,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+          }),
+          ordersService.getSalesCommissions({
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+          }),
+        ]);
         if (response?.code !== 1) {
           setError(response?.message || "No se pudo cargar historico de pedidos");
           return;
@@ -627,6 +645,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 
         const orderRows = normalizeRows(response.data?.items);
         setOrders(orderRows);
+        setCommissions(commissionsResponse?.code === 1 ? normalizeRows(commissionsResponse.data?.items) : []);
         setOrderId((currentOrderId) => {
           if (orderRows.some((order) => String(order.id) === String(currentOrderId))) {
             return currentOrderId;
@@ -659,8 +678,11 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     [orderDayGroups]
   );
   const filteredOrders = useMemo(
-    () => dateScopedOrders.filter((order) => orderMatchesSearch(order, search, dailyOrderNumberById)),
-    [dateScopedOrders, dailyOrderNumberById, search]
+    () => dateScopedOrders.filter((order) => (
+      (!selectedSellerId || String(order.sales_agent_user_id) === String(selectedSellerId)) &&
+      orderMatchesSearch(order, search, dailyOrderNumberById)
+    )),
+    [dateScopedOrders, dailyOrderNumberById, search, selectedSellerId]
   );
   const filteredOrderDayGroups = useMemo(() => buildOrderDayGroups(filteredOrders), [filteredOrders]);
   const selectedOrder = useMemo(
@@ -678,9 +700,19 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 
   const canCancel = isAdministrator && ["draft", "confirmed", "dispatched", "delivered"].includes(selectedOrder?.status);
   const draftOrders = filteredOrders.filter((order) => order.status === "draft").length;
-  const dispatchedOrders = filteredOrders.filter((order) => order.status === "dispatched").length;
   const cancelledOrders = filteredOrders.filter((order) => order.status === "cancelled").length;
-  const totalAmount = filteredOrders.reduce((acc, order) => acc + Number(order.amount_to_collect ?? order.grand_total ?? 0), 0);
+  const visibleCommissions = commissions.filter((commission) => (
+    !selectedSellerId || String(commission.sales_agent_user_id) === String(selectedSellerId)
+  ));
+  const grossSalesTotal = visibleCommissions.reduce(
+    (total, commission) => total + Number(commission.delivered_sales_total || 0),
+    0
+  );
+  const commissionTotal = visibleCommissions.reduce(
+    (total, commission) => total + Number(commission.commission_amount || 0),
+    0
+  );
+  const selectedSeller = sellers.find((seller) => String(seller.id) === String(selectedSellerId)) || null;
   const selectedDailyNumber = selectedOrder ? dailyOrderNumberById[String(selectedOrder.id)] : null;
 
   const openOrderDetail = async (order) => {
@@ -905,7 +937,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         }}
       >
         <Grid container spacing={2} sx={{ alignItems: "center" }}>
-          <Grid item xs={12} md={isTodayMode ? 7 : 4}>
+          <Grid item xs={12} md={isTodayMode ? 7 : 3}>
             <TextField
               fullWidth
               label="Buscar pedido, cliente o vendedor"
@@ -914,57 +946,70 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             />
           </Grid>
           {!isTodayMode ? (
-            <Grid item xs={12} sm={6} md={2}>
-              <TextField
-                select
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
                 fullWidth
-                label="Consultar por"
-                value={dateMode}
-                onChange={(event) => setDateMode(event.target.value)}
-              >
-                <MenuItem value="month">Mes</MenuItem>
-                <MenuItem value="range">Rango personalizado</MenuItem>
-              </TextField>
+                options={sellers}
+                value={selectedSeller}
+                getOptionLabel={(seller) => seller?.full_name || seller?.username || "Vendedor"}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, seller) => setSelectedSellerId(seller?.id ? String(seller.id) : "")}
+                noOptionsText="No se encontraron vendedores"
+                renderInput={(params) => <TextField {...params} label="Vendedor" placeholder="Todos los vendedores" />}
+              />
+            </Grid>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} sm={6} md={2}>
+              <Autocomplete
+                fullWidth
+                disableClearable
+                options={[
+                  { value: "month", label: "Mes" },
+                  { value: "range", label: "Rango personalizado" },
+                ]}
+                value={dateMode === "month"
+                  ? { value: "month", label: "Mes" }
+                  : { value: "range", label: "Rango personalizado" }}
+                getOptionLabel={(option) => option.label}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                onChange={(_event, option) => setDateMode(option.value)}
+                renderInput={(params) => <TextField {...params} label="Consultar por" />}
+              />
             </Grid>
           ) : null}
           {!isTodayMode && dateMode === "month" ? (
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
+            <Grid item xs={12} sm={6} md={2}>
+              <BalanceMonthPicker
                 fullWidth
-                type="month"
                 label="Mes"
                 value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-                InputLabelProps={{ shrink: true }}
+                onChange={setSelectedMonth}
               />
             </Grid>
           ) : null}
           {!isTodayMode && dateMode === "range" ? (
             <>
               <Grid item xs={12} sm={6} md={2}>
-                <TextField
+                <BalanceDatePicker
                   fullWidth
-                  type="date"
                   label="Desde"
                   value={customDateFrom}
-                  onChange={(event) => setCustomDateFrom(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
+                  onChange={setCustomDateFrom}
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
-                <TextField
+                <BalanceDatePicker
                   fullWidth
-                  type="date"
                   label="Hasta"
                   value={customDateTo}
-                  onChange={(event) => setCustomDateTo(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
+                  onChange={setCustomDateTo}
                 />
               </Grid>
             </>
           ) : null}
           {!isTodayMode ? (
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <FormControlLabel
                 control={<Checkbox checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />}
                 label="Mostrar eliminados"
@@ -986,13 +1031,23 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
           <SummaryCard label={isTodayMode ? "Pedidos de hoy" : "Pedidos visibles"} value={filteredOrders.length} helper={`${draftOrders} borrador`} color={draftOrders ? "warning" : "success"} />
         </Grid>
         <Grid item xs={12} md={3}>
-          <SummaryCard label="Despachados" value={dispatchedOrders} helper="Ya impactaron inventario" color="success" />
+          <SummaryCard
+            label="Venta bruta"
+            value={formatMoney(grossSalesTotal)}
+            helper={selectedSeller ? selectedSeller.full_name || selectedSeller.username : "Todos los vendedores"}
+            color="success"
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <SummaryCard
+            label="Comisión"
+            value={formatMoney(commissionTotal)}
+            helper={selectedSeller ? selectedSeller.full_name || selectedSeller.username : "Todas las comisiones"}
+            color="info"
+          />
         </Grid>
         <Grid item xs={12} md={3}>
           <SummaryCard label="Cancelados" value={cancelledOrders} helper="Sin entrega activa" color={cancelledOrders ? "error" : "default"} />
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <SummaryCard label="Valor listado" value={formatMoney(totalAmount)} helper="Segun busqueda actual" color="info" />
         </Grid>
       </Grid>
 
