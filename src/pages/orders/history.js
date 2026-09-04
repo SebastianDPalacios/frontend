@@ -239,6 +239,59 @@ const StatusChip = ({ status, sx, onClick, interactive = false }) => (
   />
 );
 
+const DeleteOrderDialog = ({ open, dailyNumber, loading, canCancel, onClose, onConfirm }) => {
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setReason("");
+      setReasonError("");
+    }
+  }, [open]);
+
+  const handleConfirm = () => {
+    const normalizedReason = reason.trim();
+    if (normalizedReason.length < 5) {
+      setReasonError("Para cancelar indica un motivo de al menos 5 caracteres");
+      return;
+    }
+    onConfirm(normalizedReason);
+  };
+
+  return (
+    <Dialog open={open} onClose={() => !loading && onClose()} fullWidth maxWidth="sm">
+      <DialogTitle>Eliminar pedido {dailyNumber ? `del dia #${dailyNumber}` : ""}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Alert severity="warning">
+            El pedido quedará eliminado de la vista habitual, pero se conservará en auditoría. Si ya afectó el inventario, sus unidades se devolverán automáticamente y la comisión quedará cancelada.
+          </Alert>
+          <TextField
+            fullWidth
+            label="Motivo de eliminacion"
+            value={reason}
+            onChange={(event) => {
+              if (reasonError) setReasonError("");
+              setReason(event.target.value);
+            }}
+            error={Boolean(reasonError)}
+            helperText={reasonError || "Minimo 5 caracteres"}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <AppButton variant="outlined" color="secondary" onClick={onClose} disabled={loading}>
+          Volver
+        </AppButton>
+        <AppButton color="error" onClick={handleConfirm} disabled={loading || !canCancel}>
+          {loading ? "Eliminando..." : "Confirmar eliminacion"}
+        </AppButton>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 const isReadyToDispatch = (order) =>
   ["confirmed", "ready"].includes(order?.status);
 
@@ -574,7 +627,6 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [detailItems, setDetailItems] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [orderId, setOrderId] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
@@ -815,7 +867,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     }
   };
 
-  const runOrderAction = async (action, targetOrderId = orderId) => {
+  const runOrderAction = async (action, targetOrderId = orderId, options = {}) => {
     if (actionLoading) {
       return;
     }
@@ -826,12 +878,6 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 
     if (!Number.isInteger(parsedOrderId) || parsedOrderId <= 0) {
       setFieldErrors({ orderId: "Selecciona un pedido" });
-      setError("Corrige los campos marcados");
-      return;
-    }
-
-    if (action === "cancel" && cancelReason.trim().length < 5) {
-      setFieldErrors({ cancelReason: "Para cancelar indica un motivo de al menos 5 caracteres" });
       setError("Corrige los campos marcados");
       return;
     }
@@ -853,7 +899,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       }
 
       if (action === "cancel") {
-        result = await ordersService.cancelOrder(parsedOrderId, { p_reason: cancelReason.trim() || null });
+        result = await ordersService.cancelOrder(parsedOrderId, { p_reason: options.reason || null });
       }
 
       if (result?.code !== 1) {
@@ -866,7 +912,6 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       toast.success(result?.message || "Accion aplicada correctamente");
       if (action === "cancel") {
         setCancelDialogOpen(false);
-        setCancelReason("");
       }
       if (["dispatch", "deliver"].includes(action) && detailOpen) {
         setDetailOpen(false);
@@ -888,7 +933,6 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     closeActionMenu();
     if (!order) return;
     setOrderId(String(order.id));
-    setCancelReason("");
     setFieldErrors({});
     setCancelDialogOpen(true);
   };
@@ -1255,35 +1299,14 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         ) : null}
       </Menu>
 
-      <Dialog open={cancelDialogOpen} onClose={() => !actionLoading && setCancelDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Eliminar pedido {selectedOrder ? `del dia #${selectedDailyNumber || "-"}` : ""}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Alert severity="warning">
-              El pedido quedará eliminado de la vista habitual, pero se conservará en auditoría. Si ya afectó el inventario, sus unidades se devolverán automáticamente y la comisión quedará cancelada.
-            </Alert>
-            <TextField
-              fullWidth
-              label="Motivo de eliminacion"
-              value={cancelReason}
-              onChange={(event) => {
-                setFieldErrors((prev) => ({ ...prev, cancelReason: null }));
-                setCancelReason(event.target.value);
-              }}
-              error={Boolean(fieldErrors.cancelReason)}
-              helperText={fieldErrors.cancelReason || "Minimo 5 caracteres"}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <AppButton variant="outlined" color="secondary" onClick={() => setCancelDialogOpen(false)} disabled={actionLoading}>
-            Volver
-          </AppButton>
-          <AppButton color="error" onClick={() => runOrderAction("cancel")} disabled={actionLoading || !canCancel}>
-            {actionLoading ? "Eliminando..." : "Confirmar eliminacion"}
-          </AppButton>
-        </DialogActions>
-      </Dialog>
+      <DeleteOrderDialog
+        open={cancelDialogOpen}
+        dailyNumber={selectedOrder ? selectedDailyNumber : null}
+        loading={actionLoading}
+        canCancel={canCancel}
+        onClose={() => setCancelDialogOpen(false)}
+        onConfirm={(reason) => runOrderAction("cancel", orderId, { reason })}
+      />
 
       <Dialog
         open={detailOpen}
