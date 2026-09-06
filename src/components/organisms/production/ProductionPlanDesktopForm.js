@@ -1,4 +1,4 @@
-import { Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import AppButton from "@core/components/ui/AppButton";
 import ProductionPlanDesktopTable from "components/organisms/production/ProductionPlanDesktopTable";
@@ -16,7 +16,6 @@ const ProductionPlanDesktopForm = ({
   recipes,
   form,
   rows,
-  totalArrobas,
   summary,
   selectedBaker,
   saving,
@@ -42,10 +41,9 @@ const ProductionPlanDesktopForm = ({
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>{editing ? "Editar asignación" : "Nueva asignación"}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Agrega cada producto por separado. La receta vigente y sus equivalencias se calculan automaticamente.
+          Agrega cada producto por separado e indica directamente la cantidad solicitada.
         </Typography>
       </Box>
-      <Chip label={`${formatArrobas(totalArrobas)} arroba(s) estimada(s)`} color="secondary" variant="outlined" />
     </Stack>
 
     <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -121,22 +119,18 @@ const ProductionPlanDesktopForm = ({
             <Typography sx={{ fontWeight: 700 }}>{row.output.product_name}</Typography>
             <Typography variant="body2">
               {row.requestMode === "units"
-                ? `${formatNumber(row.requestedQuantity)} unidades · ${formatArrobas(row.plannedArrobas)} arrobas`
+                ? `${formatNumber(row.requestedQuantity)} unidades`
                 : row.requestMode === "bags"
-                  ? `${formatNumber(row.requestedQuantity)} bultos · sin equivalencia`
-                  : `${formatArrobas(row.requestedQuantity)} arrobas · ${formatNumber(row.estimatedUnits)} unidades`}
+                  ? `${formatNumber(row.requestedQuantity)} bultos`
+                  : row.requestMode === "trays"
+                    ? `${formatNumber(row.requestedQuantity)} latas`
+                    : `${formatArrobas(row.requestedQuantity)} arrobas`}
             </Typography>
           </Stack>
         ))}
         {!summary.products.some((row) => row.output) ? (
           <Typography variant="body2" color="text.secondary">Agrega productos para consultar el resumen.</Typography>
         ) : null}
-        {summary.recipeGroups.map((group) => (
-          <Stack key={group.recipeId} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", pt: 0.75, borderTop: "1px solid", borderColor: "divider" }}>
-            <Typography variant="body2" sx={{ fontWeight: 800 }}>Total receta {group.recipeName}</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 800 }}>{formatArrobas(group.plannedArrobas)} arrobas</Typography>
-          </Stack>
-        ))}
       </Stack>
     </Paper>
 

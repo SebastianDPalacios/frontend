@@ -41,10 +41,6 @@ const emptyPlanRow = () => ({
   recipeId: "",
   requestMode: "units",
   requestedQuantity: "",
-  unitsPerTray: "",
-  trayCount: "",
-  looseUnits: "",
-  detailsOpen: false,
 });
 
 const groupRecipes = (rows) => {
@@ -78,10 +74,11 @@ const calculatePlanRow = (recipes, row) => {
   const { recipe, output } = getRecipeOutput(recipes, row);
   const requestedQuantity = Number(row.requestedQuantity || 0);
   const yieldPerArroba = Number(output?.expected_quantity || 0);
+  const isInformational = ["bags", "trays"].includes(row.requestMode);
   const estimatedUnits = row.requestMode === "units"
     ? requestedQuantity
-    : row.requestMode === "bags" ? 0 : requestedQuantity * yieldPerArroba;
-  const plannedArrobas = row.requestMode === "bags" ? 0 : row.requestMode === "arrobas" ? requestedQuantity : estimatedUnits / yieldPerArroba;
+    : isInformational ? 0 : requestedQuantity * yieldPerArroba;
+  const plannedArrobas = isInformational ? 0 : row.requestMode === "arrobas" ? requestedQuantity : estimatedUnits / yieldPerArroba;
   return {
     recipe,
     output,
@@ -218,7 +215,7 @@ const ProductionPlanningPage = () => {
     const recipeGroups = new Map();
     const products = rows.map((row) => {
       const calculated = calculatePlanRow(recipes, row);
-      if (calculated.recipe && calculated.output && row.requestMode !== "bags") {
+      if (calculated.recipe && calculated.output && !["bags", "trays"].includes(row.requestMode)) {
         const key = String(calculated.recipe.id);
         const current = recipeGroups.get(key) || {
           recipeId: calculated.recipe.id,
@@ -293,10 +290,6 @@ const ProductionPlanningPage = () => {
       recipeId: String(assignment.recipe_id || ""),
       requestMode: assignment.request_mode || "arrobas",
       requestedQuantity: String(assignment.requested_quantity || ""),
-      unitsPerTray: String(assignment.units_per_tray ?? ""),
-      trayCount: String(assignment.tray_count ?? ""),
-      looseUnits: String(assignment.loose_units ?? ""),
-      detailsOpen: false,
     })));
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -315,8 +308,8 @@ const ProductionPlanningPage = () => {
       setError("Un producto no puede aparecer dos veces dentro del mismo plan.");
       return;
     }
-    if (rows.some((row) => ["units", "bags"].includes(row.requestMode) && !Number.isInteger(Number(row.requestedQuantity)))) {
-      setError("Las solicitudes por unidades o bultos deben usar cantidades enteras.");
+    if (rows.some((row) => ["units", "bags", "trays"].includes(row.requestMode) && !Number.isInteger(Number(row.requestedQuantity)))) {
+      setError("Las solicitudes por unidades, bultos o latas deben usar cantidades enteras.");
       return;
     }
 
@@ -333,9 +326,6 @@ const ProductionPlanningPage = () => {
           recipe_id: Number(row.recipeId),
           request_mode: row.requestMode,
           requested_quantity: Number(row.requestedQuantity),
-          units_per_tray: row.unitsPerTray === "" ? null : Number(row.unitsPerTray),
-          tray_count: row.trayCount === "" ? null : Number(row.trayCount),
-          loose_units: row.looseUnits === "" ? null : Number(row.looseUnits),
         })),
       };
       const response = editingPlanId
@@ -451,7 +441,7 @@ const ProductionPlanningPage = () => {
   return (
     <FlowPageLayout
       title="Producción del día siguiente"
-      subtitle="Planifica cada producto por unidades, arrobas o bultos; el sistema utiliza internamente su receta vigente."
+      subtitle="Planifica cada producto por unidades, arrobas, bultos o latas; el sistema utiliza internamente su receta vigente."
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando planificación...</Alert> : null}

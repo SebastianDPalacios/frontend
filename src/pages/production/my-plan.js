@@ -18,8 +18,8 @@ const getMonthRange = (date) => {
   const lastDay = new Date(year, month, 0).getDate();
   return { date_from: `${year}-${String(month).padStart(2, "0")}-01`, date_to: `${year}-${String(month).padStart(2, "0")}-${lastDay}` };
 };
-const requestLabels = { units: "Por unidades", arrobas: "Por arrobas", bags: "Por bultos" };
-const requestUnits = { units: "unidades", arrobas: "arrobas", bags: "bultos" };
+const requestLabels = { units: "Por unidades", arrobas: "Por arrobas", bags: "Por bultos", trays: "Por latas" };
+const requestUnits = { units: "unidades", arrobas: "arrobas", bags: "bultos", trays: "latas" };
 
 export const ProductionMyPlanPage = ({ mode = "today" }) => {
   const isHistory = mode === "history";
@@ -91,7 +91,7 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
           <Table sx={{ minWidth: 850 }}>
             <TableHead><TableRow sx={{ "& th": { fontWeight: 900, bgcolor: "background.default" } }}>
               {isHistory ? <TableCell>Fecha</TableCell> : null}
-              <TableCell>Producto</TableCell><TableCell>Tipo</TableCell><TableCell>Cantidad solicitada</TableCell><TableCell>Equivalencia</TableCell><TableCell>Receta vigente</TableCell><TableCell>Sucursal</TableCell>
+              <TableCell>Producto</TableCell><TableCell>Tipo</TableCell><TableCell>Cantidad solicitada</TableCell><TableCell>Receta vigente</TableCell><TableCell>Sucursal</TableCell>
             </TableRow></TableHead>
             <TableBody>{rows.map((row) => (
               <TableRow key={`${row.planId}-${row.production_plan_output_id}`}>
@@ -99,7 +99,6 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
                 <TableCell><Typography sx={{ fontWeight: 900 }}>{row.product_name}</Typography></TableCell>
                 <TableCell>{requestLabels[row.request_mode] || row.request_mode}</TableCell>
                 <TableCell>{formatNumber(row.requested_quantity)} {requestUnits[row.request_mode] || ""}</TableCell>
-                <TableCell>{row.request_mode === "bags" ? "Sin equivalencia" : `${formatNumber(row.planned_arrobas)} arrobas / ${formatNumber(row.estimated_units)} unidades`}</TableCell>
                 <TableCell>{row.recipe_name} · V{row.recipe_version}</TableCell>
                 <TableCell>{row.branchName}</TableCell>
               </TableRow>

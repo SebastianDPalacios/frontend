@@ -498,7 +498,7 @@ const ProductionDayPage = () => {
             <Paper key={`${product.production_plan_id}-${product.production_plan_output_id}`} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
               <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
                 <Grid item xs={12} md={3}><Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography><Typography variant="caption" color="text.secondary">{product.baker_name} · {product.planning_format === "legacy" ? "Plan anterior" : "Plan por producto"}</Typography></Grid>
-                <Grid item xs={6} sm={3} md={2}><SmallStat label="Solicitado" value={`${formatUnits(product.requested_quantity)} ${product.request_mode === "units" ? "unidades" : "arrobas"}`} /></Grid>
+                <Grid item xs={6} sm={3} md={2}><SmallStat label="Solicitado" value={`${formatUnits(product.requested_quantity)} ${{ units: "unidades", arrobas: "arrobas", bags: "bultos", trays: "latas" }[product.request_mode] || ""}`} /></Grid>
                 <Grid item xs={6} sm={3} md={2}><SmallStat label="Estimado" value={`${formatUnits(product.planned_arrobas)} arrobas / ${formatUnits(product.estimated_units)} und`} /></Grid>
                 <Grid item xs={6} sm={3} md={2}><SmallStat label="Producido" value={formatUnits(product.batch_produced_quantity)} /></Grid>
                 <Grid item xs={6} sm={3} md={2}><SmallStat label="Empacado" value={formatUnits(product.packed_quantity)} /></Grid>

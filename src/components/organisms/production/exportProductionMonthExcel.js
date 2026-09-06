@@ -323,7 +323,7 @@ const exportProductionMonthExcel = async ({
       formatDate(product.planned_date),
       product.baker_name || "",
       product.product_name || "",
-      product.planning_format === "legacy" ? "Plan anterior" : (product.request_mode === "units" ? "Por unidades" : "Por arrobas"),
+      product.planning_format === "legacy" ? "Plan anterior" : ({ units: "Por unidades", arrobas: "Por arrobas", bags: "Por bultos", trays: "Por latas" }[product.request_mode] || product.request_mode),
       Number(product.requested_quantity || 0),
       Number(product.planned_arrobas || 0),
       Number(product.estimated_units || 0),

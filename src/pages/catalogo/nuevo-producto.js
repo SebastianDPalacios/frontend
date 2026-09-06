@@ -84,8 +84,23 @@ const NuevoProductoPage = () => {
           toast.success(result?.message || "Producto creado correctamente");
           helpers.resetForm();
         } catch (requestError) {
-          helpers.setSubmitError(getApiErrorMessage(requestError, "Error de red al crear el producto. Verifica tu conexion."));
+          const message = getApiErrorMessage(
+            requestError,
+            "No se pudo crear el producto. Revisa que el SKU y el nombre no estén repetidos y que los campos tengan valores válidos."
+          );
+          helpers.setSubmitError(
+            message === "Error interno del servidor"
+              ? "No se pudo crear el producto. Revisa que el SKU y el nombre no estén repetidos y que los campos tengan valores válidos."
+              : message
+          );
         }
+      },
+      {
+        sku: (value) => (String(value || "").trim() ? null : "El SKU es obligatorio"),
+        name: (value) => (String(value || "").trim() ? null : "El nombre es obligatorio"),
+        category_id: (value) => (value ? null : "Selecciona una categoría"),
+        base_price: (value) => (value !== "" && value !== null ? null : "El precio base es obligatorio"),
+        min_stock: (value) => (value !== "" && value !== null ? null : "El stock mínimo es obligatorio"),
       }
     );
 
@@ -97,7 +112,16 @@ const NuevoProductoPage = () => {
         </Alert>
       ) : null}
 
-      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
+        sx={{
+          width: "100%",
+          maxWidth: 1180,
+          mx: "auto",
+        }}
+      >
         <Paper
           variant="outlined"
           sx={{
@@ -168,7 +192,6 @@ const NuevoProductoPage = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 placeholder="PAN-001"
-                required
                 helperText="Identificador unico del producto"
               />
             </Grid>
@@ -182,7 +205,6 @@ const NuevoProductoPage = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 placeholder="Pan integral"
-                required
               />
             </Grid>
                 <Grid item xs={12} md={4}>
@@ -211,7 +233,7 @@ const NuevoProductoPage = () => {
               <FormField
                 select
                 name="category_id"
-                label="Categoria"
+                label="Categoría"
                 value={values.category_id}
                 error={errors.category_id}
                 touched={touched.category_id}
@@ -305,7 +327,7 @@ const NuevoProductoPage = () => {
                 <Grid item xs={12} md={4}>
               <FormField
                 name="min_stock"
-                label="Stock minimo"
+                label="Stock mínimo"
                 type="number"
                 value={values.min_stock}
                 error={errors.min_stock}
@@ -319,7 +341,7 @@ const NuevoProductoPage = () => {
                 <Grid item xs={12} md={4}>
               <FormField
                 name="units_per_bag"
-                label="Unidades por bulto"
+                label="Unidades por bulto (opcional)"
                 type="number"
                 value={values.units_per_bag}
                 error={errors.units_per_bag}
@@ -327,7 +349,7 @@ const NuevoProductoPage = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 placeholder="Ej: 900"
-                helperText="Rendimiento productivo: unidades que salen de un bulto"
+                helperText="Puedes dejarlo vacío si este producto no se controla por bultos"
                 inputProps={{ min: 0.001, step: "0.001" }}
               />
             </Grid>

@@ -33,6 +33,10 @@ const useForm = (initialValues = {}, onSubmit = null, validators = {}) => {
       if (error) newErrors[field] = error;
     });
     setErrors(newErrors);
+    setTouched((previous) => ({
+      ...previous,
+      ...Object.keys(newErrors).reduce((fields, field) => ({ ...fields, [field]: true }), {}),
+    }));
     return Object.keys(newErrors).length === 0;
   }, [values, validateField]);
 

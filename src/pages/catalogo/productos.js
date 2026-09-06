@@ -298,7 +298,7 @@ const ProductsPage = () => {
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField fullWidth type="number" label="Precio base" value={editDialog.values.base_price || ""} onChange={(e) => setEditValue("base_price", e.target.value)} inputProps={{ min: 0 }} />
               <TextField fullWidth type="number" label="Stock minimo" value={editDialog.values.min_stock || ""} onChange={(e) => setEditValue("min_stock", e.target.value)} inputProps={{ min: 0 }} />
-              <TextField fullWidth type="number" label="Unidades por bulto" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 0.001, step: 0.001 }} />
+              <TextField fullWidth type="number" label="Unidades por bulto (opcional)" helperText="Déjalo vacío si no aplica" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 0.001, step: 0.001 }} />
               <TextField select fullWidth label="Estado" value={editDialog.values.is_active || "1"} onChange={(e) => setEditValue("is_active", e.target.value)}><MenuItem value="1">Activo</MenuItem><MenuItem value="0">Inactivo</MenuItem></TextField>
               <TextField select fullWidth label="Incluye vendaje" value={editDialog.values.includes_bonus || "0"} onChange={(e) => setEditValue("includes_bonus", e.target.value)}><MenuItem value="0">No</MenuItem><MenuItem value="1">Si</MenuItem></TextField>
             </Stack>

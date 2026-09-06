@@ -153,6 +153,8 @@ const ProductionPlanAssignmentForm = ({
                       ? `${formatNumber(row.requestedQuantity)} unidades`
                       : row.requestMode === "bags"
                         ? `${formatNumber(row.requestedQuantity)} bultos`
+                        : row.requestMode === "trays"
+                          ? `${formatNumber(row.requestedQuantity)} latas`
                         : `${formatArrobas(row.requestedQuantity)} arrobas`}
                   </Typography>
                 </Stack>
