@@ -234,7 +234,6 @@ const exportProductionMonthExcel = async ({
   flourDailyUsage = [],
   selectedFlourName = "Todas las harinas",
   bakerSummary,
-  formatMaterialEquivalent,
 }) => {
   const excelModule = await import("exceljs");
   const ExcelJS = excelModule.default || excelModule;
@@ -340,21 +339,6 @@ const exportProductionMonthExcel = async ({
 
   addSection(
     worksheet,
-    "Insumos usados por receta",
-    ["Receta", "Materia prima", "Total usado", "Unidad", "Equivalencia", "Costo"],
-    report.recipe_materials_usage.map((material) => [
-      material.recipe_name || "",
-      material.raw_material_name || "",
-      Number(material.total_quantity || 0),
-      material.raw_material_unit === "ml" ? "ml" : "g",
-      formatMaterialEquivalent(material),
-      Number(material.total_cost || 0),
-    ]),
-    { currencyColumns: [6], decimalColumns: [3] }
-  );
-
-  addSection(
-    worksheet,
     "Panaderos",
     ["Panadero", "Lotes de producción", "Bultos realizados", "Fabricados", "Empacados", "Danados", "Faltantes"],
     bakerSummary.map((baker) => [
@@ -385,11 +369,11 @@ const exportProductionMonthExcel = async ({
 
   const flourWorksheet = workbook.addWorksheet(`Harinas ${filters.month}`);
   flourWorksheet.views = [{ state: "frozen", ySplit: 4 }];
-  [16, 34, 18, 18, 16, 24].forEach((width, index) => {
+  [16, 34, 18, 16, 24].forEach((width, index) => {
     flourWorksheet.getColumn(index + 1).width = width;
   });
 
-  flourWorksheet.mergeCells("A1:F1");
+  flourWorksheet.mergeCells("A1:E1");
   flourWorksheet.getCell("A1").value = "Consumo diario de harina";
   flourWorksheet.getCell("A1").font = {
     bold: true,
@@ -402,7 +386,7 @@ const exportProductionMonthExcel = async ({
   };
   flourWorksheet.getRow(1).height = 26;
 
-  flourWorksheet.mergeCells("A2:F2");
+  flourWorksheet.mergeCells("A2:E2");
   flourWorksheet.getCell("A2").value = "Resumen dia por dia del mes";
   flourWorksheet.getCell("A2").font = { color: { argb: "FF4B5563" } };
 
@@ -450,27 +434,25 @@ const exportProductionMonthExcel = async ({
   addSection(
     flourWorksheet,
     "Harinas",
-    ["Fecha", "Harina", "Gramos", "Kilos", "Bultos", "Presentacion"],
+    ["Fecha", "Harina", "Gramos", "Bultos", "Presentacion"],
     flourDailyUsage.map((material) => [
       formatDate(material.usage_date),
       material.raw_material_name || "",
       Number(material.total_grams || 0),
-      Number(material.total_kilos || 0),
       material.bags_used === null || material.bags_used === undefined ? "" : Number(material.bags_used || 0),
       material.purchase_package_name
         ? `${material.purchase_package_name} (${Number(material.purchase_package_quantity || 0)})`
         : "",
     ]),
-    { decimalColumns: [3, 4, 5], headerFill: colors.softGreen }
+    { decimalColumns: [3, 4], headerFill: colors.softGreen }
   );
 
   const flourTotals = flourDailyUsage.reduce(
     (total, material) => ({
       grams: total.grams + Number(material.total_grams || 0),
-      kilos: total.kilos + Number(material.total_kilos || 0),
       bags: total.bags + Number(material.bags_used || 0),
     }),
-    { grams: 0, kilos: 0, bags: 0 }
+    { grams: 0, bags: 0 }
   );
 
   addSection(
@@ -479,7 +461,6 @@ const exportProductionMonthExcel = async ({
     ["Indicador", "Valor"],
     [
       ["Gramos", flourTotals.grams],
-      ["Kilos", flourTotals.kilos],
       ["Bultos", flourTotals.bags],
     ],
     { decimalColumns: [2] }

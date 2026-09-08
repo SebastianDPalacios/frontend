@@ -26,39 +26,6 @@ const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 const formatKilos = (grams) => `${formatUnits(Number(grams || 0) / 1000)} kg`;
 
-const pluralize = (value, singular, plural) => `${formatUnits(value)} ${Number(value) === 1 ? singular : plural}`;
-
-const formatMaterialQty = (value, unit) => {
-  const baseUnit = unit === "ml" ? "ml" : "g";
-  return `${formatUnits(value)} ${baseUnit}`;
-};
-
-const formatMaterialEquivalent = (material) => {
-  const value = material?.total_quantity;
-  const unit = material?.raw_material_unit;
-  const numberValue = Number(value || 0);
-  const packageQuantity = Number(material?.purchase_package_quantity || 0);
-  const packageName = String(material?.purchase_package_name || "").trim();
-
-  if (packageQuantity > 0 && packageName) {
-    const fullPackages = Math.floor(numberValue / packageQuantity);
-    const remaining = numberValue - fullPackages * packageQuantity;
-    const packageLabel = fullPackages === 1 ? packageName : `${packageName}s`;
-    const remainingLabel = unit === "ml"
-      ? (remaining >= 1000 ? `${formatUnits(remaining / 1000)} litros` : `${formatUnits(remaining)} ml`)
-      : (remaining >= 1000 ? `${formatUnits(remaining / 1000)} kg` : `${formatUnits(remaining)} g`);
-    return `${formatUnits(fullPackages)} ${packageLabel} + ${remainingLabel}`;
-  }
-
-  if (unit === "ml") {
-    const fullLiters = Math.floor(numberValue / 1000);
-    const remainingMl = numberValue - fullLiters * 1000;
-    return `${pluralize(fullLiters, "litro", "litros")} + ${formatUnits(remainingMl)} ml`;
-  }
-
-  return numberValue >= 1000 ? `${formatUnits(numberValue / 1000)} kg` : `${formatUnits(numberValue)} g`;
-};
-
 const getRecipeName = (recipe) => {
   const notes = String(recipe?.notes || "").trim();
   return notes.split(/\s+-\s+/)[0] || recipe?.product_name || `Receta #${recipe?.id || ""}`;
@@ -314,7 +281,6 @@ const ProductionMonthPage = () => {
         flourDailyUsage: filteredFlourDailyUsage,
         selectedFlourName,
         bakerSummary,
-        formatMaterialEquivalent,
       });
     } catch (exportError) {
       setError(getErrorMessage(exportError, "No se pudo generar el archivo Excel."));
