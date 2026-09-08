@@ -524,6 +524,7 @@ const AtomicOrderForm = () => {
       }
       toast.success(`Pedido #${response.data.order_id} guardado`);
       setSelectedLines([]);
+      setCustomerId("");
       setNotes("");
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || "Error al guardar el pedido");

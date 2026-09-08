@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Autocomplete, Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import ProductionIngredientUsagePanel from "components/organisms/production/ProductionIngredientUsagePanel";
 import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
@@ -19,6 +20,7 @@ const ProductionPerformedPage = () => {
   const [branches, setBranches] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [baker, setBaker] = useState(null);
+  const [usageRefreshKey, setUsageRefreshKey] = useState(0);
   const [form, setForm] = useState({ branchId: "", productId: "", producedQuantity: "", producedDate: toDateInputValue() });
 
   const products = useMemo(() => recipes.flatMap((recipe) => normalizeRows(recipe.outputs).map((output) => ({
@@ -71,6 +73,7 @@ const ProductionPerformedPage = () => {
       if (response?.code !== 1) throw new Error(response?.message || "No se pudo registrar la produccion.");
       toast.success(response.message || "Produccion registrada");
       setForm((current) => ({ ...current, productId: "", producedQuantity: "" }));
+      setUsageRefreshKey((current) => current + 1);
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al registrar la produccion."));
     } finally {
@@ -165,6 +168,11 @@ const ProductionPerformedPage = () => {
         </Grid>
         </Box>
       </Paper>
+      <ProductionIngredientUsagePanel
+        branchId={form.branchId}
+        referenceDate={form.producedDate}
+        refreshKey={usageRefreshKey}
+      />
     </FlowPageLayout>
   );
 };

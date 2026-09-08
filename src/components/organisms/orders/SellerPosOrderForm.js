@@ -344,7 +344,7 @@ const SellerPosOrderForm = ({
         open={Boolean(captureProduct)}
         onClose={() => setCaptureProduct(null)}
         fullWidth
-        maxWidth="xs"
+        maxWidth="sm"
         PaperProps={{
           sx: {
             m: { xs: 0.75, sm: 1.5 },
@@ -421,14 +421,14 @@ const SellerPosOrderForm = ({
             </Paper>
             {captureSaleError ? <Alert severity="error">{captureSaleError.message}</Alert> : null}
             <Stack spacing={{ xs: 0.65, sm: 1 }}>
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: { xs: 0.65, sm: 1 } }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: { xs: 1, sm: 1.5 } }}>
                 {keypadNumberKeys.map((key) => (
-                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 54, sm: 58 }, px: 0.5, py: 0.5, fontSize: { xs: 24, sm: 24 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
+                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 64, sm: 76 }, px: 0.5, py: 0.5, borderRadius: 2.5, fontSize: { xs: 28, sm: 32 }, fontWeight: 900, lineHeight: 1, touchAction: "manipulation" }}>{key}</Button>
                 ))}
               </Box>
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: { xs: 0.65, sm: 1 } }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: { xs: 1, sm: 1.5 } }}>
                 {keypadZeroKeys.map((key) => (
-                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 54, sm: 58 }, px: 0.5, py: 0.5, fontSize: { xs: 24, sm: 24 }, fontWeight: 900, lineHeight: 1 }}>{key}</Button>
+                  <Button key={key} variant="outlined" color="secondary" onClick={() => appendKey(key)} sx={{ minWidth: 0, minHeight: { xs: 64, sm: 76 }, px: 0.5, py: 0.5, borderRadius: 2.5, fontSize: { xs: 28, sm: 32 }, fontWeight: 900, lineHeight: 1, touchAction: "manipulation" }}>{key}</Button>
                 ))}
               </Box>
             </Stack>
