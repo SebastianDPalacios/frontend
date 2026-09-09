@@ -32,6 +32,26 @@ const getRange = (period, periodValue, fortnightHalf) => {
   return { dateFrom: periodValue, dateTo: periodValue };
 };
 
+const conceptLabels = {
+  ADEREZO: "Aderezos del producto",
+  RELLENO: "Rellenos del producto",
+  DECORACION: "Decoración del producto",
+  COBERTURA: "Cobertura del producto",
+};
+
+const IngredientGrid = ({ ingredients }) => (
+  <Grid container spacing={1}>
+    {ingredients.map((ingredient) => (
+      <Grid item xs={12} sm={6} lg={4} key={`${ingredient.id}-${ingredient.unit}`}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} sx={{ px: 1.5, py: 1.25, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
+          <Typography sx={{ fontWeight: 750 }}>{ingredient.name}</Typography>
+          <Chip size="small" color="primary" label={`${formatNumber(ingredient.quantity)} ${ingredient.unit}`} sx={{ fontWeight: 900 }} />
+        </Stack>
+      </Grid>
+    ))}
+  </Grid>
+);
+
 const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey, preview }) => {
   const [period, setPeriod] = useState("day");
   const [periodValue, setPeriodValue] = useState(referenceDate);
@@ -219,21 +239,23 @@ const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey, p
             </Stack>
           </Stack>
 
-          <Typography sx={{ mt: 2, mb: 1, fontWeight: 900 }}>Ingredientes calculados</Typography>
-          {preview.ingredients.length ? (
-            <Grid container spacing={1}>
-              {preview.ingredients.map((ingredient) => (
-                <Grid item xs={12} sm={6} lg={4} key={`${ingredient.id}-${ingredient.unit}`}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} sx={{ px: 1.5, py: 1.25, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
-                    <Typography sx={{ fontWeight: 750 }}>{ingredient.name}</Typography>
-                    <Chip size="small" color="primary" label={`${formatNumber(ingredient.quantity)} ${ingredient.unit}`} sx={{ fontWeight: 900 }} />
-                  </Stack>
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Alert severity="warning">La receta vigente no tiene ingredientes configurados.</Alert>
-          )}
+          <Box sx={{ mt: 2 }}>
+            <Typography sx={{ mb: 1, fontWeight: 900 }}>Ingredientes de la receta base</Typography>
+            {preview.baseIngredients?.length ? <IngredientGrid ingredients={preview.baseIngredients} /> : (
+              <Alert severity="warning">La receta base no tiene ingredientes configurados.</Alert>
+            )}
+          </Box>
+
+          {preview.productIngredientGroups?.map((group) => (
+            <Box key={group.concept} sx={{ mt: 2, p: { xs: 1.5, md: 2 }, borderRadius: 2.5, border: "1px solid", borderColor: "secondary.light", bgcolor: "rgba(221, 93, 38, 0.05)" }}>
+              <Typography color="secondary.main" sx={{ mb: 1, fontWeight: 950 }}>
+                {conceptLabels[group.concept] || group.concept}
+              </Typography>
+              <IngredientGrid ingredients={group.ingredients} />
+            </Box>
+          ))}
+
+          {!preview.ingredients.length ? <Alert severity="warning" sx={{ mt: 2 }}>La receta vigente no tiene ingredientes configurados.</Alert> : null}
         </Box>
       ) : null}
 

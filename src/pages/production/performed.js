@@ -37,20 +37,35 @@ const ProductionPerformedPage = () => {
     if (!selectedProduct || !Number.isInteger(producedQuantity) || producedQuantity <= 0 || expectedQuantity <= 0) return null;
 
     const factor = producedQuantity / expectedQuantity;
-    const ingredients = new Map();
-    [...normalizeRows(selectedProduct.recipe_items), ...normalizeRows(selectedProduct.items)].forEach((item) => {
-      const unit = item.raw_material_unit || "unidad";
-      const key = `${item.raw_material_id}-${unit}`;
-      const quantity = Number(item.quantity || 0) * factor * (1 + Number(item.wastage_percent || 0) / 100);
-      const current = ingredients.get(key) || {
-        id: item.raw_material_id,
-        name: item.raw_material_name || "Ingrediente sin nombre",
-        unit,
-        quantity: 0,
-      };
-      current.quantity += quantity;
-      ingredients.set(key, current);
+    const calculateIngredients = (items) => {
+      const ingredients = new Map();
+      items.forEach((item) => {
+        const unit = item.raw_material_unit || "unidad";
+        const key = `${item.raw_material_id}-${unit}`;
+        const quantity = Number(item.quantity || 0) * factor * (1 + Number(item.wastage_percent || 0) / 100);
+        const current = ingredients.get(key) || {
+          id: item.raw_material_id,
+          name: item.raw_material_name || "Ingrediente sin nombre",
+          unit,
+          quantity: 0,
+        };
+        current.quantity += quantity;
+        ingredients.set(key, current);
+      });
+      return [...ingredients.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    };
+
+    const productGroups = new Map();
+    normalizeRows(selectedProduct.items).forEach((item) => {
+      const concept = String(item.concept || "ADEREZO").trim().toUpperCase();
+      if (!productGroups.has(concept)) productGroups.set(concept, []);
+      productGroups.get(concept).push(item);
     });
+
+    const productIngredientGroups = [...productGroups.entries()].map(([concept, items]) => ({
+      concept,
+      ingredients: calculateIngredients(items),
+    }));
 
     return {
       productName: selectedProduct.product_name,
@@ -58,7 +73,12 @@ const ProductionPerformedPage = () => {
       recipeVersion: selectedProduct.recipe_version,
       producedQuantity,
       batches: factor,
-      ingredients: [...ingredients.values()].sort((a, b) => a.name.localeCompare(b.name, "es")),
+      baseIngredients: calculateIngredients(normalizeRows(selectedProduct.recipe_items)),
+      productIngredientGroups,
+      ingredients: calculateIngredients([
+        ...normalizeRows(selectedProduct.recipe_items),
+        ...normalizeRows(selectedProduct.items),
+      ]),
     };
   }, [form.producedQuantity, selectedProduct]);
 
