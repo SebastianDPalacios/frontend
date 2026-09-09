@@ -270,17 +270,9 @@ const ProductionMonthPage = () => {
         reportRange,
         selectedBranchName,
         selectedRecipeName,
-        summary,
-        produced,
-        packed,
-        damaged,
-        missing,
-        pending,
-        progress,
         report,
         flourDailyUsage: filteredFlourDailyUsage,
         selectedFlourName,
-        bakerSummary,
       });
     } catch (exportError) {
       setError(getErrorMessage(exportError, "No se pudo generar el archivo Excel."));

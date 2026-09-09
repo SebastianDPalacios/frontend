@@ -32,7 +32,7 @@ const getRange = (period, periodValue, fortnightHalf) => {
   return { dateFrom: periodValue, dateTo: periodValue };
 };
 
-const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey }) => {
+const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey, preview }) => {
   const [period, setPeriod] = useState("day");
   const [periodValue, setPeriodValue] = useState(referenceDate);
   const [fortnightHalf, setFortnightHalf] = useState(Number(String(referenceDate).slice(8, 10)) <= 15 ? "1" : "2");
@@ -201,6 +201,41 @@ const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey })
             />
         </Box>
       </Box>
+
+      {preview ? (
+        <Box sx={{ m: 2, p: { xs: 2, md: 2.5 }, borderRadius: 3, border: "2px solid", borderColor: "secondary.main", bgcolor: "rgba(221, 93, 38, 0.06)" }}>
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={1}>
+            <Box>
+              <Typography variant="overline" color="secondary.main" sx={{ fontWeight: 950 }}>Vista previa · sin guardar</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 950 }}>{preview.productName}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontWeight: 800 }}>Receta</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {preview.recipeName} · Versión {preview.recipeVersion || 1}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip color="secondary" label={`${formatNumber(preview.producedQuantity)} unidades`} sx={{ fontWeight: 900 }} />
+              <Chip variant="outlined" color="secondary" label={`${formatNumber(preview.batches)} bultos/receta`} sx={{ fontWeight: 900 }} />
+            </Stack>
+          </Stack>
+
+          <Typography sx={{ mt: 2, mb: 1, fontWeight: 900 }}>Ingredientes calculados</Typography>
+          {preview.ingredients.length ? (
+            <Grid container spacing={1}>
+              {preview.ingredients.map((ingredient) => (
+                <Grid item xs={12} sm={6} lg={4} key={`${ingredient.id}-${ingredient.unit}`}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} sx={{ px: 1.5, py: 1.25, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
+                    <Typography sx={{ fontWeight: 750 }}>{ingredient.name}</Typography>
+                    <Chip size="small" color="primary" label={`${formatNumber(ingredient.quantity)} ${ingredient.unit}`} sx={{ fontWeight: 900 }} />
+                  </Stack>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Alert severity="warning">La receta vigente no tiene ingredientes configurados.</Alert>
+          )}
+        </Box>
+      ) : null}
 
       {error ? <Alert severity="error" sx={{ m: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ m: 2 }}>Actualizando ingredientes...</Alert> : null}

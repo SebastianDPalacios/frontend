@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Paper, Tab, Tabs, Grid } from "@mui/material";
+import { Alert, Dialog, DialogContent, DialogTitle, Grid, IconButton, Paper, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import { useTheme } from "@mui/material/styles";
 import toast from "react-hot-toast";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import PackingReadyPanel from "components/organisms/production/PackingReadyPanel";
@@ -31,7 +33,7 @@ const getErrorMessage = (error, fallback) => {
   const message = error?.response?.data?.message || error?.message || "";
 
   if (status === 403 || /permiso requerido|required permission/i.test(message)) {
-    return "No tienes permiso para registrar conteos. Solicita al administrador asignarte el rol Empaquetador o el permiso de Conteo y empaque.";
+    return "No tienes permiso para registrar empaques. Solicita al administrador asignarte el rol Empaquetador o el permiso de Conteo y empaque.";
   }
 
   return message || fallback;
@@ -54,7 +56,10 @@ const formatShortDate = (value) => {
 };
 
 const ProductionPackagingPage = () => {
+  const theme = useTheme();
+  const mobileView = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
   const [activeView, setActiveView] = useState("pending");
+  const [mobilePackingOpen, setMobilePackingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [employees, setEmployees] = useState([]);
@@ -62,6 +67,7 @@ const ProductionPackagingPage = () => {
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [savingPacking, setSavingPacking] = useState(false);
+  const [lastPackingResult, setLastPackingResult] = useState(null);
   const [packingForm, setPackingForm] = useState({
     packerId: "",
     packedDate: getTodayInputValue(),
@@ -84,7 +90,7 @@ const ProductionPackagingPage = () => {
           return;
         }
         if (pendingResponse?.code !== 1) {
-          setError(pendingResponse?.message || "No se pudieron cargar pendientes de conteo");
+          setError(pendingResponse?.message || "No se pudieron cargar los lotes pendientes de empaque");
           return;
         }
 
@@ -117,7 +123,7 @@ const ProductionPackagingPage = () => {
           return pendingRows[0]?.production_batch_id ? String(pendingRows[0].production_batch_id) : "";
         });
       } catch (requestError) {
-        setError(getErrorMessage(requestError, "Error de red al cargar conteo y empaque"));
+        setError(getErrorMessage(requestError, "Error de red al cargar los empaques"));
       } finally {
         setLoading(false);
       }
@@ -132,10 +138,8 @@ const ProductionPackagingPage = () => {
   );
   const selectedItems = useMemo(() => normalizeRows(selectedBatch?.items), [selectedBatch]);
   const packers = employees.filter((employee) => employee.job_type === "packer");
-  const totalCounted = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.counted_quantity || 0), 0);
   const totalPacked = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.packed_quantity || 0), 0);
-  const totalDamaged = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.damaged_quantity || 0), 0);
-  const totalMissing = selectedItems.reduce((acc, item) => acc + Number(packingRows[item.production_batch_output_id]?.missing_quantity || 0), 0);
+  const totalDamaged = selectedItems.reduce((acc, item) => acc + (packingRows[item.production_batch_output_id]?.damages || []).reduce((total, damage) => total + Number(damage.quantity || 0), 0), 0);
 
   useEffect(() => {
     setPackingRows((current) => {
@@ -143,12 +147,8 @@ const ProductionPackagingPage = () => {
       selectedItems.forEach((item) => {
         const key = item.production_batch_output_id;
         next[key] = current[key] || {
-          counted_quantity: "",
           packed_quantity: "",
-          damaged_quantity: "",
-          missing_quantity: "",
-          damage_reason: "packaging",
-          missing_reason: "count_difference",
+          damages: [],
           notes: "",
         };
       });
@@ -171,41 +171,23 @@ const ProductionPackagingPage = () => {
         const row = packingRows[item.production_batch_output_id] || {};
         return {
           production_batch_output_id: Number(item.production_batch_output_id),
-          counted_quantity: Number(row.counted_quantity || 0),
           packed_quantity: Number(row.packed_quantity || 0),
-          damaged_quantity: Number(row.damaged_quantity || 0),
-          missing_quantity: Number(row.missing_quantity || 0),
-          damage_reason: row.damage_reason || "packaging",
-          missing_reason: row.missing_reason || "count_difference",
+          damages: row.damages || [],
           notes: row.notes || null,
         };
       })
-      .filter(
-        (item) =>
-          item.counted_quantity > 0 || item.packed_quantity > 0 || item.damaged_quantity > 0 || item.missing_quantity > 0
-      );
+      .filter((item) => item.packed_quantity > 0 || item.damages.length > 0);
 
     if (items.length === 0) {
-      setError("Registra al menos un conteo real");
+      setError("Registra al menos una cantidad empacada o dañada");
       return;
     }
 
-    const invalidCount = items.some((item) => {
-      const values = [item.counted_quantity, item.packed_quantity, item.damaged_quantity, item.missing_quantity];
-      return values.some((value) => !Number.isFinite(value) || value < 0) || item.counted_quantity <= 0 || item.packed_quantity + item.damaged_quantity > item.counted_quantity;
-    });
+    const invalidCount = items.some((item) => !Number.isFinite(item.packed_quantity) || item.packed_quantity < 0
+      || item.damages.some((damage) => !Number.isFinite(Number(damage.quantity)) || Number(damage.quantity) <= 0 || !damage.reason));
 
     if (invalidCount) {
-      setError("Revisa las cantidades: el conteo debe ser mayor a cero y empacados/danados no pueden superar lo contado");
-      return;
-    }
-
-    const unjustifiedMissing = items.some(
-      (item) => item.missing_quantity > 0 && (!item.missing_reason || !String(item.notes || "").trim())
-    );
-
-    if (unjustifiedMissing) {
-      setError("Todo faltante debe incluir un motivo y una explicacion");
+      setError("Revisa empacados y daños. Cada daño debe tener una cantidad mayor a cero y un motivo.");
       return;
     }
 
@@ -221,16 +203,21 @@ const ProductionPackagingPage = () => {
       });
 
       if (result?.code !== 1) {
-        setError(result?.message || "No se pudo registrar conteo y empaque");
+        setError(result?.message || "No se pudo registrar el empaque");
         return;
       }
 
-      toast.success(result?.message || "Conteo y empaque registrados");
+      toast.success(result?.message || "Empaque registrado");
+      setLastPackingResult({
+        batchId: selectedBatch.production_batch_id,
+        missingQuantity: Number(result.data?.missing_quantity || 0),
+      });
       setPackingRows({});
       setPackingForm((current) => ({ ...current, notes: "" }));
+      setMobilePackingOpen(false);
       setRefreshKey((value) => value + 1);
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al registrar conteo y empaque"));
+      setError(getErrorMessage(requestError, "Error de red al registrar el empaque"));
     } finally {
       setSavingPacking(false);
     }
@@ -243,46 +230,55 @@ const ProductionPackagingPage = () => {
     }));
   };
 
-  const markOutputReady = (item) => {
-    const key = item.production_batch_output_id;
-    const countedQty = Number(packingRows[key]?.counted_quantity || 0);
-
-    if (countedQty <= 0) {
-      setError("Primero registra el conteo real del producto");
-      return;
-    }
-
-    setError(null);
-    updatePackingRow(key, {
-      packed_quantity: String(countedQty),
-      damaged_quantity: "",
-      missing_quantity: "",
-      damage_reason: "packaging",
-      missing_reason: "count_difference",
-    });
-  };
-
   const clearPackingRow = (item) => {
     const key = item.production_batch_output_id;
     updatePackingRow(key, {
-      counted_quantity: "",
       packed_quantity: "",
-      damaged_quantity: "",
-      missing_quantity: "",
-      damage_reason: "packaging",
-      missing_reason: "count_difference",
+      damages: [],
       notes: "",
     });
   };
 
+  const selectPendingBatch = (batch) => {
+    setError(null);
+    setLastPackingResult(null);
+    setSelectedBatchId(String(batch.production_batch_id));
+    if (mobileView) {
+      setMobilePackingOpen(true);
+    }
+  };
+
+  const packingPanel = (
+    <PackingReadyPanel
+      clearPackingRow={clearPackingRow}
+      createPackingReport={createPackingReport}
+      formatUnits={formatUnits}
+      packers={packers}
+      packingForm={packingForm}
+      packingRows={packingRows}
+      savingPacking={savingPacking}
+      selectedBatch={selectedBatch}
+      selectedItems={selectedItems}
+      setPackingForm={setPackingForm}
+      totalDamaged={totalDamaged}
+      totalPacked={totalPacked}
+      updatePackingRow={updatePackingRow}
+    />
+  );
+
   return (
     <FlowPageLayout
-      title="Produccion - Conteo y empaque"
-      subtitle="Cuenta lotes finalizados por panaderia sin ver cantidades reportadas por el panadero. Solo lo empacado entra a inventario."
+      title="Producción - Empaque"
+      subtitle="Registra lo empacado y los daños sin ver la cantidad reportada por el panadero. Solo lo empacado entra a inventario."
     >
       {error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+        </Alert>
+      ) : null}
+      {lastPackingResult ? (
+        <Alert severity={lastPackingResult.missingQuantity > 0 ? "warning" : "success"} sx={{ mb: 2 }}>
+          Lote #{lastPackingResult.batchId} registrado. Faltantes detectados: {formatUnits(lastPackingResult.missingQuantity)}.
         </Alert>
       ) : null}
 
@@ -296,7 +292,7 @@ const ProductionPackagingPage = () => {
           sx={{ "& .MuiTab-root": { minHeight: 58, fontWeight: 900, fontSize: { xs: 14, sm: 16 } } }}
         >
           <Tab value="pending" label={`Pendientes (${pendingBatches.length})`} />
-          <Tab value="history" label="Historial de conteos" />
+          <Tab value="history" label="Historial de empaques" />
         </Tabs>
       </Paper>
 
@@ -308,31 +304,34 @@ const ProductionPackagingPage = () => {
             loading={loading}
             pendingBatches={pendingBatches}
             selectedBatchId={selectedBatchId}
-            setSelectedBatchId={setSelectedBatchId}
+            onSelectBatch={selectPendingBatch}
           />
         </Grid>
 
-        <Grid item xs={12} lg={8}>
-          <PackingReadyPanel
-            clearPackingRow={clearPackingRow}
-            createPackingReport={createPackingReport}
-            formatUnits={formatUnits}
-            markOutputReady={markOutputReady}
-            packers={packers}
-            packingForm={packingForm}
-            packingRows={packingRows}
-            savingPacking={savingPacking}
-            selectedBatch={selectedBatch}
-            selectedItems={selectedItems}
-            setPackingForm={setPackingForm}
-            totalCounted={totalCounted}
-            totalDamaged={totalDamaged}
-            totalMissing={totalMissing}
-            totalPacked={totalPacked}
-            updatePackingRow={updatePackingRow}
-          />
+        <Grid item xs={12} lg={8} sx={{ display: { xs: "none", md: "block" } }}>
+          {packingPanel}
         </Grid>
       </Grid> : <PackagingHistoryPanel />}
+
+      <Dialog
+        open={mobileView && mobilePackingOpen}
+        onClose={() => !savingPacking && setMobilePackingOpen(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: "background.default" } }}
+      >
+        <DialogTitle sx={{ p: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+            <Typography sx={{ fontWeight: 900 }}>Empacar lote #{selectedBatch?.production_batch_id}</Typography>
+            <IconButton aria-label="Cerrar formulario de empaque" onClick={() => setMobilePackingOpen(false)} disabled={savingPacking}>
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent sx={{ p: "12px !important" }}>
+          {error ? <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert> : null}
+          {packingPanel}
+        </DialogContent>
+      </Dialog>
     </FlowPageLayout>
   );
 };

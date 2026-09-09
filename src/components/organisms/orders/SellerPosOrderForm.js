@@ -436,7 +436,7 @@ const SellerPosOrderForm = ({
         </DialogContent>
         <DialogActions sx={{ p: { xs: 0.75, sm: 2 }, pt: { xs: 0.75, sm: 0 }, borderTop: { xs: "1px solid", sm: "none" }, borderColor: "divider", bgcolor: "background.paper", flexShrink: 0 }}>
           <Button onClick={() => setCaptureProduct(null)} sx={{ minHeight: { xs: 48, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Cancelar</Button>
-          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct} sx={{ minHeight: { xs: 48, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Agregar al carrito</AppButton>
+          <AppButton color="secondary" disabled={Number(captureValue || 0) <= 0 || previewTotalQuantity <= 0 || Boolean(captureSaleError)} onClick={confirmProduct} sx={{ minHeight: { xs: 48, sm: 40 }, fontSize: { xs: 16, sm: 14 } }}>Agregar al carrito</AppButton>
         </DialogActions>
       </Dialog>
 

@@ -28,8 +28,39 @@ const ProductionPerformedPage = () => {
     recipe_id: recipe.id,
     recipe_name: recipe.recipe_name || recipe.product_name || `Receta #${recipe.id}`,
     recipe_version: recipe.version_no,
+    recipe_items: normalizeRows(recipe.items),
   }))).filter((product, index, rows) => rows.findIndex((row) => String(row.product_id) === String(product.product_id)) === index), [recipes]);
   const selectedProduct = useMemo(() => products.find((product) => String(product.product_id) === String(form.productId)) || null, [form.productId, products]);
+  const ingredientPreview = useMemo(() => {
+    const producedQuantity = Number(form.producedQuantity || 0);
+    const expectedQuantity = Number(selectedProduct?.expected_quantity || 0);
+    if (!selectedProduct || !Number.isInteger(producedQuantity) || producedQuantity <= 0 || expectedQuantity <= 0) return null;
+
+    const factor = producedQuantity / expectedQuantity;
+    const ingredients = new Map();
+    [...normalizeRows(selectedProduct.recipe_items), ...normalizeRows(selectedProduct.items)].forEach((item) => {
+      const unit = item.raw_material_unit || "unidad";
+      const key = `${item.raw_material_id}-${unit}`;
+      const quantity = Number(item.quantity || 0) * factor * (1 + Number(item.wastage_percent || 0) / 100);
+      const current = ingredients.get(key) || {
+        id: item.raw_material_id,
+        name: item.raw_material_name || "Ingrediente sin nombre",
+        unit,
+        quantity: 0,
+      };
+      current.quantity += quantity;
+      ingredients.set(key, current);
+    });
+
+    return {
+      productName: selectedProduct.product_name,
+      recipeName: selectedProduct.recipe_name,
+      recipeVersion: selectedProduct.recipe_version,
+      producedQuantity,
+      batches: factor,
+      ingredients: [...ingredients.values()].sort((a, b) => a.name.localeCompare(b.name, "es")),
+    };
+  }, [form.producedQuantity, selectedProduct]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -172,6 +203,7 @@ const ProductionPerformedPage = () => {
         branchId={form.branchId}
         referenceDate={form.producedDate}
         refreshKey={usageRefreshKey}
+        preview={ingredientPreview}
       />
     </FlowPageLayout>
   );

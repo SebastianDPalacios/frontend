@@ -223,17 +223,9 @@ const exportProductionMonthExcel = async ({
   reportRange,
   selectedBranchName,
   selectedRecipeName,
-  summary,
-  produced,
-  packed,
-  damaged,
-  missing,
-  pending,
-  progress,
   report,
   flourDailyUsage = [],
   selectedFlourName = "Todas las harinas",
-  bakerSummary,
 }) => {
   const excelModule = await import("exceljs");
   const ExcelJS = excelModule.default || excelModule;
@@ -243,12 +235,12 @@ const exportProductionMonthExcel = async ({
 
   const worksheet = workbook.addWorksheet(`Produccion ${filters.month}`);
   worksheet.views = [{ state: "frozen", ySplit: 4 }];
-  [34, 20, 28, 18, 16, 18, 18, 18, 18, 16, 16, 16, 18, 14].forEach((width, index) => {
+  [34, 16, 18, 18, 16, 18].forEach((width, index) => {
     worksheet.getColumn(index + 1).width = width;
   });
 
-  worksheet.mergeCells("A1:G1");
-  worksheet.getCell("A1").value = "Reporte mensual de produccion";
+  worksheet.mergeCells("A1:F1");
+  worksheet.getCell("A1").value = `Relacion de produccion y empaque de ${monthLabel(filters.month)}`;
   worksheet.getCell("A1").font = {
     bold: true,
     size: 16,
@@ -256,11 +248,11 @@ const exportProductionMonthExcel = async ({
   };
   worksheet.getCell("A1").alignment = {
     vertical: "middle",
-    horizontal: "left",
+    horizontal: "center",
   };
   worksheet.getRow(1).height = 26;
 
-  worksheet.mergeCells("A2:G2");
+  worksheet.mergeCells("A2:F2");
   worksheet.getCell("A2").value = "Generado desde Panaderia";
   worksheet.getCell("A2").font = { color: { argb: "FF4B5563" } };
 
@@ -277,95 +269,54 @@ const exportProductionMonthExcel = async ({
     ]
   );
 
+  const productsByCategory = (report.products || []).reduce((groups, product) => {
+    const category = String(product.product_category || "Sin categoria").trim() || "Sin categoria";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(product);
+    return groups;
+  }, new Map());
+
+  const productSummaryRows = Array.from(productsByCategory.entries()).flatMap(([category, products]) => {
+    return [
+      [category.toUpperCase(), "", "", "", "", ""],
+      ...products.map((product) => {
+        const producedQuantity = Number(product.produced_quantity || 0);
+        const packedQuantity = Number(product.packed_quantity || 0);
+        const damagedQuantity = Number(product.damaged_quantity || 0);
+        return [
+          product.product_name || "",
+          product.bags_count == null ? "" : Number(product.bags_count || 0),
+          producedQuantity,
+          packedQuantity,
+          damagedQuantity,
+          producedQuantity - packedQuantity - damagedQuantity,
+        ];
+      }),
+    ];
+  });
+
+  if (productSummaryRows.length === 0) {
+    productSummaryRows.push(["Sin productos registrados", "", "", "", "", ""]);
+  }
+
   const summarySection = addSection(
     worksheet,
     "Resumen",
-    ["Indicador", "Valor"],
-    [
-      ["Lotes de producción", Number(summary.batches_count || 0)],
-      ["Bultos realizados", Number(summary.batch_quantity || 0)],
-      ["Fabricados", produced],
-      ["Empacados", packed],
-      ["Danados", damaged],
-      ["Faltantes justificados", missing],
-      ["Pendientes", pending],
-      ["Avance", progress / 100],
-      ["Costo estimado", Number(report.estimated_cost || 0)],
-    ],
-    { decimalColumns: [2] }
+    ["Producto", "Bultos", "Producido", "Empacado", "Daños", "Diferencia"],
+    productSummaryRows,
+    { decimalColumns: [2, 3, 4, 5, 6], headerFill: colors.softOrange }
   );
 
-  worksheet.getCell(summarySection.firstDataRow + 7, 2).numFmt = "0%";
-  worksheet.getCell(summarySection.firstDataRow + 8, 2).numFmt = '"$" #,##0';
-
-  addSection(
-    worksheet,
-    "Productos",
-    ["Producto", "Lotes de producción", "Fabricados", "Empacados", "Danados", "Faltantes", "Pendientes"],
-    report.products.map((product) => [
-      product.product_name || "",
-      Number(product.batches_count || 0),
-      Number(product.produced_quantity || 0),
-      Number(product.packed_quantity || 0),
-      Number(product.damaged_quantity || 0),
-      Number(product.missing_quantity || 0),
-      Number(product.pending_quantity || 0),
-    ]),
-    { decimalColumns: [2, 3, 4, 5, 6, 7], headerFill: colors.softOrange }
-  );
-
-  addSection(
-    worksheet,
-    "Planificacion y resultado por producto",
-    ["Fecha", "Panadero", "Producto", "Formato", "Solicitud", "Arrobas estimadas", "Unidades estimadas", "Estado", "Arrobas reales", "Producido", "Empacado", "Latas reales", "Unidades por lata", "Sueltas"],
-    (report.plan_products || []).map((product) => [
-      formatDate(product.planned_date),
-      product.baker_name || "",
-      product.product_name || "",
-      product.planning_format === "legacy" ? "Plan anterior" : ({ units: "Por unidades", arrobas: "Por arrobas", bags: "Por bultos", trays: "Por latas" }[product.request_mode] || product.request_mode),
-      Number(product.requested_quantity || 0),
-      Number(product.planned_arrobas || 0),
-      Number(product.estimated_units || 0),
-      product.product_status || "",
-      product.actual_arrobas == null ? "" : Number(product.actual_arrobas),
-      Number(product.batch_produced_quantity || product.produced_quantity || 0),
-      Number(product.packed_quantity || 0),
-      product.actual_tray_count == null ? "" : Number(product.actual_tray_count),
-      product.actual_units_per_tray == null ? "" : Number(product.actual_units_per_tray),
-      product.actual_loose_units == null ? "" : Number(product.actual_loose_units),
-    ]),
-    { decimalColumns: [5, 6, 7, 9, 10, 11, 12, 13, 14], headerFill: colors.softGreen }
-  );
-
-  addSection(
-    worksheet,
-    "Panaderos",
-    ["Panadero", "Lotes de producción", "Bultos realizados", "Fabricados", "Empacados", "Danados", "Faltantes"],
-    bakerSummary.map((baker) => [
-      baker.baker_name || "",
-      Number(baker.batches_count || 0),
-      Number(baker.batch_quantity || 0),
-      Number(baker.produced_quantity || 0),
-      Number(baker.packed_quantity || 0),
-      Number(baker.damaged_quantity || 0),
-      Number(baker.missing_quantity || 0),
-    ]),
-    { decimalColumns: [2, 3, 4, 5, 6, 7] }
-  );
-
-  addSection(
-    worksheet,
-    "Empacadores",
-    ["Empacador", "Reportes", "Empacados", "Dañados", "Faltantes"],
-    report.packers.map((packer) => [
-      packer.packer_name || "",
-      Number(packer.reports_count || 0),
-      Number(packer.packed_quantity || 0),
-      Number(packer.damaged_quantity || 0),
-      Number(packer.missing_quantity || 0),
-    ]),
-    { decimalColumns: [2, 3, 4, 5] }
-  );
+  let summaryOffset = 0;
+  productsByCategory.forEach((products) => {
+    const rowNumber = summarySection.firstDataRow + summaryOffset;
+    worksheet.mergeCells(rowNumber, 1, rowNumber, 6);
+    const categoryCell = worksheet.getCell(rowNumber, 1);
+    categoryCell.font = { bold: true, color: { argb: colors.navy } };
+    categoryCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.softGreen } };
+    categoryCell.alignment = { vertical: "middle", horizontal: "center" };
+    summaryOffset += products.length + 1;
+  });
 
   const flourWorksheet = workbook.addWorksheet(`Harinas ${filters.month}`);
   flourWorksheet.views = [{ state: "frozen", ySplit: 4 }];

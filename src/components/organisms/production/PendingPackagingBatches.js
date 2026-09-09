@@ -7,7 +7,7 @@ const PendingPackagingBatches = ({
   loading,
   pendingBatches,
   selectedBatchId,
-  setSelectedBatchId,
+  onSelectBatch,
 }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, height: "100%", bgcolor: "background.paper" }}>
     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -36,7 +36,15 @@ const PendingPackagingBatches = ({
         return (
           <Paper
             key={batch.production_batch_id}
-            onClick={() => setSelectedBatchId(String(batch.production_batch_id))}
+            onClick={() => onSelectBatch(batch)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelectBatch(batch);
+              }
+            }}
             sx={{
               position: "relative",
               p: 1.5,
@@ -51,6 +59,9 @@ const PendingPackagingBatches = ({
               "&:hover": {
                 borderColor: "secondary.light",
                 bgcolor: isSelected ? "rgba(230, 98, 40, 0.08)" : "background.default",
+              },
+              "&:active": {
+                transform: "scale(0.99)",
               },
               "&::before": isSelected
                 ? {

@@ -18,7 +18,7 @@ const getMonthRange = (monthValue) => {
   return { dateFrom: `${year}-${String(month).padStart(2, "0")}-01`, dateTo: `${year}-${String(month).padStart(2, "0")}-${lastDay}` };
 };
 const damageLabels = { production: "Produccion", oven: "Horneo", cut: "Corte", packaging: "Empaque" };
-const missingLabels = { count_difference: "Diferencia de conteo", handling_loss: "Perdida en manipulacion", suspected_theft: "Posible extravio", other: "Otro" };
+const missingLabels = { count_difference: "Diferencia detectada", handling_loss: "Pérdida en manipulación", suspected_theft: "Posible extravío", other: "Otro" };
 
 const PackagingHistoryPanel = () => {
   const today = toDateInputValue();
@@ -63,11 +63,10 @@ const PackagingHistoryPanel = () => {
   useEffect(() => { setPage(0); }, [dateValue, monthValue, periodType, search]);
 
   const totals = (report) => normalizeRows(report.items).reduce((result, item) => ({
-    counted: result.counted + Number(item.counted_quantity || 0),
     packed: result.packed + Number(item.packed_quantity || 0),
     damaged: result.damaged + Number(item.damaged_quantity || 0),
     missing: result.missing + Number(item.missing_quantity || 0),
-  }), { counted: 0, packed: 0, damaged: 0, missing: 0 });
+  }), { packed: 0, damaged: 0, missing: 0 });
 
   return (
     <Stack spacing={2}>
@@ -81,9 +80,9 @@ const PackagingHistoryPanel = () => {
           </Grid>
           <Grid item xs={12} sm={8} md={3}>
             {periodType === "month" ? (
-              <BalanceMonthPicker label="Mes del conteo" value={monthValue} onChange={setMonthValue} />
+              <BalanceMonthPicker label="Mes del empaque" value={monthValue} onChange={setMonthValue} />
             ) : (
-              <BalanceDatePicker fullWidth label="Fecha del conteo" value={dateValue} onChange={setDateValue} />
+              <BalanceDatePicker fullWidth label="Fecha del empaque" value={dateValue} onChange={setDateValue} />
             )}
           </Grid>
           <Grid item xs={12} md={5}>
@@ -96,15 +95,15 @@ const PackagingHistoryPanel = () => {
       </Paper>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
-      {loading ? <Alert severity="info">Cargando historial de conteos...</Alert> : null}
-      {!loading && !rows.length ? <Alert severity="info">No hay conteos registrados en el periodo seleccionado.</Alert> : null}
+      {loading ? <Alert severity="info">Cargando historial de empaques...</Alert> : null}
+      {!loading && !rows.length ? <Alert severity="info">No hay empaques registrados en el periodo seleccionado.</Alert> : null}
 
       {!loading && rows.length ? (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
           <Table sx={{ minWidth: 980 }}>
             <TableHead><TableRow sx={{ "& th": { bgcolor: "background.default", fontWeight: 900 } }}>
               <TableCell>Fecha</TableCell><TableCell>Lote</TableCell><TableCell>Sucursal</TableCell><TableCell>Empaquetador</TableCell>
-              <TableCell align="right">Contado</TableCell><TableCell align="right">Inventario</TableCell>
+              <TableCell align="right">Empacado</TableCell>
               <TableCell align="right">Dañado</TableCell><TableCell align="right">Faltante</TableCell><TableCell align="right">Acciones</TableCell>
             </TableRow></TableHead>
             <TableBody>{rows.map((report) => {
@@ -113,7 +112,7 @@ const PackagingHistoryPanel = () => {
                 <TableCell>{formatDate(report.packed_date)}</TableCell>
                 <TableCell><Typography sx={{ fontWeight: 900 }}>#{report.production_batch_id}</Typography><Typography variant="caption" color="text.secondary">{report.recipe_name || "Produccion"}</Typography></TableCell>
                 <TableCell>{report.branch_name}</TableCell><TableCell>{report.packer_name}</TableCell>
-                <TableCell align="right">{formatUnits(summary.counted)}</TableCell><TableCell align="right">{formatUnits(summary.packed)}</TableCell>
+                <TableCell align="right">{formatUnits(summary.packed)}</TableCell>
                 <TableCell align="right"><Chip size="small" color={summary.damaged ? "error" : "default"} variant="outlined" label={formatUnits(summary.damaged)} /></TableCell>
                 <TableCell align="right"><Chip size="small" color={summary.missing ? "warning" : "default"} variant="outlined" label={formatUnits(summary.missing)} /></TableCell>
                 <TableCell align="right"><AppButton variant="outlined" color="secondary" onClick={() => setDetail(report)}>Ver detalle</AppButton></TableCell>
@@ -125,7 +124,7 @@ const PackagingHistoryPanel = () => {
       ) : null}
 
       <Dialog open={Boolean(detail)} onClose={() => setDetail(null)} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 4 } }}>
-        <DialogTitle sx={{ fontWeight: 950 }}>Detalle del conteo · Lote #{detail?.production_batch_id}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 950 }}>Detalle del empaque · Lote #{detail?.production_batch_id}</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
             <Typography color="text.secondary">{formatDate(detail?.packed_date)} · {detail?.branch_name} · {detail?.packer_name}</Typography>
@@ -134,7 +133,6 @@ const PackagingHistoryPanel = () => {
               <Paper key={item.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
                 <Typography sx={{ fontWeight: 900 }}>{item.product_name}</Typography>
                 <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
-                  <Chip label={`${formatUnits(item.counted_quantity)} contados`} color="info" variant="outlined" />
                   <Chip label={`${formatUnits(item.packed_quantity)} a inventario`} color="success" variant="outlined" />
                   <Chip label={`${formatUnits(item.damaged_quantity)} dañados`} color="error" variant="outlined" />
                   <Chip label={`${formatUnits(item.missing_quantity)} faltantes`} color="warning" variant="outlined" />
