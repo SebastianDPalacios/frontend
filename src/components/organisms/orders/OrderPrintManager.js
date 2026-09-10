@@ -286,7 +286,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
-  const visibleBonusTotal = calculateVisibleBonusTotal(items);
+  const visibleBonusTotal = Number(order.bonus_total ?? calculateVisibleBonusTotal(items));
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {

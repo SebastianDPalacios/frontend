@@ -245,8 +245,8 @@ const fontSizeGroups = [
 ];
 
 const previewItems = [
-  { name: "PAN ROYAL 2.000", category: "PAN DE SAL", type: "VENTA CON VENDAJE INCLUIDO", qty: 5, value: "$ 10.500" },
-  { name: "Mogicon 500", category: "PAN DE DULCE", type: "SOLO VENDAJE", qty: 1, value: "$ 5.251" },
+  { name: "PAN ROYAL 2.000", category: "PAN DE SAL", type: "VENTA CON VENDAJE INCLUIDO", qty: 5, value: "$ 10.500", saleValue: 10500, bonusValue: 0 },
+  { name: "Mogicon 500", category: "PAN DE DULCE", type: "SOLO VENDAJE", qty: 1, value: "$ 5.251", saleValue: 0, bonusValue: 5251 },
 ];
 
 const getErrorMessage = (error, fallback) =>
@@ -334,6 +334,9 @@ const PosTicketPreview = ({ values }) => {
       return groups;
     }, {})
   ), []);
+  const previewSaleTotal = previewItems.reduce((total, item) => total + Number(item.saleValue || 0), 0);
+  const previewBonusTotal = previewItems.reduce((total, item) => total + Number(item.bonusValue || 0), 0);
+  const previewMoney = (value) => `$ ${new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(value)}`;
 
   return (
     <Box
@@ -483,8 +486,8 @@ const PosTicketPreview = ({ values }) => {
 
       <Stack spacing={0.4} sx={{ mt: 1, fontSize: scale.summary }}>
         {[
-          ["Venta", "$ 10.500", values.showSaleTotal],
-          ["Vendaje", "$ 0", values.showBonusTotal],
+          ["Venta", previewMoney(previewSaleTotal), values.showSaleTotal],
+          ["Vendaje", previewMoney(previewBonusTotal), values.showBonusTotal],
           ["Obsequio", "$ 0", values.showGiftTotal],
           ["Cambio", "$ 0", values.showExchangeTotal],
         ].filter(([, , visible]) => visible).map(([label, value]) => (
@@ -495,7 +498,7 @@ const PosTicketPreview = ({ values }) => {
         ))}
         <Stack direction="row" sx={{ justifyContent: "space-between", borderTop: "2px solid #111", pt: 0.75, fontSize: scale.total, fontWeight: 900 }}>
           <span>TOTAL</span>
-          <span>$ 10.500</span>
+          <span>{previewMoney(previewSaleTotal)}</span>
         </Stack>
       </Stack>
 
