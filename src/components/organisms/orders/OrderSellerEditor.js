@@ -10,7 +10,6 @@ const editableStatuses = ["draft", "confirmed", "ready", "dispatched", "delivere
 const OrderSellerEditor = ({ order, canEdit, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [customersLoading, setCustomersLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sellers, setSellers] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -31,47 +30,19 @@ const OrderSellerEditor = ({ order, canEdit, onSaved }) => {
     setSelectedCustomer(null);
   }, [order?.id]);
 
-  const loadCustomers = async (seller, preserveCurrent = false) => {
-    if (!seller?.id) {
-      setCustomers([]);
-      setSelectedCustomer(null);
-      return;
-    }
-    setCustomersLoading(true);
-    try {
-      const response = await ordersService.getBaseData({
-        onlyActive: 1,
-        page: 1,
-        pageSize: 200,
-        salesAgentUserId: seller.id,
-      });
-      if (response?.code !== 1) throw new Error(response?.message || "No se pudieron consultar los clientes");
-      const rows = normalizeRows(response.data?.customers);
-      setCustomers(rows);
-      const current = preserveCurrent
-        ? rows.find((customer) => String(customer.id) === String(order.customer_id))
-        : null;
-      setSelectedCustomer(current || null);
-    } catch (error) {
-      setCustomers([]);
-      setSelectedCustomer(null);
-      toast.error(error?.response?.data?.message || error?.message || "Error al consultar clientes");
-    } finally {
-      setCustomersLoading(false);
-    }
-  };
-
   const startEditing = async () => {
     setEditing(true);
     setLoading(true);
     try {
       const response = await ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 200 });
       if (response?.code !== 1) throw new Error(response?.message || "No se pudieron consultar los vendedores");
-      const rows = normalizeRows(response.data?.sellers);
-      setSellers(rows);
-      const seller = rows.find((item) => String(item.id) === String(order.sales_agent_user_id)) || currentSeller;
+      const sellerRows = normalizeRows(response.data?.sellers);
+      const customerRows = normalizeRows(response.data?.customers);
+      setSellers(sellerRows);
+      setCustomers(customerRows);
+      const seller = sellerRows.find((item) => String(item.id) === String(order.sales_agent_user_id)) || currentSeller;
       setSelectedSeller(seller);
-      await loadCustomers(seller, true);
+      setSelectedCustomer(customerRows.find((customer) => String(customer.id) === String(order.customer_id)) || null);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message || "Error al consultar vendedores");
       setEditing(false);
@@ -123,9 +94,8 @@ const OrderSellerEditor = ({ order, canEdit, onSaved }) => {
         loading={loading}
         options={sellers}
         value={selectedSeller}
-        onChange={async (_event, seller) => {
+        onChange={(_event, seller) => {
           setSelectedSeller(seller);
-          await loadCustomers(seller, true);
         }}
         getOptionLabel={(seller) => getDisplayName(seller)}
         isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
@@ -134,18 +104,17 @@ const OrderSellerEditor = ({ order, canEdit, onSaved }) => {
       <Autocomplete
         fullWidth
         size="small"
-        disabled={!selectedSeller?.id}
-        loading={customersLoading}
+        loading={loading}
         options={customers}
         value={selectedCustomer}
         onChange={(_event, customer) => setSelectedCustomer(customer)}
         getOptionLabel={(customer) => getDisplayName(customer)}
         isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
-        noOptionsText={selectedSeller?.id ? "Este vendedor no tiene clientes asignados" : "Selecciona primero un vendedor"}
-        renderInput={(params) => <TextField {...params} label="Cliente del vendedor" placeholder="Buscar cliente" />}
+        noOptionsText="No se encontraron clientes activos"
+        renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Buscar cualquier cliente activo" />}
       />
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant="contained" color="secondary" onClick={saveSeller} disabled={loading || customersLoading || saving || !selectedCustomer?.id}>
+        <Button variant="contained" color="secondary" onClick={saveSeller} disabled={loading || saving || !selectedSeller?.id || !selectedCustomer?.id}>
           {saving ? "Guardando..." : "Guardar cambios"}
         </Button>
         <Button color="secondary" onClick={() => setEditing(false)} disabled={saving}>Cancelar</Button>

@@ -257,27 +257,9 @@ const mergeSaleBonusDisplayItems = (items = []) => {
   }, []);
 };
 
-const calculateVisibleBonusTotal = (items = [], bonusPercent = 0) => {
-  const usedSaleIndexes = new Set();
-
-  return items.reduce((total, item, bonusIndex) => {
-    if (item.line_type !== "bonus") return total;
-
-    const saleIndex = items.findIndex((candidate, candidateIndex) =>
-      candidateIndex < bonusIndex &&
-      !usedSaleIndexes.has(candidateIndex) &&
-      candidate.line_type === "sale" &&
-      getItemProductKey(candidate) === getItemProductKey(item)
-    );
-    const deliveredValue = Number(item.commercial_value || 0);
-
-    if (saleIndex === -1) return total + deliveredValue;
-
-    usedSaleIndexes.add(saleIndex);
-    const generatedValue = Number(items[saleIndex].line_total || 0) * (Number(bonusPercent || 0) / 100);
-    return total + Math.min(deliveredValue, generatedValue);
-  }, 0);
-};
+const calculateVisibleBonusTotal = (items = []) => items
+  .filter((item) => item.line_type === "bonus")
+  .reduce((total, item) => total + Number(item.commercial_value || 0), 0);
 
 const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
   const ticketSettings = mergeTicketSettings(settings);
@@ -304,7 +286,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
-  const visibleBonusTotal = calculateVisibleBonusTotal(items, order.bonus_percent);
+  const visibleBonusTotal = calculateVisibleBonusTotal(items);
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {
