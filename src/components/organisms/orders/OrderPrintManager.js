@@ -257,9 +257,39 @@ const mergeSaleBonusDisplayItems = (items = []) => {
   }, []);
 };
 
-const calculateVisibleBonusTotal = (items = []) => items
-  .filter((item) => item.line_type === "bonus")
-  .reduce((total, item) => total + Number(item.commercial_value || 0), 0);
+const calculateVisibleBonusTotal = (items = [], bonusPercent = 0) => {
+  const usedBonusIndexes = new Set();
+  let regulatedSaleTotal = 0;
+  let regulatedBonusTotal = 0;
+
+  items.forEach((item, index) => {
+    if (item.line_type !== "sale") return;
+
+    const bonusIndex = items.findIndex((candidate, candidateIndex) =>
+      candidateIndex > index &&
+      !usedBonusIndexes.has(candidateIndex) &&
+      candidate.line_type === "bonus" &&
+      belongsToSameSaleGroup(item, candidate)
+    );
+
+    if (bonusIndex === -1) return;
+
+    usedBonusIndexes.add(bonusIndex);
+    regulatedSaleTotal += Number(item.line_total || 0);
+    regulatedBonusTotal += Number(items[bonusIndex].commercial_value || 0);
+  });
+
+  const totalBonus = items
+    .filter((item) => item.line_type === "bonus")
+    .reduce((total, item) => total + Number(item.commercial_value || 0), 0);
+  const standaloneBonus = Math.max(totalBonus - regulatedBonusTotal, 0);
+  const percent = Number(bonusPercent || 0);
+  const generatedBonus = percent > 0
+    ? regulatedSaleTotal * (percent / 100)
+    : regulatedBonusTotal;
+
+  return generatedBonus + standaloneBonus;
+};
 
 const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
   const ticketSettings = mergeTicketSettings(settings);
@@ -286,7 +316,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
-  const visibleBonusTotal = Number(order.bonus_total ?? calculateVisibleBonusTotal(items));
+  const visibleBonusTotal = calculateVisibleBonusTotal(items, order.bonus_percent);
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {
