@@ -121,18 +121,32 @@ const calculateEntry = (product, entry) => {
   return { quantity, commercialValue, requestedValue };
 };
 
-const calculateAutomaticBonus = (product, allowance, maxCompanyLoss = 0) => {
+const calculateAutomaticBonus = (
+  product,
+  saleQuantity,
+  saleValue,
+  allowance,
+  maxCompanyLoss = 0
+) => {
   const commercialUnitPrice = getCommercialUnitPrice(product);
   if (commercialUnitPrice <= 0 || allowance <= 0) {
     return { quantity: 0, commercialValue: 0 };
   }
 
-  const raw = allowance / commercialUnitPrice;
+  const rawTotalQuantity = (Number(saleValue || 0) + allowance) / commercialUnitPrice;
+  const currentSaleQuantity = Number(saleQuantity || 0);
   const quantity = isIntegerUnit(product.unit)
-    ? (Math.ceil(raw) * commercialUnitPrice - allowance <= Number(maxCompanyLoss || 0)
-        ? Math.ceil(raw)
-        : Math.floor(raw))
-    : Math.floor(raw * 1000) / 1000;
+    ? Math.max(
+        (Math.ceil(rawTotalQuantity) * commercialUnitPrice
+          - (Number(saleValue || 0) + allowance) <= Number(maxCompanyLoss || 0)
+          ? Math.ceil(rawTotalQuantity)
+          : Math.floor(rawTotalQuantity)) - currentSaleQuantity,
+        0
+      )
+    : Math.max(
+        Math.floor(rawTotalQuantity * 1000) / 1000 - currentSaleQuantity,
+        0
+      );
 
   if (quantity <= 0) {
     return { quantity: 0, commercialValue: 0 };
@@ -348,6 +362,8 @@ const AtomicOrderForm = () => {
       if (orderMode === "sale_bonus" && bonusEnabled && !isPastryProduct(product)) {
         const automaticBonus = calculateAutomaticBonus(
           product,
+          calculation.quantity,
+          calculation.requestedValue,
           calculation.requestedValue * (percent / 100),
           settings.bonus_max_company_loss_amount
         );
@@ -383,13 +399,23 @@ const AtomicOrderForm = () => {
         ? total + Number(line.commercialValue || 0)
         : total
     ), 0);
+    summary.regulatedSaleFulfillmentTotal = lines.reduce((total, line) => (
+      line.lineType === "sale" && line.uiLineType === "sale_bonus"
+        ? total + Number(line.commercialValue || 0)
+        : total
+    ), 0);
     summary.hasRegulatedBonus = hasRegulatedBonus;
     summary.bonusGenerated = bonusEnabled && hasRegulatedBonus
       ? regulatedSaleTotal * (percent / 100)
       : 0;
     summary.allowedBonus = bonusEnabled && hasRegulatedBonus
-      ? summary.bonusGenerated
-        + Number(settings.bonus_max_company_loss_amount || 0)
+      ? Math.max(
+          regulatedSaleTotal
+            + summary.bonusGenerated
+            + Number(settings.bonus_max_company_loss_amount || 0)
+            - summary.regulatedSaleFulfillmentTotal,
+          0
+        )
       : 0;
     summary.bonusCompanyDifference = Math.max(summary.regulatedBonusTotal - summary.bonusGenerated, 0);
     summary.bonusExceeded = summary.regulatedBonusTotal > summary.allowedBonus + 0.01;
@@ -728,6 +754,8 @@ const AtomicOrderForm = () => {
                 const automaticBonus = orderModeValue === "sale_bonus" && preparedOrder.bonusEnabled && !isPastryProduct(product)
                   ? calculateAutomaticBonus(
                       product,
+                      calculation.quantity,
+                      calculation.requestedValue,
                       calculation.requestedValue * (Number(settings.bonus_percent || 0) / 100),
                       settings.bonus_max_company_loss_amount
                     )

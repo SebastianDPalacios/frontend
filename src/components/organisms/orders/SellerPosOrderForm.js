@@ -111,7 +111,9 @@ const SellerPosOrderForm = ({
   const unitPrice = Number(captureProduct?.base_price || 0);
   const previewQuantity = unitPrice > 0
     ? (isIntegerUnit(captureProduct?.unit)
-        ? Math.floor(Number(captureValue || 0) / unitPrice)
+        ? (orderMode === "sale_bonus"
+            ? Math.max(Math.floor(Number(captureValue || 0) / unitPrice), 1)
+            : Math.floor(Number(captureValue || 0) / unitPrice))
         : Math.floor((Number(captureValue || 0) / unitPrice) * 1000) / 1000)
     : 0;
   const projectedBonusBase = Number(preparedOrder?.summary?.saleTotal || 0) + Number(captureValue || 0);
@@ -119,13 +121,22 @@ const SellerPosOrderForm = ({
     && projectedBonusBase >= Number(settings?.bonus_minimum_amount || 0)
     ? Number(captureValue || 0) * (Number(settings?.bonus_percent || 0) / 100)
     : 0;
-  const rawPreviewBonusQuantity = unitPrice > 0 ? previewBonusAllowance / unitPrice : 0;
+  const rawPreviewTotalQuantity = unitPrice > 0
+    ? (Number(captureValue || 0) + previewBonusAllowance) / unitPrice
+    : 0;
   const previewBonusQuantity = previewBonusAllowance > 0
     ? (isIntegerUnit(captureProduct?.unit)
-        ? (Math.ceil(rawPreviewBonusQuantity) * unitPrice - previewBonusAllowance <= Number(settings?.bonus_max_company_loss_amount || 0)
-            ? Math.ceil(rawPreviewBonusQuantity)
-            : Math.floor(rawPreviewBonusQuantity))
-        : Math.floor(rawPreviewBonusQuantity * 1000) / 1000)
+        ? Math.max(
+            (Math.ceil(rawPreviewTotalQuantity) * unitPrice
+              - (Number(captureValue || 0) + previewBonusAllowance) <= Number(settings?.bonus_max_company_loss_amount || 0)
+              ? Math.ceil(rawPreviewTotalQuantity)
+              : Math.floor(rawPreviewTotalQuantity)) - previewQuantity,
+            0
+          )
+        : Math.max(
+            Math.floor(rawPreviewTotalQuantity * 1000) / 1000 - previewQuantity,
+            0
+          ))
     : 0;
   const previewTotalQuantity = Number(previewQuantity || 0) + Number(previewBonusQuantity || 0);
   const captureSaleError = getInvalidUnitSaleAmount(captureProduct, {
