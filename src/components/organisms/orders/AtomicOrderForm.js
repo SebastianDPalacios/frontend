@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
@@ -28,10 +29,15 @@ import SellerPosOrderForm from "components/organisms/orders/SellerPosOrderForm";
 import { isAdministrativeUser, isSalesOnlyUser } from "configs/access";
 import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
+import { calculateOrderEntry, calculateSaleBonusOrder } from "utils/order-sale-bonus-calculation";
 import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
 
 const today = toDateInputValue();
+const createOrderRequestKey = () => (
+  globalThis.crypto?.randomUUID?.()
+  || `order-${Date.now()}-${Math.random().toString(36).slice(2)}`
+);
 
 const orderModes = [
   { value: "sale_bonus", label: "Venta + vendaje" },
@@ -93,71 +99,6 @@ const getOrderModesForProduct = (product) => {
   return orderModes.filter((mode) => !["sale_bonus", "bonus"].includes(mode.value));
 };
 
-const getCommercialUnitPrice = (product) => {
-  const price = Number(product?.base_price || 0);
-  const taxPercent = Number(product?.tax_percent || product?.rate_percent || 0);
-  return price * (1 + taxPercent / 100);
-};
-
-const calculateEntry = (product, entry) => {
-  const price = Number(product?.base_price || 0);
-  const taxPercent = Number(product?.tax_percent || product?.rate_percent || 0);
-  let quantity = Number(entry?.value || 0);
-
-  if (entry?.captureMode === "amount" && price > 0) {
-    const raw = quantity / price;
-    quantity = isIntegerUnit(product.unit)
-      ? (entry?.orderMode === "sale_bonus" ? Math.max(Math.floor(raw), 1) : Math.floor(raw))
-      : Math.floor(raw * 1000) / 1000;
-  }
-
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { quantity: 0, commercialValue: 0, requestedValue: 0 };
-  }
-
-  const subtotal = quantity * price;
-  const commercialValue = Math.round(subtotal * (1 + taxPercent / 100) * 100) / 100;
-  const requestedValue = entry?.captureMode === "amount" ? Number(entry.value || 0) : commercialValue;
-  return { quantity, commercialValue, requestedValue };
-};
-
-const calculateAutomaticBonus = (
-  product,
-  saleQuantity,
-  saleValue,
-  allowance,
-  maxCompanyLoss = 0
-) => {
-  const commercialUnitPrice = getCommercialUnitPrice(product);
-  if (commercialUnitPrice <= 0 || allowance <= 0) {
-    return { quantity: 0, commercialValue: 0 };
-  }
-
-  const rawTotalQuantity = (Number(saleValue || 0) + allowance) / commercialUnitPrice;
-  const currentSaleQuantity = Number(saleQuantity || 0);
-  const quantity = isIntegerUnit(product.unit)
-    ? Math.max(
-        (Math.ceil(rawTotalQuantity) * commercialUnitPrice
-          - (Number(saleValue || 0) + allowance) <= Number(maxCompanyLoss || 0)
-          ? Math.ceil(rawTotalQuantity)
-          : Math.floor(rawTotalQuantity)) - currentSaleQuantity,
-        0
-      )
-    : Math.max(
-        Math.floor(rawTotalQuantity * 1000) / 1000 - currentSaleQuantity,
-        0
-      );
-
-  if (quantity <= 0) {
-    return { quantity: 0, commercialValue: 0 };
-  }
-
-  return {
-    quantity,
-    commercialValue: Math.round(quantity * commercialUnitPrice * 100) / 100,
-  };
-};
-
 const getDisplayedEntryValue = (entry, calculation) => (
   entry?.orderMode === "sale_bonus"
     ? calculation.requestedValue
@@ -172,6 +113,40 @@ const createSelectedLine = (product) => ({
   value: "",
 });
 
+const PersistedOrderNotice = ({ order, retrying, onRetry }) => {
+  if (!order?.order_id) return null;
+  const pending = order.operational_pending !== false;
+
+  return (
+    <Alert severity={pending ? "warning" : "success"}>
+      <Stack spacing={1.25}>
+        <Typography sx={{ fontWeight: 800 }}>
+          {pending
+            ? `Pedido #${order.order_id} guardado con movimientos pendientes`
+            : `Movimientos del pedido #${order.order_id} aplicados correctamente`}
+        </Typography>
+        {order.detail ? <Typography variant="body2">{order.detail}</Typography> : null}
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
+          {pending ? (
+            <Button size="small" variant="contained" color="warning" disabled={retrying} onClick={onRetry}>
+              {retrying ? "Reintentando..." : "Reintentar movimientos"}
+            </Button>
+          ) : null}
+          <Button
+            size="small"
+            variant="outlined"
+            color={pending ? "warning" : "success"}
+            component={Link}
+            href={`/orders/history?search=${order.order_id}`}
+          >
+            Ver pedido
+          </Button>
+        </Stack>
+      </Stack>
+    </Alert>
+  );
+};
+
 const AtomicOrderForm = () => {
   const currentUser = authService.getCurrentUser();
   const compactViewport = useMediaQuery("(max-width:1024px)", { noSsr: true });
@@ -181,10 +156,12 @@ const AtomicOrderForm = () => {
   const canAssignSeller = isAdministrativeUser(currentUser);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [retryingOperations, setRetryingOperations] = useState(false);
   const [error, setError] = useState("");
+  const [persistedOrder, setPersistedOrder] = useState(null);
   const [branches, setBranches] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [customersLoading, setCustomersLoading] = useState(false);
+  const customersLoading = false;
   const [sellers, setSellers] = useState([]);
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({
@@ -202,6 +179,7 @@ const AtomicOrderForm = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedLines, setSelectedLines] = useState([]);
   const [customerCredit, setCustomerCredit] = useState({ balance_amount: 0, ledger: [] });
+  const orderRequestKeyRef = useRef(createOrderRequestKey());
 
   useEffect(() => {
     const load = async () => {
@@ -244,34 +222,6 @@ const AtomicOrderForm = () => {
     load();
   }, [canAssignSeller]);
 
-  useEffect(() => {
-    if (!canAssignSeller || !sellerId) return undefined;
-    let active = true;
-    setCustomersLoading(true);
-    setCustomerId("");
-    ordersService.getBaseData({
-      onlyActive: 1,
-      page: 1,
-      pageSize: 200,
-      salesAgentUserId: sellerId,
-    }).then((response) => {
-      if (!active) return;
-      if (response?.code !== 1) {
-        setCustomers([]);
-        setError(response?.message || "No se pudieron consultar los clientes del vendedor");
-        return;
-      }
-      setCustomers(normalizeRows(response.data?.customers));
-    }).catch((requestError) => {
-      if (!active) return;
-      setCustomers([]);
-      setError(requestError?.response?.data?.message || requestError?.message || "Error al consultar clientes");
-    }).finally(() => {
-      if (active) setCustomersLoading(false);
-    });
-    return () => { active = false; };
-  }, [canAssignSeller, sellerId]);
-
   const productsById = useMemo(
     () => new Map(products.map((product) => [Number(product.id), product])),
     [products]
@@ -313,7 +263,7 @@ const AtomicOrderForm = () => {
       return {
         entry,
         product,
-        calculation: calculateEntry(product, entry),
+        calculation: calculateOrderEntry(product, entry),
       };
     });
 
@@ -331,6 +281,20 @@ const AtomicOrderForm = () => {
         : total
     ), 0);
     const hasRegulatedBonus = regulatedSaleTotal > 0;
+    const bonusCalculation = calculateSaleBonusOrder({
+      lines: preparedRows
+        .filter((row) => row.entry.orderMode === "sale_bonus" && !isPastryProduct(row.product))
+        .map((row) => ({
+          key: String(row.entry.id),
+          product: row.product,
+          paidValue: row.calculation.requestedValue,
+          saleQuantity: row.calculation.quantity,
+        })),
+      bonusPercent: percent,
+      maxCompanyLoss: settings.bonus_max_company_loss_amount,
+      enabled: bonusEnabled,
+    });
+    const bonusesByGroup = new Map(bonusCalculation.allocations.map((allocation) => [allocation.key, allocation]));
     const lines = [];
 
     preparedRows.forEach((row) => {
@@ -360,13 +324,7 @@ const AtomicOrderForm = () => {
       });
 
       if (orderMode === "sale_bonus" && bonusEnabled && !isPastryProduct(product)) {
-        const automaticBonus = calculateAutomaticBonus(
-          product,
-          calculation.quantity,
-          calculation.requestedValue,
-          calculation.requestedValue * (percent / 100),
-          settings.bonus_max_company_loss_amount
-        );
+        const automaticBonus = bonusesByGroup.get(String(entry.id)) || { quantity: 0, commercialValue: 0 };
         if (automaticBonus.quantity > 0) {
           lines.push({
             key: `${entry.id}-bonus`,
@@ -426,11 +384,7 @@ const AtomicOrderForm = () => {
     return { rows: preparedRows, lines, summary, bonusEnabled, invalidUnitSales };
   }, [productsById, selectedLines, settings]);
 
-  const availableCustomers = useMemo(() => (
-    canAssignSeller
-      ? customers.filter((customer) => String(customer.sales_agent_user_id) === String(sellerId))
-      : customers
-  ), [canAssignSeller, customers, sellerId]);
+  const availableCustomers = customers;
   const selectedSeller = sellers.find((seller) => String(seller.id) === String(sellerId)) || null;
   const selectedCustomer = availableCustomers.find(
     (customer) => String(customer.id) === String(customerId)
@@ -527,6 +481,7 @@ const AtomicOrderForm = () => {
     setError("");
     try {
       const response = await ordersService.createOrder({
+        p_client_request_key: orderRequestKeyRef.current,
         p_branch_id: Number(branchId),
         p_customer_id: Number(customerId),
         ...(canAssignSeller ? { p_sales_agent_user_id: Number(sellerId) } : {}),
@@ -544,14 +499,44 @@ const AtomicOrderForm = () => {
           quantity: line.quantity,
         })),
       });
+      if (response?.data?.order_created && response.data?.order_id && response.data?.operational_pending) {
+        setPersistedOrder({
+          ...response.data,
+          operational_pending: true,
+          detail: response.message,
+        });
+        setSelectedLines([]);
+        setCustomerId("");
+        setNotes("");
+        orderRequestKeyRef.current = createOrderRequestKey();
+        setError("");
+        toast.error(`Pedido #${response.data.order_id} guardado con movimientos pendientes`);
+        return;
+      }
       if (response?.code !== 1) {
+        if (response?.data?.order_created && response.data?.order_id) {
+          setPersistedOrder({
+            ...response.data,
+            operational_pending: true,
+            detail: response.message,
+          });
+          setSelectedLines([]);
+          setCustomerId("");
+          setNotes("");
+          orderRequestKeyRef.current = createOrderRequestKey();
+          setError("");
+          toast.error(`Pedido #${response.data.order_id} guardado con movimientos pendientes`);
+          return;
+        }
         setError(response?.message || "No se pudo guardar el pedido");
         return;
       }
+      setPersistedOrder(null);
       toast.success(`Pedido #${response.data.order_id} guardado`);
       setSelectedLines([]);
       setCustomerId("");
       setNotes("");
+      orderRequestKeyRef.current = createOrderRequestKey();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || "Error al guardar el pedido");
     } finally {
@@ -559,9 +544,48 @@ const AtomicOrderForm = () => {
     }
   };
 
+  const retryPendingOrderOperations = async () => {
+    const orderId = Number(persistedOrder?.order_id || 0);
+    if (!orderId || retryingOperations) return;
+
+    setRetryingOperations(true);
+    try {
+      const response = await ordersService.retryOrderOperations(orderId);
+      if (response?.code !== 1) {
+        setPersistedOrder((current) => ({
+          ...(current || {}),
+          ...(response?.data || {}),
+          order_id: orderId,
+          operational_pending: true,
+          detail: response?.message || "Los movimientos continúan pendientes",
+        }));
+        toast.error(response?.message || "No se pudieron aplicar los movimientos");
+        return;
+      }
+      setPersistedOrder({
+        ...(response.data || {}),
+        order_id: orderId,
+        operational_pending: false,
+      });
+      toast.success(response.message || `Movimientos del pedido #${orderId} aplicados`);
+    } catch (requestError) {
+      const message = requestError?.response?.data?.message || requestError?.message || "Error al reintentar los movimientos";
+      setPersistedOrder((current) => ({ ...(current || {}), detail: message, operational_pending: true }));
+      toast.error(message);
+    } finally {
+      setRetryingOperations(false);
+    }
+  };
+
   if (sellerPosMode) {
     return (
-      <SellerPosOrderForm
+      <Stack spacing={2}>
+        <PersistedOrderNotice
+          order={persistedOrder}
+          retrying={retryingOperations}
+          onRetry={retryPendingOrderOperations}
+        />
+        <SellerPosOrderForm
         loading={loading}
         saving={saving}
         error={error}
@@ -588,15 +612,25 @@ const AtomicOrderForm = () => {
         addConfiguredProduct={addConfiguredProduct}
         removeLine={removeLine}
         onReview={validateBeforeConfirmation}
-      />
+        />
+      </Stack>
     );
   }
 
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+      <PersistedOrderNotice
+        order={persistedOrder}
+        retrying={retryingOperations}
+        onRetry={retryPendingOrderOperations}
+      />
       {error ? <Alert severity="error">{error}</Alert> : null}
       {!loading && customers.length === 0 ? (
-        <Alert severity="warning">No tienes clientes asignados. Solicita al administrador que realice la asignacion.</Alert>
+        <Alert severity="warning">
+          {canAssignSeller
+            ? "No hay clientes activos disponibles."
+            : "No tienes clientes asignados. Solicita al administrador que realice la asignacion."}
+        </Alert>
       ) : null}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
@@ -618,7 +652,6 @@ const AtomicOrderForm = () => {
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 onChange={(_event, seller) => {
                   setSellerId(seller?.id ? String(seller.id) : "");
-                  setCustomerId("");
                 }}
                 renderInput={(params) => <TextField {...params} label="Vendedor" />}
               />
@@ -643,8 +676,8 @@ const AtomicOrderForm = () => {
                 getOptionLabel={(option) => getDisplayName(option)}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 onChange={(_event, customer) => setCustomerId(customer?.id ? String(customer.id) : "")}
-                noOptionsText={sellerId ? "Este vendedor no tiene clientes asignados" : "Selecciona primero un vendedor"}
-                renderInput={(params) => <TextField {...params} label="Cliente del vendedor" />}
+                noOptionsText={sellerId ? "No hay clientes activos" : "Selecciona primero un vendedor"}
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Buscar cualquier cliente activo" />}
               />
             </Grid>
           ) : null}
@@ -752,13 +785,7 @@ const AtomicOrderForm = () => {
                   ? entry.orderMode
                   : rowOrderModes[0]?.value || "sale";
                 const automaticBonus = orderModeValue === "sale_bonus" && preparedOrder.bonusEnabled && !isPastryProduct(product)
-                  ? calculateAutomaticBonus(
-                      product,
-                      calculation.quantity,
-                      calculation.requestedValue,
-                      calculation.requestedValue * (Number(settings.bonus_percent || 0) / 100),
-                      settings.bonus_max_company_loss_amount
-                    )
+                  ? (preparedOrder.lines.find((line) => line.key === `${entry.id}-bonus`) || { quantity: 0, commercialValue: 0 })
                   : { quantity: 0, commercialValue: 0 };
                 const invalidUnitSale = getInvalidUnitSaleAmount(
                   product,

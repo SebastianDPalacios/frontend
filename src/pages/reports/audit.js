@@ -82,7 +82,7 @@ const metadataLabels = {
   planned_date: "Fecha planificada", baker_employee_id: "Panadero", recipes: "Cantidad de recetas",
   products: "Cantidad de productos", arrobas: "Arrobas", old_status: "Estado anterior",
   new_status: "Estado nuevo", ip_address: "Dirección IP", actor_user_id: "Usuario responsable",
-  bonus_total: "Vendaje total", grand_total: "Total a cobrar", items_count: "Cantidad de productos",
+  bonus_total: "Valor físico del vendaje", grand_total: "Total a cobrar", items_count: "Cantidad de productos",
   sale_total: "Venta total", gift_total: "Obsequios", exchange_total: "Cambios",
   requested_amount: "Valor solicitado", charged_amount: "Valor cobrado", total_amount: "Valor total",
   unit_price: "Precio por unidad", base_price: "Precio base", commission_amount: "Comisión",

@@ -237,18 +237,19 @@ const mergeSaleBonusDisplayItems = (items = []) => {
       belongsToSameSaleGroup(item, candidate)
     );
 
-    if (bonusIndex === -1) {
+    const persistedSaleBonus = item.commercial_mode === "sale_bonus";
+    if (bonusIndex === -1 && !persistedSaleBonus) {
       acc.push(item);
       return acc;
     }
 
-    const bonusItem = items[bonusIndex];
-    usedBonusIndexes.add(bonusIndex);
+    const bonusItem = bonusIndex >= 0 ? items[bonusIndex] : null;
+    if (bonusIndex >= 0) usedBonusIndexes.add(bonusIndex);
 
     acc.push({
       ...item,
       display_line_type: "sale_bonus",
-      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
+      display_quantity: Number(item.quantity || 0) + Number(bonusItem?.quantity || 0),
       display_value: Number(item.line_total || 0),
       display_request_detail: "",
     });
@@ -272,11 +273,11 @@ const calculateVisibleBonusTotal = (items = [], bonusPercent = 0) => {
       belongsToSameSaleGroup(item, candidate)
     );
 
-    if (bonusIndex === -1) return;
+    if (bonusIndex === -1 && item.commercial_mode !== "sale_bonus") return;
 
-    usedBonusIndexes.add(bonusIndex);
+    if (bonusIndex >= 0) usedBonusIndexes.add(bonusIndex);
     regulatedSaleTotal += Number(item.line_total || 0);
-    regulatedBonusTotal += Number(items[bonusIndex].commercial_value || 0);
+    if (bonusIndex >= 0) regulatedBonusTotal += Number(items[bonusIndex].commercial_value || 0);
   });
 
   const totalBonus = items
@@ -288,7 +289,12 @@ const calculateVisibleBonusTotal = (items = [], bonusPercent = 0) => {
     ? regulatedSaleTotal * (percent / 100)
     : regulatedBonusTotal;
 
-  return generatedBonus + standaloneBonus;
+  return {
+    visibleBonusTotal: generatedBonus + standaloneBonus,
+    generatedBonusTotal: generatedBonus,
+    physicalBonusTotal: regulatedBonusTotal,
+    standaloneBonusTotal: standaloneBonus,
+  };
 };
 
 const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) => {
@@ -316,7 +322,11 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
-  const visibleBonusTotal = calculateVisibleBonusTotal(items, order.bonus_percent);
+  const {
+    visibleBonusTotal,
+    generatedBonusTotal,
+    physicalBonusTotal,
+  } = calculateVisibleBonusTotal(items, order.bonus_percent);
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {
@@ -443,7 +453,8 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       ${rows}
       <div class="totals">
         ${ticketSettings.showSaleTotal ? `<span>Venta</span><strong>${money.format(saleTotal)}</strong>` : ""}
-        ${ticketSettings.showBonusTotal ? `<span>Vendaje</span><strong>${money.format(visibleBonusTotal)}</strong>` : ""}
+        ${ticketSettings.showBonusTotal ? `<span>Vendaje generado</span><strong>${money.format(visibleBonusTotal)}</strong>` : ""}
+        ${ticketSettings.showBonusTotal && generatedBonusTotal > 0 ? `<span>Valor físico entregado</span><strong>${money.format(physicalBonusTotal)}</strong>` : ""}
         ${ticketSettings.showGiftTotal ? `<span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>` : ""}
         ${ticketSettings.showExchangeTotal ? `<span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>` : ""}
         ${Number(order.credit_redeemed_amount || 0) > 0 ? `<span>Saldo a favor aplicado</span><strong>-${money.format(Number(order.credit_redeemed_amount || 0))}</strong>` : ""}

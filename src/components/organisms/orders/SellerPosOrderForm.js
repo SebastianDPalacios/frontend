@@ -28,6 +28,7 @@ import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AppButton from "@core/components/ui/AppButton";
 import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import OrderDraftSummary from "components/molecules/OrderDraftSummary";
+import { calculateSaleBonusOrder } from "utils/order-sale-bonus-calculation";
 import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
 
@@ -117,27 +118,24 @@ const SellerPosOrderForm = ({
         : Math.floor((Number(captureValue || 0) / unitPrice) * 1000) / 1000)
     : 0;
   const projectedBonusBase = Number(preparedOrder?.summary?.saleTotal || 0) + Number(captureValue || 0);
-  const previewBonusAllowance = orderMode === "sale_bonus"
-    && projectedBonusBase >= Number(settings?.bonus_minimum_amount || 0)
-    ? Number(captureValue || 0) * (Number(settings?.bonus_percent || 0) / 100)
-    : 0;
-  const rawPreviewTotalQuantity = unitPrice > 0
-    ? (Number(captureValue || 0) + previewBonusAllowance) / unitPrice
-    : 0;
-  const previewBonusQuantity = previewBonusAllowance > 0
-    ? (isIntegerUnit(captureProduct?.unit)
-        ? Math.max(
-            (Math.ceil(rawPreviewTotalQuantity) * unitPrice
-              - (Number(captureValue || 0) + previewBonusAllowance) <= Number(settings?.bonus_max_company_loss_amount || 0)
-              ? Math.ceil(rawPreviewTotalQuantity)
-              : Math.floor(rawPreviewTotalQuantity)) - previewQuantity,
-            0
-          )
-        : Math.max(
-            Math.floor(rawPreviewTotalQuantity * 1000) / 1000 - previewQuantity,
-            0
-          ))
-    : 0;
+  const previewBonusOrder = calculateSaleBonusOrder({
+    lines: [
+      ...(preparedOrder?.rows || [])
+        .filter((row) => row.entry?.orderMode === "sale_bonus")
+        .map((row) => ({
+          product: row.product,
+          paidValue: row.calculation?.requestedValue,
+          saleQuantity: row.calculation?.quantity,
+        })),
+      { key: "preview", product: captureProduct, paidValue: captureValue, saleQuantity: previewQuantity },
+    ],
+    bonusPercent: settings?.bonus_percent,
+    maxCompanyLoss: settings?.bonus_max_company_loss_amount,
+    enabled: orderMode === "sale_bonus"
+      && projectedBonusBase >= Number(settings?.bonus_minimum_amount || 0),
+  });
+  const previewBonus = previewBonusOrder.allocations[previewBonusOrder.allocations.length - 1];
+  const previewBonusQuantity = previewBonus.quantity;
   const previewTotalQuantity = Number(previewQuantity || 0) + Number(previewBonusQuantity || 0);
   const captureSaleError = getInvalidUnitSaleAmount(captureProduct, {
     orderMode,
@@ -167,7 +165,7 @@ const SellerPosOrderForm = ({
         <Alert severity="info">Selecciona un vendedor para consultar sus clientes.</Alert>
       ) : null}
       {!loading && (!canAssignSeller || sellerId) && customers.length === 0 ? (
-        <Alert severity="warning">{canAssignSeller ? "Este vendedor no tiene clientes asignados." : "No tienes clientes asignados."}</Alert>
+        <Alert severity="warning">{canAssignSeller ? "No hay clientes activos disponibles." : "No tienes clientes asignados."}</Alert>
       ) : null}
 
       {!cartOpen ? (
@@ -294,7 +292,6 @@ const SellerPosOrderForm = ({
                   value={sellers.find((seller) => String(seller.id) === String(sellerId)) || null}
                   onChange={(_event, seller) => {
                     setSellerId(seller ? String(seller.id) : "");
-                    setCustomerId("");
                   }}
                   getOptionLabel={(seller) => getDisplayName(seller)}
                   isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
@@ -319,7 +316,7 @@ const SellerPosOrderForm = ({
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 filterOptions={filterCustomers}
                 noOptionsText={canAssignSeller && !sellerId ? "Selecciona primero un vendedor" : "No encontramos clientes"}
-                renderInput={(params) => <TextField {...params} label={canAssignSeller ? "Buscar cliente del vendedor" : "Buscar cliente asignado"} placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
+                renderInput={(params) => <TextField {...params} label={canAssignSeller ? "Buscar cualquier cliente activo" : "Buscar cliente asignado"} placeholder="Nombre, documento, teléfono o dirección" sx={{ "& .MuiInputBase-root": { minHeight: 68, fontSize: 21, fontWeight: 600 }, "& .MuiInputLabel-root": { fontSize: 19 } }} />}
                 renderOption={(props, customer) => (
                   <Box component="li" {...props} key={customer.id} sx={{ py: 1.25 }}>
                     <Box>

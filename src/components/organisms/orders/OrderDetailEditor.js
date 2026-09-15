@@ -84,11 +84,13 @@ const mergeSaleBonusItems = (items = []) => {
           ? bonusByGroup.get(groupKey)
           : legacyBonusByProduct.get(String(item.product_id)))
       : null;
-    rows.push(bonusItem ? {
+    const isSaleBonus = item.line_type === "sale"
+      && (item.commercial_mode === "sale_bonus" || Boolean(bonusItem));
+    rows.push(isSaleBonus ? {
       ...item,
       display_line_type: "sale_bonus",
-      display_quantity: Number(item.quantity || 0) + Number(bonusItem.quantity || 0),
-      bonus_item: bonusItem,
+      display_quantity: Number(item.quantity || 0) + Number(bonusItem?.quantity || 0),
+      bonus_item: bonusItem || null,
     } : item);
     return rows;
   }, []);
@@ -155,22 +157,6 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
     }
     setSavingKey(`item-${item.id}`);
     try {
-      if ((remove || requestedLineType !== "sale_bonus") && item.bonus_item) {
-        const bonusRemoval = await ordersService.upsertItem(order.id, {
-          p_order_item_id: Number(item.bonus_item.id),
-          p_line_group_key: item.line_group_key,
-          p_product_id: Number(item.bonus_item.product_id),
-          p_line_type: "bonus",
-          p_previous_line_type: "bonus",
-          p_capture_mode: "quantity",
-          p_quantity: 0,
-          p_remove: true,
-        });
-        if (bonusRemoval?.code !== 1) {
-          toast.error(bonusRemoval?.message || "No se pudo retirar el vendaje asociado");
-          return;
-        }
-      }
       const result = await ordersService.upsertItem(order.id, {
         p_order_item_id: Number(item.id),
         p_line_group_key: item.line_group_key,
@@ -186,43 +172,6 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       if (result?.code !== 1) {
         toast.error(result?.message || "No se pudo actualizar el producto");
         return;
-      }
-      if (!remove && requestedLineType === "sale_bonus") {
-        const product = products.find((candidate) => String(candidate.id) === String(item.product_id));
-        const price = Number(product?.base_price || item.unit_price || 0);
-        const taxPercent = Number(product?.tax_percent || product?.rate_percent || item.tax_percent || 0);
-        const rawQuantity = draft.captureMode === "quantity" ? Number(draft.value) : Number(draft.value) / price;
-        const saleQuantity = isIntegerUnit(product?.unit || item.product_unit)
-          ? Math.floor(rawQuantity)
-          : Math.floor(rawQuantity * 1000) / 1000;
-        const bonusUnitValue = price * (1 + taxPercent / 100);
-        const saleCommercialValue = draft.captureMode === "amount"
-          ? Number(draft.value || 0)
-          : saleQuantity * bonusUnitValue;
-        const bonusAllowance = saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100);
-        const rawBonusQuantity = bonusUnitValue > 0
-          ? bonusAllowance / bonusUnitValue
-          : 0;
-        const bonusQuantity = isIntegerUnit(product?.unit || item.product_unit)
-          ? (Math.ceil(rawBonusQuantity) * bonusUnitValue - bonusAllowance <= Number(salesSettings.bonus_max_company_loss_amount || 0)
-              ? Math.ceil(rawBonusQuantity)
-              : Math.floor(rawBonusQuantity))
-          : Math.floor(rawBonusQuantity * 1000) / 1000;
-        if (bonusQuantity > 0) {
-          const bonusResult = await ordersService.upsertItem(order.id, {
-            p_order_item_id: Number(item.bonus_item?.id || 0) || null,
-            p_line_group_key: item.line_group_key,
-            p_product_id: Number(item.product_id),
-            p_line_type: "bonus",
-            p_capture_mode: "quantity",
-            p_quantity: bonusQuantity,
-          });
-          if (bonusResult?.code !== 1) {
-            toast.error(bonusResult?.message || "La venta se actualizó, pero no se pudo aplicar el vendaje automático");
-            await onRefresh();
-            return;
-          }
-        }
       }
       toast.success(remove ? "Producto retirado" : "Producto actualizado");
       await onRefresh();
@@ -263,46 +212,6 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
       if (result?.code !== 1) {
         toast.error(result?.message || "No se pudo agregar el producto");
         return;
-      }
-      if (requestedLineType === "sale_bonus") {
-        const price = Number(selectedNewProduct.base_price || 0);
-        const taxPercent = Number(selectedNewProduct.tax_percent || selectedNewProduct.rate_percent || 0);
-        const rawSaleQuantity = newLine.captureMode === "quantity"
-          ? Number(newLine.value)
-          : Number(newLine.value) / price;
-        const saleQuantity = isIntegerUnit(selectedNewProduct.unit)
-          ? Math.floor(rawSaleQuantity)
-          : Math.floor(rawSaleQuantity * 1000) / 1000;
-        const saleCommercialValue = newLine.captureMode === "amount"
-          ? Number(newLine.value || 0)
-          : saleQuantity * price * (1 + taxPercent / 100);
-        const projectedSaleTotal = Number(order?.grand_total || 0) + saleCommercialValue;
-        const minimum = Number(salesSettings.bonus_minimum_amount || 0);
-        const bonusUnitValue = price * (1 + taxPercent / 100);
-        const bonusAllowance = saleCommercialValue * (Number(salesSettings.bonus_percent || 0) / 100);
-        const rawBonusQuantity = projectedSaleTotal >= minimum && bonusUnitValue > 0
-          ? bonusAllowance / bonusUnitValue
-          : 0;
-        const bonusQuantity = isIntegerUnit(selectedNewProduct.unit)
-          ? (Math.ceil(rawBonusQuantity) * bonusUnitValue - bonusAllowance <= Number(salesSettings.bonus_max_company_loss_amount || 0)
-              ? Math.ceil(rawBonusQuantity)
-              : Math.floor(rawBonusQuantity))
-          : Math.floor(rawBonusQuantity * 1000) / 1000;
-
-        if (bonusQuantity > 0) {
-          const bonusResult = await ordersService.upsertItem(order.id, {
-            p_line_group_key: newLineGroupKey,
-            p_product_id: Number(selectedNewProduct.id),
-            p_line_type: "bonus",
-            p_capture_mode: "quantity",
-            p_quantity: bonusQuantity,
-          });
-          if (bonusResult?.code !== 1) {
-            toast.error(bonusResult?.message || "La venta se agregó, pero no se pudo aplicar el vendaje automático");
-            await onRefresh();
-            return;
-          }
-        }
       }
       toast.success("Producto agregado");
       setNewLine(emptyNewLine);

@@ -42,6 +42,10 @@ class OrdersService {
     return PostEndpoint(endpoints.orders.confirm(orderId), {});
   }
 
+  async retryOrderOperations(orderId) {
+    return PostEndpoint(endpoints.orders.retryOperations(orderId), {});
+  }
+
   async cancelOrder(orderId, payload = {}) {
     return PostEndpoint(endpoints.orders.cancel(orderId), payload);
   }

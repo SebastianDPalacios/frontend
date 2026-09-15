@@ -36,7 +36,8 @@ const OrderDraftSummary = ({
         Resumen
       </Typography>
       <MoneyRow label="Venta" value={summary.saleTotal} largeOnMobile={largeOnMobile} />
-      {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje" value={visibleBonusTotal} largeOnMobile={largeOnMobile} /> : null}
+      {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje generado" value={visibleBonusTotal} largeOnMobile={largeOnMobile} /> : null}
+      {generated > 0 ? <MoneyRow label="Valor físico entregado" value={used} largeOnMobile={largeOnMobile} /> : null}
       {giftTotal > 0 ? <MoneyRow label="Obsequio" value={giftTotal} largeOnMobile={largeOnMobile} /> : null}
       {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} largeOnMobile={largeOnMobile} /> : null}
 

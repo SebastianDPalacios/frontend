@@ -53,6 +53,7 @@
     confirmPrint: (id) => `/orders/${id}/confirm-print`,
     upsertItem: (id) => `/orders/${id}/items`,
     confirm: (id) => `/orders/${id}/confirm`,
+    retryOperations: (id) => `/orders/${id}/retry-operations`,
     cancel: (id) => `/orders/${id}/cancel`,
     dispatch: (id) => `/orders/${id}/dispatch`,
     deliver: (id) => `/orders/${id}/deliver`,

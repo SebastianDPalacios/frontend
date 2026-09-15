@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
   FormControlLabel,
   Menu,
@@ -22,8 +23,10 @@ import {
   TableHead,
   TableRow,
   MenuItem,
+  Pagination,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -45,6 +48,8 @@ const currencyFormatter = new Intl.NumberFormat("es-CO", {
   currency: "COP",
   maximumFractionDigits: 0,
 });
+
+const HISTORY_FILTERS_KEY = "panaderia:orders-history-filters";
 
 const formatDate = (value) => {
   if (!value) {
@@ -292,6 +297,12 @@ const DeleteOrderDialog = ({ open, dailyNumber, loading, canCancel, onClose, onC
   );
 };
 
+const historyStatusOptions = [
+  { value: "draft", label: "Borrador" },
+  { value: "confirmed", label: "Confirmado" },
+  { value: "cancelled", label: "Eliminado" },
+];
+
 const isReadyToDispatch = (order) =>
   ["confirmed", "ready"].includes(order?.status);
 
@@ -383,48 +394,6 @@ const buildOrderDayGroups = (orders) => {
       numberById,
     };
   });
-};
-
-const normalizeSearchText = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase();
-
-const isPlainNumberSearch = (value) => /^\d+$/.test(String(value || "").trim());
-
-const orderMatchesSearch = (order, searchValue, dailyNumberById) => {
-  const normalizedSearch = normalizeSearchText(searchValue);
-
-  if (!normalizedSearch) {
-    return true;
-  }
-
-  const dailyNumber = String(dailyNumberById[String(order.id)] || "");
-
-  if (isPlainNumberSearch(normalizedSearch) && dailyNumber === normalizedSearch) {
-    return true;
-  }
-
-  const searchableText = [
-    `pedido ${dailyNumber}`,
-    `pedido #${dailyNumber}`,
-    `pedido del dia ${dailyNumber}`,
-    `pedido del dia #${dailyNumber}`,
-    order.customer_name,
-    order.customer_phone,
-    order.customer_address,
-    order.customer_neighborhood,
-    order.sales_agent_name,
-    statusLabels[order.status],
-    formatDate(order.order_date),
-    formatDate(order.delivery_date),
-    formatMoney(order.amount_to_collect ?? order.grand_total),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return searchableText.includes(normalizedSearch);
 };
 
 const getOrderTraceSteps = (order) => {
@@ -613,15 +582,23 @@ const getOperationalInsight = (order, items) => {
 export const OrdersHistoryPage = ({ mode = "today" }) => {
   const router = useRouter();
   const isTodayMode = mode === "today";
+  const isMobile = useMediaQuery((theme) => theme.breakpoints.down("md"), { noSsr: true });
   const currentUser = authService.getCurrentUser() || {};
   const roleCodes = Array.isArray(currentUser.roles)
     ? currentUser.roles.map((role) => String(typeof role === "string" ? role : role?.code || "").toUpperCase())
     : [];
   const isAdministrator = roleCodes.some((role) => ["ADMIN", "SUPER_ADMIN", "ADMINISTRATIVO", "ADMINISTRATIVE"].includes(role));
   const [loading, setLoading] = useState(true);
+  const [filtersReady, setFiltersReady] = useState(isTodayMode);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [orders, setOrders] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
   const [detailItems, setDetailItems] = useState([]);
@@ -639,16 +616,77 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   const [customDateTo, setCustomDateTo] = useState("");
   const [showCancelled, setShowCancelled] = useState(false);
   const [sellers, setSellers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [commissions, setCommissions] = useState([]);
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, order: null });
   const todayDate = useMemo(() => getTodayDate(), []);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (isTodayMode) return;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(HISTORY_FILTERS_KEY) || "null");
+      if (saved && typeof saved === "object") {
+        setSearch(String(saved.search || ""));
+        setDebouncedSearch(String(saved.search || "").trim());
+        setDateMode(["today", "month", "range", "all"].includes(saved.dateMode) ? saved.dateMode : "month");
+        setSelectedMonth(String(saved.selectedMonth || getCurrentMonth()));
+        setCustomDateFrom(String(saved.customDateFrom || ""));
+        setCustomDateTo(String(saved.customDateTo || ""));
+        setSelectedSellerId(String(saved.selectedSellerId || ""));
+        setSelectedCustomerId(String(saved.selectedCustomerId || ""));
+        setSelectedProductId(String(saved.selectedProductId || ""));
+        const savedStatus = String(saved.selectedStatus || "");
+        setSelectedStatus(historyStatusOptions.some((option) => option.value === savedStatus) ? savedStatus : "");
+        setShowCancelled(Boolean(saved.showCancelled));
+        setPageSize([25, 50, 100].includes(Number(saved.pageSize)) ? Number(saved.pageSize) : 25);
+      }
+    } catch (_error) {
+      window.sessionStorage.removeItem(HISTORY_FILTERS_KEY);
+    } finally {
+      setFiltersReady(true);
+    }
+  }, [isTodayMode]);
+
+  useEffect(() => {
+    if (isTodayMode || !filtersReady) return;
+    window.sessionStorage.setItem(HISTORY_FILTERS_KEY, JSON.stringify({
+      search,
+      dateMode,
+      selectedMonth,
+      customDateFrom,
+      customDateTo,
+      selectedSellerId,
+      selectedCustomerId,
+      selectedProductId,
+      selectedStatus,
+      showCancelled,
+      pageSize,
+    }));
+  }, [customDateFrom, customDateTo, dateMode, filtersReady, isTodayMode, pageSize, search, selectedCustomerId, selectedMonth, selectedProductId, selectedSellerId, selectedStatus, showCancelled]);
+
+  useEffect(() => {
     if (isTodayMode) return;
     ordersService.getBaseData({ onlyActive: 1, page: 1, pageSize: 200 }).then((response) => {
-      if (response?.code === 1) setSellers(normalizeRows(response.data?.sellers));
-    }).catch(() => setSellers([]));
+      if (response?.code === 1) {
+        setSellers(normalizeRows(response.data?.sellers));
+        setCustomers(normalizeRows(response.data?.customers));
+        setProducts(normalizeRows(response.data?.products));
+      }
+    }).catch(() => {
+      setSellers([]);
+      setCustomers([]);
+      setProducts([]);
+    });
   }, [isTodayMode]);
 
   useEffect(() => {
@@ -667,21 +705,35 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
   }, [detailOrder]);
 
   useEffect(() => {
+    setPage(1);
+    setOrders([]);
+  }, [customDateFrom, customDateTo, dateMode, debouncedSearch, isTodayMode, pageSize, refreshKey, selectedCustomerId, selectedMonth, selectedProductId, selectedSellerId, selectedStatus, showCancelled, todayDate]);
+
+  useEffect(() => {
     const run = async () => {
-      setLoading(true);
+      if (!filtersReady) return;
+      const appendPage = isMobile && page > 1;
+      if (appendPage) setLoadingMore(true);
+      else setLoading(true);
       setError(null);
       try {
         const monthRange = getMonthRange(selectedMonth);
-        const dateFrom = isTodayMode
+        const dateFrom = isTodayMode || dateMode === "today"
           ? todayDate
-          : dateMode === "month" ? monthRange.dateFrom : customDateFrom;
-        const dateTo = isTodayMode
+          : dateMode === "month" ? monthRange.dateFrom : dateMode === "range" ? customDateFrom : "";
+        const dateTo = isTodayMode || dateMode === "today"
           ? todayDate
-          : dateMode === "month" ? monthRange.dateTo : customDateTo;
+          : dateMode === "month" ? monthRange.dateTo : dateMode === "range" ? customDateTo : "";
         const [response, commissionsResponse] = await Promise.all([
           ordersService.getOrders({
-            page: 1,
-            pageSize: isTodayMode ? 200 : 500,
+            page,
+            pageSize,
+            search: debouncedSearch || undefined,
+            salesAgentUserId: selectedSellerId || undefined,
+            customerId: selectedCustomerId || undefined,
+            productId: selectedProductId || undefined,
+            status: selectedStatus || undefined,
+            includeCancelled: showCancelled ? 1 : 0,
             dateFrom: dateFrom || undefined,
             dateTo: dateTo || undefined,
           }),
@@ -696,30 +748,37 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
         }
 
         const orderRows = normalizeRows(response.data?.items);
-        setOrders(orderRows);
-        setCommissions(commissionsResponse?.code === 1 ? normalizeRows(commissionsResponse.data?.items) : []);
-        setOrderId((currentOrderId) => {
-          if (orderRows.some((order) => String(order.id) === String(currentOrderId))) {
-            return currentOrderId;
-          }
-
-          return orderRows[0]?.id ? String(orderRows[0].id) : "";
+        setOrders((current) => {
+          if (!appendPage) return orderRows;
+          const rowsById = new Map(current.map((order) => [String(order.id), order]));
+          orderRows.forEach((order) => rowsById.set(String(order.id), order));
+          return Array.from(rowsById.values());
         });
+        setTotal(Number(response.data?.total || 0));
+        setTotalPages(Number(response.data?.totalPages || 0));
+        setCommissions(commissionsResponse?.code === 1 ? normalizeRows(commissionsResponse.data?.items) : []);
+        if (!appendPage) {
+          setOrderId((currentOrderId) => {
+            if (orderRows.some((order) => String(order.id) === String(currentOrderId))) {
+              return currentOrderId;
+            }
+
+            return orderRows[0]?.id ? String(orderRows[0].id) : "";
+          });
+        }
       } catch (requestError) {
         setError(getErrorMessage(requestError, "Error de red al cargar historico de pedidos"));
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     };
 
     const timer = setTimeout(run, 250);
     return () => clearTimeout(timer);
-  }, [customDateFrom, customDateTo, dateMode, isTodayMode, refreshKey, selectedMonth, todayDate]);
+  }, [customDateFrom, customDateTo, dateMode, debouncedSearch, filtersReady, isMobile, isTodayMode, page, pageSize, refreshKey, selectedCustomerId, selectedMonth, selectedProductId, selectedSellerId, selectedStatus, showCancelled, todayDate]);
 
-  const dateScopedOrders = useMemo(
-    () => showCancelled ? orders : orders.filter((order) => order.status !== "cancelled"),
-    [orders, showCancelled]
-  );
+  const dateScopedOrders = orders;
   const orderDayGroups = useMemo(() => buildOrderDayGroups(dateScopedOrders), [dateScopedOrders]);
   const dailyOrderNumberById = useMemo(
     () =>
@@ -729,13 +788,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
       }, {}),
     [orderDayGroups]
   );
-  const filteredOrders = useMemo(
-    () => dateScopedOrders.filter((order) => (
-      (!selectedSellerId || String(order.sales_agent_user_id) === String(selectedSellerId)) &&
-      orderMatchesSearch(order, search, dailyOrderNumberById)
-    )),
-    [dateScopedOrders, dailyOrderNumberById, search, selectedSellerId]
-  );
+  const filteredOrders = dateScopedOrders;
   const filteredOrderDayGroups = useMemo(() => buildOrderDayGroups(filteredOrders), [filteredOrders]);
   const selectedOrder = useMemo(
     () => filteredOrders.find((order) => String(order.id) === String(orderId)) || null,
@@ -765,7 +818,25 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
     0
   );
   const selectedSeller = sellers.find((seller) => String(seller.id) === String(selectedSellerId)) || null;
+  const selectedCustomer = customers.find((customer) => String(customer.id) === String(selectedCustomerId)) || null;
+  const selectedProduct = products.find((product) => String(product.id) === String(selectedProductId)) || null;
   const selectedDailyNumber = selectedOrder ? dailyOrderNumberById[String(selectedOrder.id)] : null;
+
+  const clearHistoryFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setDateMode("month");
+    setSelectedMonth(getCurrentMonth());
+    setCustomDateFrom("");
+    setCustomDateTo("");
+    setSelectedSellerId("");
+    setSelectedCustomerId("");
+    setSelectedProductId("");
+    setSelectedStatus("");
+    setShowCancelled(false);
+    setPage(1);
+    window.sessionStorage.removeItem(HISTORY_FILTERS_KEY);
+  };
 
   const openOrderDetail = async (order) => {
     setOrderId(String(order.id));
@@ -980,11 +1051,20 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
           bgcolor: "background.paper",
         }}
       >
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>Filtrar pedidos</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Busca primero y usa los filtros solo cuando necesites precisar el resultado.
+            </Typography>
+          </Box>
+          <Chip color="secondary" label={`${total} resultado(s)`} />
+        </Stack>
         <Grid container spacing={2} sx={{ alignItems: "center" }}>
-          <Grid item xs={12} md={isTodayMode ? 7 : 3}>
+          <Grid item xs={12} md={isTodayMode ? 7 : 5}>
             <TextField
               fullWidth
-              label="Buscar pedido, cliente o vendedor"
+              label="Buscar en todo el historial"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -993,28 +1073,19 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             <Grid item xs={12} sm={6} md={3}>
               <Autocomplete
                 fullWidth
-                options={sellers}
-                value={selectedSeller}
-                getOptionLabel={(seller) => seller?.full_name || seller?.username || "Vendedor"}
-                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
-                onChange={(_event, seller) => setSelectedSellerId(seller?.id ? String(seller.id) : "")}
-                noOptionsText="No se encontraron vendedores"
-                renderInput={(params) => <TextField {...params} label="Vendedor" placeholder="Todos los vendedores" />}
-              />
-            </Grid>
-          ) : null}
-          {!isTodayMode ? (
-            <Grid item xs={12} sm={6} md={2}>
-              <Autocomplete
-                fullWidth
                 disableClearable
                 options={[
+                  { value: "today", label: "Hoy" },
                   { value: "month", label: "Mes" },
                   { value: "range", label: "Rango personalizado" },
+                  { value: "all", label: "Todo el historial" },
                 ]}
-                value={dateMode === "month"
-                  ? { value: "month", label: "Mes" }
-                  : { value: "range", label: "Rango personalizado" }}
+                value={[
+                  { value: "today", label: "Hoy" },
+                  { value: "month", label: "Mes" },
+                  { value: "range", label: "Rango personalizado" },
+                  { value: "all", label: "Todo el historial" },
+                ].find((option) => option.value === dateMode)}
                 getOptionLabel={(option) => option.label}
                 isOptionEqualToValue={(option, value) => option.value === value.value}
                 onChange={(_event, option) => setDateMode(option.value)}
@@ -1023,7 +1094,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             </Grid>
           ) : null}
           {!isTodayMode && dateMode === "month" ? (
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={4}>
               <BalanceMonthPicker
                 fullWidth
                 label="Mes"
@@ -1053,18 +1124,95 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             </>
           ) : null}
           {!isTodayMode ? (
-            <Grid item xs={12} md={2}>
-              <FormControlLabel
-                control={<Checkbox checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />}
-                label="Mostrar eliminados"
+            <Grid item xs={12}>
+              <Divider sx={{ my: 0.5 }} />
+              <Typography sx={{ mt: 1.5, fontWeight: 800 }}>Filtros adicionales</Typography>
+              <Typography variant="body2" color="text.secondary">Combínalos para reducir los resultados.</Typography>
+            </Grid>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
+                fullWidth
+                options={sellers}
+                value={selectedSeller}
+                getOptionLabel={(seller) => seller?.full_name || seller?.username || "Vendedor"}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, seller) => setSelectedSellerId(seller?.id ? String(seller.id) : "")}
+                noOptionsText="No se encontraron vendedores"
+                renderInput={(params) => <TextField {...params} label="Vendedor" placeholder="Todos los vendedores" />}
+              />
+            </Grid>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
+                fullWidth
+                options={customers}
+                value={selectedCustomer}
+                getOptionLabel={(customer) => customer?.name || "Cliente"}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, customer) => setSelectedCustomerId(customer?.id ? String(customer.id) : "")}
+                noOptionsText="No se encontraron clientes"
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Todos los clientes" />}
+              />
+            </Grid>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
+                fullWidth
+                options={products}
+                value={selectedProduct}
+                getOptionLabel={(product) => product?.name || product?.sku || "Producto"}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                onChange={(_event, product) => setSelectedProductId(product?.id ? String(product.id) : "")}
+                noOptionsText="No se encontraron productos"
+                renderInput={(params) => <TextField {...params} label="Producto" placeholder="Todos los productos" />}
+              />
+            </Grid>
+          ) : null}
+          {!isTodayMode ? (
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
+                fullWidth
+                options={historyStatusOptions}
+                value={historyStatusOptions.find((option) => option.value === selectedStatus) || null}
+                getOptionLabel={(option) => option.label}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                onChange={(_event, option) => {
+                  setSelectedStatus(option?.value || "");
+                  if (option?.value === "cancelled") setShowCancelled(true);
+                }}
+                renderInput={(params) => <TextField {...params} label="Estado" placeholder="Seleccionar estado" />}
               />
             </Grid>
           ) : null}
           <Grid item xs={12} md={isTodayMode ? 5 : 12}>
-            <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: "flex-start", md: "flex-end" }, flexWrap: "wrap" }}>
-              <Chip color="secondary" label={isTodayMode ? todayDate : dateMode === "month" ? selectedMonth : `${customDateFrom || "Inicio"} a ${customDateTo || "Hoy"}`} />
-              <Chip variant="outlined" label={`${filteredOrders.length} pedido(s)`} />
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
+            >
+              {!isTodayMode ? (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
+                  <FormControlLabel
+                    sx={{ m: 0 }}
+                    control={<Checkbox checked={showCancelled} onChange={(event) => {
+                      setShowCancelled(event.target.checked);
+                      if (!event.target.checked && selectedStatus === "cancelled") setSelectedStatus("");
+                    }} />}
+                    label="Mostrar eliminados"
+                  />
+                  <Button variant="text" color="secondary" onClick={clearHistoryFilters}>
+                    Limpiar filtros
+                  </Button>
+                </Stack>
+              ) : <Box />}
+              <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: "flex-start", sm: "flex-end" }, flexWrap: "wrap" }}>
+              <Chip color="secondary" label={isTodayMode || dateMode === "today" ? todayDate : dateMode === "month" ? selectedMonth : dateMode === "all" ? "Todo el historial" : `${customDateFrom || "Inicio"} a ${customDateTo || "Hoy"}`} />
               <Chip variant="outlined" color={draftOrders ? "warning" : "success"} label={`${draftOrders} borrador`} />
+              </Stack>
             </Stack>
           </Grid>
         </Grid>
@@ -1072,7 +1220,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={3}>
-          <SummaryCard label={isTodayMode ? "Pedidos de hoy" : "Pedidos visibles"} value={filteredOrders.length} helper={`${draftOrders} borrador`} color={draftOrders ? "warning" : "success"} />
+          <SummaryCard label={isTodayMode ? "Pedidos de hoy" : "Resultados"} value={total} helper={`${filteredOrders.length} cargados`} color={draftOrders ? "warning" : "success"} />
         </Grid>
         <Grid item xs={12} md={3}>
           <SummaryCard
@@ -1107,7 +1255,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
                 : "Filtra por fecha, cliente o vendedor y administra cada pedido desde su fila."}
             </Typography>
           </Stack>
-          <Chip label={`${filteredOrders.length} pedidos`} variant="outlined" />
+          <Chip label={`${total} pedidos`} variant="outlined" />
         </Stack>
 
         {loading ? <Alert severity="info">Cargando pedidos...</Alert> : null}
@@ -1234,6 +1382,33 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
           </Table>
         </TableContainer>
 
+        {total > 0 ? (
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ display: { xs: "none", md: "flex" }, justifyContent: "space-between", alignItems: "center", mt: 2 }}
+          >
+            <TextField
+              select
+              size="small"
+              label="Pedidos por página"
+              value={pageSize}
+              onChange={(event) => setPageSize(Number(event.target.value))}
+              sx={{ minWidth: 180 }}
+            >
+              {[25, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+            </TextField>
+            <Pagination
+              count={Math.max(totalPages, 1)}
+              page={Math.min(page, Math.max(totalPages, 1))}
+              onChange={(_event, nextPage) => setPage(nextPage)}
+              color="primary"
+              showFirstButton
+              showLastButton
+            />
+          </Stack>
+        ) : null}
+
         <Stack spacing={1.5} sx={{ display: { xs: "flex", md: "none" } }}>
           {filteredOrders.map((order) => {
             const dailyNumber = dailyOrderNumberById[String(order.id)];
@@ -1276,6 +1451,17 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
               </Paper>
             );
           })}
+          {page < totalPages ? (
+            <AppButton
+              fullWidth
+              color="secondary"
+              variant="outlined"
+              disabled={loadingMore}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              {loadingMore ? "Cargando..." : `Cargar más (${orders.length} de ${total})`}
+            </AppButton>
+          ) : null}
         </Stack>
       </Paper>
 
