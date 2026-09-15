@@ -15,9 +15,6 @@ const MoneyRow = ({ label, value, strong = false, largeOnMobile = false }) => (
 const OrderDraftSummary = ({
   summary,
   settings,
-  creditAvailable = 0,
-  creditRedeemed = 0,
-  showCreditDetails = true,
   largeOnMobile = false,
 }) => {
   const used = Number(summary.regulatedBonusTotal || 0);
@@ -27,7 +24,6 @@ const OrderDraftSummary = ({
   const giftTotal = Number(summary.giftTotal || 0);
   const exchangeTotal = Number(summary.exchangeTotal || 0);
   const finalTotal = Math.max(Number(summary.saleTotal || 0), 0);
-  const remainingCredit = Math.max(Number(creditAvailable || 0) - Number(creditRedeemed || 0), 0);
   const showBonusRule = Boolean(summary.hasRegulatedBonus);
 
   return (
@@ -35,32 +31,10 @@ const OrderDraftSummary = ({
       <Typography variant="h6" sx={{ fontWeight: 900, fontSize: largeOnMobile ? { xs: 28, sm: 20 } : undefined }}>
         Resumen
       </Typography>
-      <MoneyRow label="Venta" value={summary.saleTotal} largeOnMobile={largeOnMobile} />
-      {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje generado" value={visibleBonusTotal} largeOnMobile={largeOnMobile} /> : null}
-      {generated > 0 ? <MoneyRow label="Valor físico entregado" value={used} largeOnMobile={largeOnMobile} /> : null}
+      {Number(summary.saleTotal || 0) > 0 ? <MoneyRow label="Venta" value={summary.saleTotal} largeOnMobile={largeOnMobile} /> : null}
+      {visibleBonusTotal > 0 ? <MoneyRow label="Vendaje" value={visibleBonusTotal} largeOnMobile={largeOnMobile} /> : null}
       {giftTotal > 0 ? <MoneyRow label="Obsequio" value={giftTotal} largeOnMobile={largeOnMobile} /> : null}
       {exchangeTotal > 0 ? <MoneyRow label="Cambio" value={exchangeTotal} largeOnMobile={largeOnMobile} /> : null}
-
-      {showCreditDetails && creditAvailable > 0 ? (
-        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "success.lighter", border: "1px solid", borderColor: "success.light" }}>
-          <Stack spacing={1}>
-            <MoneyRow label="Saldo a favor disponible" value={creditAvailable} />
-            {Number(creditRedeemed || 0) > 0 ? (
-              <>
-                <MoneyRow label="Saldo aplicado automaticamente" value={creditRedeemed} />
-                <MoneyRow label="Saldo restante estimado" value={remainingCredit} />
-                <Typography variant="caption" color="text.secondary">
-                  Se descuenta al entregar los productos marcados como Cambio.
-                </Typography>
-              </>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                El saldo solo se utiliza al agregar productos de tipo Cambio.
-              </Typography>
-            )}
-          </Stack>
-        </Box>
-      ) : null}
 
       <Divider />
       <MoneyRow label="Total a cobrar" value={finalTotal} strong largeOnMobile={largeOnMobile} />

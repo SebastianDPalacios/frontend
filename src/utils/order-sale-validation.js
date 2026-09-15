@@ -1,7 +1,7 @@
 import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import { isIntegerUnit } from "views/modules/flow-utils";
 
-const getInvalidUnitSaleAmount = (product, entry) => {
+const getInvalidUnitSaleAmount = (product, entry, { bonusPercent = 0 } = {}) => {
   if (!["sale", "sale_bonus", "bonus", "gift", "exchange"].includes(entry?.orderMode) || entry?.captureMode !== "amount" || !isIntegerUnit(product?.unit)) {
     return null;
   }
@@ -12,12 +12,14 @@ const getInvalidUnitSaleAmount = (product, entry) => {
     return null;
   }
 
-  if (entry.orderMode === "sale_bonus") {
-    return null;
-  }
-
-  const validationStep = price;
-  if (Number.isInteger(amount / validationStep)) return null;
+  const taxPercent = Number(product?.tax_percent || product?.rate_percent || 0);
+  const commercialPrice = price * (1 + taxPercent / 100);
+  const normalizedBonusPercent = Number(bonusPercent || 0);
+  const validationStep = entry.orderMode === "sale_bonus"
+    ? commercialPrice / (1 + normalizedBonusPercent / 100)
+    : commercialPrice;
+  const calculatedUnits = amount / validationStep;
+  if (Math.abs(calculatedUnits - Math.round(calculatedUnits)) < 0.000001) return null;
 
   const lower = Math.floor(amount / validationStep) * validationStep;
   const upper = Math.ceil(amount / validationStep) * validationStep;
@@ -36,10 +38,12 @@ const getInvalidUnitSaleAmount = (product, entry) => {
 
   return {
     product,
-    price: validationStep,
+    price: commercialPrice,
     lower,
     upper,
-    message: `El valor de ${modeLabel} debe ser múltiplo de $${formatCurrencyValue(validationStep, 0)}. Ingresa ${alternatives}.`,
+    message: entry.orderMode === "sale_bonus"
+      ? `El valor de ${modeLabel} debe producir unidades completas con el ${formatCurrencyValue(normalizedBonusPercent, 0)}% de vendaje. Ingresa ${alternatives}.`
+      : `El valor de ${modeLabel} debe ser múltiplo de $${formatCurrencyValue(validationStep, 0)}. Ingresa ${alternatives}.`,
   };
 };
 

@@ -322,11 +322,7 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
   const saleTotal = items
     .filter((item) => item.line_type === "sale")
     .reduce((total, item) => total + Number(item.line_total || 0), 0);
-  const {
-    visibleBonusTotal,
-    generatedBonusTotal,
-    physicalBonusTotal,
-  } = calculateVisibleBonusTotal(items, order.bonus_percent);
+  const { visibleBonusTotal } = calculateVisibleBonusTotal(items, order.bonus_percent);
   const displayItems = mergeSaleBonusDisplayItems(items);
 
   const groupedItems = displayItems.reduce((groups, item) => {
@@ -452,12 +448,10 @@ const buildReceiptHtml = ({ order, items }, settings = defaultTicketSettings) =>
       <div class="section-title">${escapeHtml(ticketSettings.detailTitle || defaultTicketSettings.detailTitle)}</div>
       ${rows}
       <div class="totals">
-        ${ticketSettings.showSaleTotal ? `<span>Venta</span><strong>${money.format(saleTotal)}</strong>` : ""}
-        ${ticketSettings.showBonusTotal ? `<span>Vendaje generado</span><strong>${money.format(visibleBonusTotal)}</strong>` : ""}
-        ${ticketSettings.showBonusTotal && generatedBonusTotal > 0 ? `<span>Valor físico entregado</span><strong>${money.format(physicalBonusTotal)}</strong>` : ""}
-        ${ticketSettings.showGiftTotal ? `<span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>` : ""}
-        ${ticketSettings.showExchangeTotal ? `<span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>` : ""}
-        ${Number(order.credit_redeemed_amount || 0) > 0 ? `<span>Saldo a favor aplicado</span><strong>-${money.format(Number(order.credit_redeemed_amount || 0))}</strong>` : ""}
+        ${ticketSettings.showSaleTotal && saleTotal > 0 ? `<span>Venta</span><strong>${money.format(saleTotal)}</strong>` : ""}
+        ${ticketSettings.showBonusTotal && visibleBonusTotal > 0 ? `<span>Vendaje</span><strong>${money.format(visibleBonusTotal)}</strong>` : ""}
+        ${ticketSettings.showGiftTotal && Number(order.gift_total || 0) > 0 ? `<span>Obsequio</span><strong>${money.format(Number(order.gift_total || 0))}</strong>` : ""}
+        ${ticketSettings.showExchangeTotal && Number(order.exchange_total || 0) > 0 ? `<span>Cambio</span><strong>${money.format(Number(order.exchange_total || 0))}</strong>` : ""}
         <span class="total">TOTAL A COBRAR</span><strong class="total">${money.format(Number(order.amount_to_collect ?? order.grand_total ?? 0))}</strong>
       </div>
       ${order.notes ? `<div class="rule"></div><div>Nota: ${escapeHtml(order.notes)}</div>` : ""}
