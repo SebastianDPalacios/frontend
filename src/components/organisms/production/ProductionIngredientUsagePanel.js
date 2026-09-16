@@ -8,6 +8,20 @@ import { normalizeRows } from "views/modules/flow-utils";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
+const measurementUnitNames = {
+  g: "gramos",
+  kg: "kilogramos",
+  ml: "mililitros",
+  l: "litros",
+  unit: "unidades",
+  units: "unidades",
+  unidad: "unidades",
+  package: "paquetes",
+  roll: "rollos",
+  bag: "bolsas",
+  box: "cajas",
+};
+const formatMeasurementUnit = (unit) => measurementUnitNames[String(unit || "unidad").trim().toLowerCase()] || String(unit || "unidades");
 const getWeekValue = (value) => {
   return getIsoWeekInputValue(parseInputDate(value));
 };
@@ -45,7 +59,7 @@ const IngredientGrid = ({ ingredients }) => (
       <Grid item xs={12} sm={6} lg={4} key={`${ingredient.id}-${ingredient.unit}`}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} sx={{ px: 1.5, py: 1.25, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
           <Typography sx={{ fontWeight: 750 }}>{ingredient.name}</Typography>
-          <Chip size="small" color="primary" label={`${formatNumber(ingredient.quantity)} ${ingredient.unit}`} sx={{ fontWeight: 900 }} />
+          <Chip size="small" color="primary" label={`${formatNumber(ingredient.quantity)} ${formatMeasurementUnit(ingredient.unit)}`} sx={{ fontWeight: 900 }} />
         </Stack>
       </Grid>
     ))}
@@ -272,7 +286,7 @@ const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey, p
                 <Box key={product.productId} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "primary.main", color: "primary.contrastText" }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                     <Typography sx={{ fontWeight: 850 }}>{product.name}</Typography>
-                    <Chip label={`${formatNumber(product.quantity)} unid.`} size="small" sx={{ bgcolor: "secondary.main", color: "secondary.contrastText", fontWeight: 900 }} />
+                    <Chip label={`${formatNumber(product.quantity)} unidades`} size="small" sx={{ bgcolor: "secondary.main", color: "secondary.contrastText", fontWeight: 900 }} />
                   </Stack>
                 </Box>
               ))}
@@ -290,7 +304,7 @@ const ProductionIngredientUsagePanel = ({ branchId, referenceDate, refreshKey, p
                   {group.ingredients.map((ingredient) => (
                     <Stack key={`${ingredient.id}-${ingredient.unit}`} direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ px: 2, py: 1.25, borderTop: "1px solid", borderColor: "divider" }}>
                       <Typography sx={{ fontWeight: 700 }}>{ingredient.name}</Typography>
-                      <Chip color="primary" label={`${formatNumber(ingredient.quantity)} ${ingredient.unit}`} sx={{ fontWeight: 900, fontSize: 15 }} />
+                      <Chip color="primary" label={`${formatNumber(ingredient.quantity)} ${formatMeasurementUnit(ingredient.unit)}`} sx={{ fontWeight: 900, fontSize: 15 }} />
                     </Stack>
                   ))}
                 </Box>

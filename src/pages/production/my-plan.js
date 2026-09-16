@@ -4,6 +4,7 @@ import { Alert, Box, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableC
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker, BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
 import productionService from "services/production/production-service";
+import authService from "services/auth/auth-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
@@ -28,11 +29,24 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [bakers, setBakers] = useState([]);
+  const [bakerEmployeeId, setBakerEmployeeId] = useState("");
+  const currentUser = authService.getCurrentUser() || {};
+  const isAdministrator = (currentUser.roles || []).some((role) => ["ADMIN", "SUPER_ADMIN"].includes(typeof role === "string" ? role : role?.code))
+    || (currentUser.permissions || []).some((permission) => (typeof permission === "string" ? permission : permission?.code) === "production.manage");
+
+  useEffect(() => {
+    if (!isAdministrator) return;
+    productionService.getMyProductionBaseData().then((response) => {
+      if (response?.code === 1) setBakers(normalizeRows(response.data?.bakers));
+    }).catch(() => {});
+  }, [isAdministrator]);
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
     try {
       const params = isHistory && periodType === "month" ? getMonthRange(selectedDate) : { planned_date: selectedDate };
+      if (isAdministrator && bakerEmployeeId) params.baker_employee_id = bakerEmployeeId;
       const response = await productionService.getMyPlans(params);
       if (response?.code !== 1) throw new Error(response?.message || "No se pudieron cargar los planes.");
       setPlans(normalizeRows(response.data));
@@ -42,7 +56,7 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
     } finally {
       setLoading(false);
     }
-  }, [isHistory, periodType, selectedDate]);
+  }, [bakerEmployeeId, isAdministrator, isHistory, periodType, selectedDate]);
 
   useEffect(() => { loadPlans(); }, [loadPlans]);
 
@@ -78,24 +92,32 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
           ) : (
             <Box><Typography variant="caption" color="text.secondary">Fecha de trabajo</Typography><Typography variant="h6" sx={{ fontWeight: 900 }}>{selectedDate}</Typography></Box>
           )}
-          <AppButton component={Link} href={isHistory ? "/production/my-plan" : "/production/history"} variant="outlined" color="secondary">
-            {isHistory ? "Volver al plan de hoy" : "Ver historial"}
-          </AppButton>
+          {isAdministrator ? <TextField select label="Panadero" value={bakerEmployeeId} onChange={(event) => setBakerEmployeeId(event.target.value)} sx={{ minWidth: 260 }}>
+            <MenuItem value="">Todos los panaderos</MenuItem>
+            {bakers.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}
+          </TextField> : null}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {isAdministrator ? <AppButton component={Link} href="/production/planning" color="secondary">Administrar planes</AppButton> : null}
+            <AppButton component={Link} href={isHistory ? "/production/my-plan" : "/production/history"} variant="outlined" color="secondary">
+              {isHistory ? "Volver al plan de hoy" : "Ver historial"}
+            </AppButton>
+          </Stack>
         </Stack>
       </Paper>
 
       {loading ? <Alert severity="info">Cargando productos asignados...</Alert> : null}
-      {!loading && rows.length === 0 ? <Alert severity="info">{isHistory ? "No hay planes en el periodo seleccionado." : "No tienes productos asignados para hoy."}</Alert> : null}
+      {!loading && rows.length === 0 ? <Alert severity="info">{isHistory ? "No hay planes en el periodo seleccionado." : isAdministrator ? "No hay productos asignados para hoy con los filtros seleccionados." : "No tienes productos asignados para hoy."}</Alert> : null}
       {!loading && rows.length > 0 ? (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
           <Table sx={{ minWidth: 850 }}>
             <TableHead><TableRow sx={{ "& th": { fontWeight: 900, bgcolor: "background.default" } }}>
               {isHistory ? <TableCell>Fecha</TableCell> : null}
-              <TableCell>Producto</TableCell><TableCell>Tipo</TableCell><TableCell>Cantidad solicitada</TableCell><TableCell>Receta vigente</TableCell><TableCell>Sucursal</TableCell>
+              {isAdministrator ? <TableCell>Panadero</TableCell> : null}<TableCell>Producto</TableCell><TableCell>Tipo</TableCell><TableCell>Cantidad solicitada</TableCell><TableCell>Receta vigente</TableCell><TableCell>Sucursal</TableCell>
             </TableRow></TableHead>
             <TableBody>{rows.map((row) => (
               <TableRow key={`${row.planId}-${row.production_plan_output_id}`}>
                 {isHistory ? <TableCell>{row.plannedDate}</TableCell> : null}
+                {isAdministrator ? <TableCell>{plans.find((plan) => Number(plan.id) === Number(row.planId))?.baker_name || "-"}</TableCell> : null}
                 <TableCell><Typography sx={{ fontWeight: 900 }}>{row.product_name}</Typography></TableCell>
                 <TableCell>{requestLabels[row.request_mode] || row.request_mode}</TableCell>
                 <TableCell>{formatNumber(row.requested_quantity)} {requestUnits[row.request_mode] || ""}</TableCell>

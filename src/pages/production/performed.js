@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import productionService from "services/production/production-service";
+import authService from "services/auth/auth-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
@@ -20,8 +21,12 @@ const ProductionPerformedPage = () => {
   const [branches, setBranches] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [baker, setBaker] = useState(null);
+  const [bakers, setBakers] = useState([]);
+  const currentUser = authService.getCurrentUser() || {};
+  const isAdministrator = (currentUser.roles || []).some((role) => ["ADMIN", "SUPER_ADMIN"].includes(typeof role === "string" ? role : role?.code))
+    || (currentUser.permissions || []).some((permission) => (typeof permission === "string" ? permission : permission?.code) === "production.manage");
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
-  const [form, setForm] = useState({ branchId: "", productId: "", producedQuantity: "", producedDate: toDateInputValue() });
+  const [form, setForm] = useState({ bakerEmployeeId: "", branchId: "", productId: "", producedQuantity: "", producedDate: toDateInputValue() });
 
   const products = useMemo(() => recipes.flatMap((recipe) => normalizeRows(recipe.outputs).map((output) => ({
     ...output,
@@ -92,6 +97,7 @@ const ProductionPerformedPage = () => {
       setBranches(branchRows);
       setRecipes(normalizeRows(response.data?.recipes));
       setBaker(response.data?.baker || null);
+      setBakers(normalizeRows(response.data?.bakers));
       setForm((current) => ({ ...current, branchId: current.branchId || String(branchRows[0]?.id || "") }));
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al cargar los datos de produccion."));
@@ -106,7 +112,7 @@ const ProductionPerformedPage = () => {
     if (saving) return;
     const producedQuantity = Number(form.producedQuantity || 0);
     const yieldPerBatch = Number(selectedProduct?.expected_quantity || 0);
-    if (!baker) return setError("Tu usuario debe tener un empleado panadero activo para registrar produccion.");
+    if (!baker) return setError(isAdministrator ? "Selecciona el panadero responsable." : "Tu usuario debe tener un empleado panadero activo para registrar produccion.");
     if (!Number(form.branchId) || !selectedProduct) return setError("Selecciona la sucursal y el producto elaborado.");
     if (!Number.isInteger(producedQuantity) || producedQuantity <= 0) return setError("La cantidad producida debe ser un numero entero mayor a cero.");
     if (!Number.isFinite(yieldPerBatch) || yieldPerBatch <= 0) return setError("El producto no tiene un rendimiento valido en su receta vigente.");
@@ -115,6 +121,7 @@ const ProductionPerformedPage = () => {
     setError(null);
     try {
       const response = await productionService.registerMyBatch({
+        p_baker_employee_id: Number(baker.id),
         p_branch_id: Number(form.branchId),
         p_recipe_id: Number(selectedProduct.recipe_id),
         p_batch_quantity: producedQuantity / yieldPerBatch,
@@ -170,7 +177,8 @@ const ProductionPerformedPage = () => {
         </Box>
 
         <Box sx={{ p: { xs: 2.25, sm: 3 }, bgcolor: "background.paper" }}>
-        {!baker ? <Alert severity="warning" sx={{ mb: 2 }}>Tu usuario no tiene un empleado panadero activo asociado.</Alert> : null}
+        {!baker && !isAdministrator ? <Alert severity="warning" sx={{ mb: 2 }}>Tu usuario no tiene un empleado panadero activo asociado.</Alert> : null}
+        {isAdministrator && !baker ? <Alert severity="info" sx={{ mb: 2 }}>Como administrador, selecciona el panadero por quien vas a registrar la produccion.</Alert> : null}
         <Grid
           container
           spacing={2}
@@ -179,12 +187,23 @@ const ProductionPerformedPage = () => {
             "& .MuiInputLabel-root": { fontWeight: 700 },
           }}
         >
-          <Grid item xs={12} md={3}>
+          {isAdministrator ? <Grid item xs={12} md={3}>
+            <TextField select fullWidth label="Panadero responsable" value={form.bakerEmployeeId} onChange={(event) => {
+              const bakerEmployeeId = event.target.value;
+              setForm((current) => ({ ...current, bakerEmployeeId }));
+              setBaker(bakers.find((item) => String(item.id) === String(bakerEmployeeId)) || null);
+              setError(null);
+            }}>
+              <MenuItem value="">Seleccionar panadero</MenuItem>
+              {bakers.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}
+            </TextField>
+          </Grid> : null}
+          <Grid item xs={12} md={isAdministrator ? 3 : 3}>
             <TextField select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
               {branches.map((branch) => <MenuItem key={branch.id} value={String(branch.id)}>{branch.name}</MenuItem>)}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={isAdministrator ? 3 : 4}>
             <Autocomplete
               fullWidth
               options={products}
@@ -196,10 +215,10 @@ const ProductionPerformedPage = () => {
               renderInput={(params) => <TextField {...params} label="Producto" placeholder="Escribe para buscar" />}
             />
           </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={isAdministrator ? 1.5 : 2}>
             <TextField fullWidth type="number" label="Unidades producidas" value={form.producedQuantity} inputProps={{ min: 1, step: 1, inputMode: "numeric" }} onChange={(event) => normalizeWholeNumberInput(event.target.value, (value) => setForm((current) => ({ ...current, producedQuantity: value })))} />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={isAdministrator ? 1.5 : 3}>
             <TextField fullWidth type="date" label="Fecha" value={form.producedDate} InputLabelProps={{ shrink: true }} onChange={(event) => setForm((current) => ({ ...current, producedDate: event.target.value }))} />
           </Grid>
           <Grid item xs={12}>

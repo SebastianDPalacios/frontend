@@ -105,6 +105,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
   const [savingKey, setSavingKey] = useState("");
   const canEdit = editableStatuses.includes(order?.status);
   const displayItems = useMemo(() => mergeSaleBonusItems(items), [items]);
+  const orderBonusPercent = Number(order?.bonus_percent ?? salesSettings.bonus_percent ?? 0);
 
   useEffect(() => {
     setDrafts(
@@ -149,7 +150,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
     const amountError = !remove ? getInvalidUnitSaleAmount(
       { ...item, unit: item.product_unit, base_price: item.unit_price },
       { ...draft, orderMode: requestedLineType },
-      { bonusPercent: salesSettings.bonus_percent }
+      { bonusPercent: orderBonusPercent }
     ) : null;
     if (amountError) {
       toast.error(amountError.message);
@@ -190,7 +191,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
     const amountError = getInvalidUnitSaleAmount(
       selectedNewProduct,
       { ...newLine, orderMode: newLine.lineType },
-      { bonusPercent: salesSettings.bonus_percent }
+      { bonusPercent: orderBonusPercent }
     );
     if (amountError) {
       toast.error(amountError.message);
@@ -335,7 +336,8 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                 const draft = drafts[item.id] || toDraft(item);
                 const amountError = getInvalidUnitSaleAmount(
                   { ...item, unit: item.product_unit, base_price: item.unit_price },
-                  { ...draft, orderMode: draft.lineType }
+                  { ...draft, orderMode: draft.lineType },
+                  { bonusPercent: orderBonusPercent }
                 );
 
                 return (
@@ -487,8 +489,8 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                     name="new-line-value"
                     value={newLine.value}
                     onChange={(event) => setNewLine((current) => ({ ...current, value: event.target.value }))}
-                    error={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType })?.message}
-                    helperText={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType })?.message}
+                    error={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType }, { bonusPercent: orderBonusPercent })?.message}
+                    helperText={getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType }, { bonusPercent: orderBonusPercent })?.message}
                   />
                 ) : (
                   <TextField
@@ -538,7 +540,7 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
               variant="contained"
               color="secondary"
               disabled={!pendingCount || Boolean(savingKey) || Boolean(
-                getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType })
+                getInvalidUnitSaleAmount(selectedNewProduct, { ...newLine, orderMode: newLine.lineType }, { bonusPercent: orderBonusPercent })
               )}
               onClick={saveAllChanges}
               sx={{ minWidth: { sm: 220 }, minHeight: 48 }}
