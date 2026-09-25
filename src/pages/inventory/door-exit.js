@@ -6,7 +6,7 @@ import SectionHeader from "components/atoms/SectionHeader";
 import PaginationControls from "components/molecules/PaginationControls";
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
-import { formatInventoryQuantity, getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
+import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
 
 const ITEMS_PAGE_SIZE = 12;
 const MAX_INVENTORY_QUANTITY = 99999999999.999;
@@ -52,7 +52,7 @@ const DoorExitPage = () => {
           item_id: Number(product.id),
           name: getDisplayName(product),
           sku: product.sku || "",
-          unit: product.unit || "unit",
+          unit: "Unidades",
           quantity_on_hand: Number(product.quantity_on_hand || 0),
         }));
 
@@ -134,11 +134,11 @@ const DoorExitPage = () => {
       const raw = quantities[product.id];
       if (raw === "" || raw === undefined || raw === null) return false;
       const value = Number(raw);
-      return !Number.isFinite(value) || value < 0 || (isIntegerUnit(product.unit) && !Number.isInteger(value));
+      return !Number.isFinite(value) || value < 0 || !Number.isInteger(value);
     });
 
     if (invalidQuantity) {
-      nextErrors.quantities = "Revisa las cantidades: usa valores positivos y enteros cuando la unidad sea unidad";
+      nextErrors.quantities = "Revisa las cantidades: los productos terminados solo permiten unidades enteras";
     }
 
     const tooLargeQuantity = products.some((product) => Number(quantities[product.id] || 0) > MAX_INVENTORY_QUANTITY);
@@ -324,7 +324,8 @@ const DoorExitPage = () => {
                           inputProps={{
                             min: 0,
                             max: Math.min(product.quantity_on_hand, MAX_INVENTORY_QUANTITY),
-                            step: isIntegerUnit(product.unit) ? 1 : 0.001,
+                            step: 1,
+                            inputMode: "numeric",
                           }}
                           fullWidth
                         />

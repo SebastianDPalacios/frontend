@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Dialog, DialogContent, DialogTitle, Grid, IconButton, Paper, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { useTheme } from "@mui/material/styles";
+import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import PackingReadyPanel from "components/organisms/production/PackingReadyPanel";
 import PackagingHistoryPanel from "components/organisms/production/PackagingHistoryPanel";
 import PendingPackagingBatches from "components/organisms/production/PendingPackagingBatches";
 import productionService from "services/production/production-service";
+import authService from "services/auth/auth-service";
+import { canManageProduction } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
@@ -27,6 +30,7 @@ const formatUnits = (value) => {
 };
 
 const getTodayInputValue = () => toDateInputValue();
+const createPackingRequestKey = () => `packing:${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 const getErrorMessage = (error, fallback) => {
   const status = Number(error?.response?.status || 0);
@@ -56,8 +60,11 @@ const formatShortDate = (value) => {
 };
 
 const ProductionPackagingPage = () => {
+  const router = useRouter();
   const theme = useTheme();
   const mobileView = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
+  const currentUser = authService.getCurrentUser() || {};
+  const isAdministrator = canManageProduction(currentUser);
   const [activeView, setActiveView] = useState("pending");
   const [mobilePackingOpen, setMobilePackingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,6 +81,15 @@ const ProductionPackagingPage = () => {
     notes: "",
   });
   const [packingRows, setPackingRows] = useState({});
+  const packingRequestKeyRef = useRef(null);
+
+  useEffect(() => {
+    if (router.isReady && router.query.view === "history") setActiveView("history");
+  }, [router.isReady, router.query.view]);
+
+  useEffect(() => {
+    packingRequestKeyRef.current = null;
+  }, [packingForm, packingRows, selectedBatchId]);
 
   useEffect(() => {
     const run = async () => {
@@ -172,29 +188,32 @@ const ProductionPackagingPage = () => {
         return {
           production_batch_output_id: Number(item.production_batch_output_id),
           packed_quantity: Number(row.packed_quantity || 0),
+          has_count: row.packed_quantity !== "" && row.packed_quantity !== null && row.packed_quantity !== undefined,
           damages: row.damages || [],
           notes: row.notes || null,
         };
       })
-      .filter((item) => item.packed_quantity > 0 || item.damages.length > 0);
+      .filter((item) => item.has_count || item.damages.length > 0);
 
     if (items.length === 0) {
       setError("Registra al menos una cantidad empacada o dañada");
       return;
     }
 
-    const invalidCount = items.some((item) => !Number.isFinite(item.packed_quantity) || item.packed_quantity < 0
-      || item.damages.some((damage) => !Number.isFinite(Number(damage.quantity)) || Number(damage.quantity) <= 0 || !damage.reason));
+    const invalidCount = items.some((item) => !Number.isInteger(item.packed_quantity) || item.packed_quantity < 0
+      || item.damages.some((damage) => !Number.isInteger(Number(damage.quantity)) || Number(damage.quantity) <= 0 || !damage.reason));
 
     if (invalidCount) {
-      setError("Revisa empacados y daños. Cada daño debe tener una cantidad mayor a cero y un motivo.");
+      setError("Revisa el conteo y los daños. Los productos terminados solo aceptan cantidades enteras y cada daño requiere un motivo.");
       return;
     }
 
     setSavingPacking(true);
     setError(null);
+    packingRequestKeyRef.current = packingRequestKeyRef.current || createPackingRequestKey();
     try {
       const result = await productionService.createPackingReport({
+        p_client_request_key: packingRequestKeyRef.current,
         p_production_batch_id: Number(selectedBatch.production_batch_id),
         p_packer_employee_id: Number(packingForm.packerId),
         p_packed_date: packingForm.packedDate || getTodayInputValue(),
@@ -208,9 +227,9 @@ const ProductionPackagingPage = () => {
       }
 
       toast.success(result?.message || "Empaque registrado");
+      packingRequestKeyRef.current = null;
       setLastPackingResult({
         batchId: selectedBatch.production_batch_id,
-        missingQuantity: Number(result.data?.missing_quantity || 0),
       });
       setPackingRows({});
       setPackingForm((current) => ({ ...current, notes: "" }));
@@ -254,6 +273,7 @@ const ProductionPackagingPage = () => {
       createPackingReport={createPackingReport}
       formatUnits={formatUnits}
       packers={packers}
+      canSelectPacker={isAdministrator}
       packingForm={packingForm}
       packingRows={packingRows}
       savingPacking={savingPacking}
@@ -262,6 +282,7 @@ const ProductionPackagingPage = () => {
       setPackingForm={setPackingForm}
       totalDamaged={totalDamaged}
       totalPacked={totalPacked}
+      today={getTodayInputValue()}
       updatePackingRow={updatePackingRow}
     />
   );
@@ -277,8 +298,8 @@ const ProductionPackagingPage = () => {
         </Alert>
       ) : null}
       {lastPackingResult ? (
-        <Alert severity={lastPackingResult.missingQuantity > 0 ? "warning" : "success"} sx={{ mb: 2 }}>
-          Lote #{lastPackingResult.batchId} registrado. Faltantes detectados: {formatUnits(lastPackingResult.missingQuantity)}.
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Conteo guardado correctamente.
         </Alert>
       ) : null}
 

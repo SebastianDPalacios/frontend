@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Autocomplete, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 import inventoryService from "services/inventory/inventory-service";
-import { formatInventoryQuantity, getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
+import { formatInventoryQuantity, getDisplayName } from "views/modules/flow-utils";
 
 const MAX_QUANTITY = 99999999999.999;
 
@@ -39,7 +39,7 @@ const ProductStockEntryDialog = ({ products, product, branchId, open, onClose, o
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0 || parsedQuantity > MAX_QUANTITY) {
       return setError("Ingresa una cantidad valida mayor que cero.");
     }
-    if (isIntegerUnit(selectedProduct.unit) && !Number.isInteger(parsedQuantity)) {
+    if (!Number.isInteger(parsedQuantity)) {
       return setError("Este producto solo permite cantidades enteras.");
     }
     setSaving(true);
@@ -69,7 +69,7 @@ const ProductStockEntryDialog = ({ products, product, branchId, open, onClose, o
     }
   };
 
-  const unit = selectedProduct?.unit || "unit";
+  const unit = "Unidades";
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3, m: 1.5 } }}>
@@ -98,7 +98,7 @@ const ProductStockEntryDialog = ({ products, product, branchId, open, onClose, o
                 label={`Cantidad a agregar (${unit})`}
                 value={quantity}
                 onChange={(event) => setQuantity(event.target.value)}
-                inputProps={{ min: 0, max: MAX_QUANTITY, step: isIntegerUnit(unit) ? 1 : 0.001 }}
+                inputProps={{ min: 0, max: MAX_QUANTITY, step: 1, inputMode: "numeric" }}
               />
               <Stack sx={{ minWidth: 180, justifyContent: "center" }}>
                 <Typography variant="caption" color="text.secondary">Stock resultante</Typography>

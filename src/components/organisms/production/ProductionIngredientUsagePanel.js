@@ -5,23 +5,11 @@ import { BalanceDatePicker, BalanceMonthPicker, BalanceWeekPicker } from "@core/
 import { getFortnightRange, getIsoWeekInputValue, getMonthRange, getWeekRange, parseInputDate } from "@core/components/ui/balance-date-utils";
 import productionService from "services/production/production-service";
 import { normalizeRows } from "views/modules/flow-utils";
+import { getMeasurementUnitName } from "utils/production-measurement-units";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-const measurementUnitNames = {
-  g: "gramos",
-  kg: "kilogramos",
-  ml: "mililitros",
-  l: "litros",
-  unit: "unidades",
-  units: "unidades",
-  unidad: "unidades",
-  package: "paquetes",
-  roll: "rollos",
-  bag: "bolsas",
-  box: "cajas",
-};
-const formatMeasurementUnit = (unit) => measurementUnitNames[String(unit || "unidad").trim().toLowerCase()] || String(unit || "unidades");
+const formatMeasurementUnit = getMeasurementUnitName;
 const getWeekValue = (value) => {
   return getIsoWeekInputValue(parseInputDate(value));
 };

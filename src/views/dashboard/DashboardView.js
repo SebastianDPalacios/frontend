@@ -140,17 +140,6 @@ const DashboardView = ({ stats = {}, insights = {}, currentUser = null }) => {
           icon: <FactCheckIcon />,
         }
       : null,
-    canManageProduction && Number(insights.shortages?.cases_count || 0) > 0
-      ? {
-          title: "Faltantes del mes",
-          value: insights.shortages.missing_quantity,
-          helper: `${insights.shortages.cases_count} casos en ${insights.shortages.affected_products} productos.`,
-          href: "/production/shortages",
-          label: "Revisar faltantes",
-          color: Number(insights.shortages.suspected_theft_cases || 0) > 0 ? "error" : "warning",
-          icon: <WarningAmberIcon />,
-        }
-      : null,
     canManageInventory && insights.inventory
       ? {
           title: "Stock critico",

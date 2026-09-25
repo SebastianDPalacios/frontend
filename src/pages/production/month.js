@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Chip, Grid, LinearProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Box, Chip, Grid, LinearProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
-import { getMonthRange, toMonthInputValue } from "@core/components/ui/balance-date-utils";
+import { getMonthRange, toDateInputValue, toMonthInputValue } from "@core/components/ui/balance-date-utils";
 import catalogService from "services/catalog/catalog-service";
 import productionService from "services/production/production-service";
 import recipesService from "services/recipes/recipes-service";
 import exportProductionMonthExcel from "components/organisms/production/exportProductionMonthExcel";
+import ProductionProductSummary from "components/organisms/production/ProductionProductSummary";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 
@@ -24,7 +26,7 @@ const moneyFormatter = new Intl.NumberFormat("es-CO", {
 const formatUnits = (value) => numberFormatter.format(Number(value || 0));
 const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
-const formatKilos = (grams) => `${formatUnits(Number(grams || 0) / 1000)} kg`;
+const formatKilos = (grams) => `${formatUnits(Number(grams || 0) / 1000)} kilogramos`;
 
 const getRecipeName = (recipe) => {
   const notes = String(recipe?.notes || "").trim();
@@ -57,6 +59,8 @@ const SmallStat = ({ label, value }) => (
 );
 
 const ProductionMonthPage = () => {
+  const router = useRouter();
+  const queryLoaded = useRef(false);
   const [loading, setLoading] = useState(true);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,10 +71,12 @@ const ProductionMonthPage = () => {
     branchId: "",
     recipeId: "",
   });
+  const [selectedDay, setSelectedDay] = useState(toDateInputValue());
   const [flourMaterialId, setFlourMaterialId] = useState("");
   const [report, setReport] = useState({
     summary: {},
     products: [],
+    daily_products: [],
     batches: [],
     packers: [],
     plan_products: [],
@@ -87,6 +93,33 @@ const ProductionMonthPage = () => {
   });
 
   const reportRange = useMemo(() => getMonthRange(filters.month), [filters.month]);
+
+  useEffect(() => {
+    if (!router.isReady || queryLoaded.current) return;
+    queryLoaded.current = true;
+    const queryMonth = /^\d{4}-\d{2}$/.test(String(router.query.month || "")) ? String(router.query.month) : null;
+    const queryDay = /^\d{4}-\d{2}-\d{2}$/.test(String(router.query.day || "")) ? String(router.query.day) : null;
+    setFilters((current) => ({
+      month: queryMonth || current.month,
+      branchId: router.query.branchId ? String(router.query.branchId) : current.branchId,
+      recipeId: router.query.recipeId ? String(router.query.recipeId) : current.recipeId,
+    }));
+    if (queryDay) setSelectedDay(queryDay);
+  }, [router.isReady, router.query.branchId, router.query.day, router.query.month, router.query.recipeId]);
+
+  useEffect(() => {
+    if (!filters.month || selectedDay.startsWith(`${filters.month}-`)) return;
+    const currentMonth = toMonthInputValue();
+    setSelectedDay(filters.month === currentMonth ? toDateInputValue() : `${filters.month}-01`);
+  }, [filters.month, selectedDay]);
+
+  useEffect(() => {
+    if (!router.isReady || !queryLoaded.current) return;
+    const query = { month: filters.month, day: selectedDay };
+    if (filters.branchId) query.branchId = filters.branchId;
+    if (filters.recipeId) query.recipeId = filters.recipeId;
+    router.replace({ pathname: "/production/month", query }, undefined, { shallow: true });
+  }, [filters.branchId, filters.month, filters.recipeId, router, selectedDay]);
   const selectedBranchName = useMemo(
     () => branches.find((branch) => String(branch.id) === String(filters.branchId))?.name || "Todas las sucursales",
     [branches, filters.branchId]
@@ -185,6 +218,7 @@ const ProductionMonthPage = () => {
         setReport({
           summary: response.data?.summary || {},
           products: normalizeRows(response.data?.products),
+          daily_products: normalizeRows(response.data?.daily_products).sort((a, b) => String(a.produced_date).localeCompare(String(b.produced_date)) || String(a.product_name).localeCompare(String(b.product_name))),
           batches: normalizeRows(response.data?.batches),
           packers: normalizeRows(response.data?.packers),
           plan_products: normalizeRows(response.data?.plan_products),
@@ -265,6 +299,28 @@ const ProductionMonthPage = () => {
 
   const handleExport = async () => {
     try {
+      const damageRows = [];
+      const firstDamagePage = await productionService.getPackingDamageReport({
+        dateFrom: reportRange.from,
+        dateTo: reportRange.to,
+        branchId: filters.branchId || null,
+        recipeId: filters.recipeId || null,
+        page: 1,
+        pageSize: 500,
+      });
+      damageRows.push(...(firstDamagePage.data?.rows || []));
+      const damagePages = Math.ceil(Number(firstDamagePage.data?.total || 0) / 500);
+      for (let damagePage = 2; damagePage <= damagePages; damagePage += 1) {
+        const response = await productionService.getPackingDamageReport({
+          dateFrom: reportRange.from,
+          dateTo: reportRange.to,
+          branchId: filters.branchId || null,
+          recipeId: filters.recipeId || null,
+          page: damagePage,
+          pageSize: 500,
+        });
+        damageRows.push(...(response.data?.rows || []));
+      }
       await exportProductionMonthExcel({
         filters,
         reportRange,
@@ -273,6 +329,11 @@ const ProductionMonthPage = () => {
         report,
         flourDailyUsage: filteredFlourDailyUsage,
         selectedFlourName,
+        damageReport: {
+          rows: damageRows,
+          totals_by_product: firstDamagePage.data?.totals_by_product || [],
+          totals_by_reason: firstDamagePage.data?.totals_by_reason || [],
+        },
       });
     } catch (exportError) {
       setError(getErrorMessage(exportError, "No se pudo generar el archivo Excel."));
@@ -308,8 +369,8 @@ const ProductionMonthPage = () => {
             <AppButton variant="outlined" color="secondary" onClick={handleExport} disabled={loading}>
               Exportar Excel
             </AppButton>
-            <AppButton variant="outlined" color="secondary" component={Link} href="/production/day">
-              Ver diario
+            <AppButton variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/day", query: { date: selectedDay, ...(filters.branchId ? { branchId: filters.branchId } : {}), ...(filters.recipeId ? { recipeId: filters.recipeId } : {}) } }}>
+              Ver día
             </AppButton>
             <AppButton color="secondary" component={Link} href="/production/packaging">
               Crear o contar lote
@@ -395,6 +456,25 @@ const ProductionMonthPage = () => {
       </Grid>
 
       <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>Detalle diario del mes</Typography>
+            <Typography variant="body2" color="text.secondary">Días ordenados cronológicamente. Las diferencias se calculan por lote y luego se suman, sin compensar faltantes con sobrantes.</Typography>
+          </Box>
+          <Chip label={`${report.daily_products.length} registros`} variant="outlined" />
+        </Stack>
+        <TableContainer>
+          <Table size="small">
+            <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Producto</TableCell><TableCell align="right">Informado</TableCell><TableCell align="right">Producido</TableCell><TableCell align="right">Empacado</TableCell><TableCell align="right">Dañado</TableCell><TableCell align="right">Faltante</TableCell><TableCell align="right">Sobrante</TableCell><TableCell align="right">A inventario</TableCell><TableCell>Estado</TableCell><TableCell /></TableRow></TableHead>
+            <TableBody>
+              {!loading && report.daily_products.length === 0 ? <TableRow><TableCell colSpan={11}><Alert severity="info">No hay producción en este mes para los filtros seleccionados.</Alert></TableCell></TableRow> : null}
+              {report.daily_products.map((row) => <TableRow key={`${row.produced_date}-${row.product_id}`}><TableCell>{String(row.produced_date).slice(0, 10)}</TableCell><TableCell><b>{row.product_name}</b></TableCell><TableCell align="right">{row.informed_quantity == null ? "—" : formatUnits(row.informed_quantity)}</TableCell><TableCell align="right">{formatUnits(row.produced_quantity)}</TableCell><TableCell align="right">{formatUnits(row.packed_quantity)}</TableCell><TableCell align="right">{formatUnits(row.damaged_quantity)}</TableCell><TableCell align="right">{formatUnits(row.shortage_quantity)}</TableCell><TableCell align="right">{formatUnits(row.surplus_quantity)}</TableCell><TableCell align="right">{formatUnits(row.inventory_quantity)}</TableCell><TableCell>{({ pending_count: "Pendiente de conteo", matched: "Conciliado", shortage: "Con faltante", surplus: "Con sobrante", corrected: "Corregido" })[row.reconciliation_status]}</TableCell><TableCell><AppButton size="small" variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/day", query: { date: String(row.produced_date).slice(0, 10), ...(filters.branchId ? { branchId: filters.branchId } : {}), ...(filters.recipeId ? { recipeId: filters.recipeId } : {}) } }}>Ver día</AppButton></TableCell></TableRow>)}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 3 }}>
         <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
@@ -473,7 +553,7 @@ const ProductionMonthPage = () => {
                   Productos del mes
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Fabricados, listos, dañados y pendientes por producto.
+                  Informado, producido y conciliado por producto con la misma fórmula del reporte diario.
                 </Typography>
               </Box>
               <Chip label={`${report.products.length} productos`} variant="outlined" />
@@ -484,36 +564,12 @@ const ProductionMonthPage = () => {
 
             <Stack spacing={1}>
               {report.products.map((product) => (
-                <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
-                  <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
-                    <Grid item xs={12} md={4}>
-                      <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
-                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75, mt: 0.75 }}>
-                        <Chip
-                          size="small"
-                          label={`Bultos: ${formatUnits(product.batches_count)}`}
-                          color="info"
-                          variant="outlined"
-                        />
-                      </Stack>
-                    </Grid>
-                    <Grid item xs={6} sm={3} md={2}>
-                      <SmallStat label="Fabricados" value={formatUnits(product.produced_quantity)} />
-                    </Grid>
-                    <Grid item xs={6} sm={3} md={2}>
-                      <SmallStat label="Empacados" value={formatUnits(product.packed_quantity)} />
-                    </Grid>
-                    <Grid item xs={6} sm={3} md={2}>
-                      <SmallStat
-                        label="Dañados / faltantes"
-                        value={`${formatUnits(product.damaged_quantity)} / ${formatUnits(product.missing_quantity)}`}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3} md={2}>
-                      <SmallStat label="Pendientes" value={formatUnits(product.pending_quantity)} />
-                    </Grid>
-                  </Grid>
-                </Paper>
+                <ProductionProductSummary
+                  key={product.product_id}
+                  product={product}
+                  formatUnits={formatUnits}
+                  showBatchCount
+                />
               ))}
             </Stack>
           </Paper>

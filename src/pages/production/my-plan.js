@@ -3,17 +3,16 @@ import Link from "next/link";
 import { Alert, Box, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker, BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import productionService from "services/production/production-service";
 import authService from "services/auth/auth-service";
+import { canManageProduction } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const formatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => formatter.format(Number(value || 0));
-const getLocalDate = () => {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-};
+const getLocalDate = () => toDateInputValue();
 const getMonthRange = (date) => {
   const [year, month] = String(date).slice(0, 7).split("-").map(Number);
   const lastDay = new Date(year, month, 0).getDate();
@@ -21,6 +20,7 @@ const getMonthRange = (date) => {
 };
 const requestLabels = { units: "Por unidades", arrobas: "Por arrobas", bags: "Por bultos", trays: "Por latas" };
 const requestUnits = { units: "unidades", arrobas: "arrobas", bags: "bultos", trays: "latas" };
+const planStatusLabels = { informed: "Informada", viewed: "Vista", cancelled: "Cancelada" };
 
 export const ProductionMyPlanPage = ({ mode = "today" }) => {
   const isHistory = mode === "history";
@@ -32,8 +32,7 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
   const [bakers, setBakers] = useState([]);
   const [bakerEmployeeId, setBakerEmployeeId] = useState("");
   const currentUser = authService.getCurrentUser() || {};
-  const isAdministrator = (currentUser.roles || []).some((role) => ["ADMIN", "SUPER_ADMIN"].includes(typeof role === "string" ? role : role?.code))
-    || (currentUser.permissions || []).some((permission) => (typeof permission === "string" ? permission : permission?.code) === "production.manage");
+  const isAdministrator = canManageProduction(currentUser);
 
   useEffect(() => {
     if (!isAdministrator) return;
@@ -63,6 +62,7 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
   const rows = useMemo(() => plans.filter((plan) => isHistory || plan.status !== "cancelled").flatMap((plan) => normalizeRows(plan.product_assignments).map((product) => ({
     ...product,
     planId: plan.id,
+    planStatus: plan.status,
     plannedDate: String(plan.planned_date || "").split("T")[0],
     branchName: plan.branch_name,
   }))), [isHistory, plans]);
@@ -70,7 +70,7 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
   return (
     <FlowPageLayout
       title={isHistory ? "Historial de planes" : "Mi plan de produccion"}
-      subtitle={isHistory ? "Consulta las asignaciones de dias anteriores." : "Lista informativa de los productos asignados para hoy."}
+      subtitle={isHistory ? "Consulta las listas informativas de dias anteriores." : "Lista informativa de los productos comunicados para hoy."}
     >
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
@@ -105,18 +105,20 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
         </Stack>
       </Paper>
 
-      {loading ? <Alert severity="info">Cargando productos asignados...</Alert> : null}
-      {!loading && rows.length === 0 ? <Alert severity="info">{isHistory ? "No hay planes en el periodo seleccionado." : isAdministrator ? "No hay productos asignados para hoy con los filtros seleccionados." : "No tienes productos asignados para hoy."}</Alert> : null}
+      {loading ? <Alert severity="info">Cargando productos informados...</Alert> : null}
+      {!loading && rows.length === 0 ? <Alert severity="info">{isHistory ? "No hay listas informativas en el periodo seleccionado." : isAdministrator ? "No hay productos informados para hoy con los filtros seleccionados." : "No tienes productos informados para hoy."}</Alert> : null}
       {!loading && rows.length > 0 ? (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
           <Table sx={{ minWidth: 850 }}>
             <TableHead><TableRow sx={{ "& th": { fontWeight: 900, bgcolor: "background.default" } }}>
               {isHistory ? <TableCell>Fecha</TableCell> : null}
+              <TableCell>Estado</TableCell>
               {isAdministrator ? <TableCell>Panadero</TableCell> : null}<TableCell>Producto</TableCell><TableCell>Tipo</TableCell><TableCell>Cantidad solicitada</TableCell><TableCell>Receta vigente</TableCell><TableCell>Sucursal</TableCell>
             </TableRow></TableHead>
             <TableBody>{rows.map((row) => (
               <TableRow key={`${row.planId}-${row.production_plan_output_id}`}>
                 {isHistory ? <TableCell>{row.plannedDate}</TableCell> : null}
+                <TableCell>{planStatusLabels[row.planStatus] || "Informada"}</TableCell>
                 {isAdministrator ? <TableCell>{plans.find((plan) => Number(plan.id) === Number(row.planId))?.baker_name || "-"}</TableCell> : null}
                 <TableCell><Typography sx={{ fontWeight: 900 }}>{row.product_name}</Typography></TableCell>
                 <TableCell>{requestLabels[row.request_mode] || row.request_mode}</TableCell>

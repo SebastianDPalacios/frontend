@@ -272,7 +272,7 @@ const ManualAdjustmentPanel = ({
                             </Grid>
                           </Grid>
                           <Alert severity="info">
-                            Suma {formatUnits(purchaseRow.baseQuantity)} {item.unit}
+                            Valor ingresado: {formatUnits(purchaseRow.baseQuantity)} {item.unit}. EntrarÃ¡ al inventario: {formatUnits(purchaseRow.normalizedQuantity)} {item.unit}.
                             {purchaseRow.unitCost ? ` Costo: ${formatMoney(purchaseRow.unitCost)} por ${item.unit}` : ""}
                           </Alert>
                         </Stack>

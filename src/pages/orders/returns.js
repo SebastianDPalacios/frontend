@@ -36,6 +36,13 @@ const statusConfig = {
   pending_authorization: { label: "Pendiente de autorizacion", color: "warning" },
   completed: { label: "Autorizada con saldo", color: "success" },
   rejected: { label: "Rechazada", color: "error" },
+  annulled: { label: "Anulada", color: "default" },
+};
+
+const commissionTreatmentLabels = {
+  no_effect: "No afecta comisión",
+  reduce: "Reduce comisión",
+  replace_base: "Reemplaza la base comercial",
 };
 
 const formatDateTime = (value) => {
@@ -86,22 +93,45 @@ const isReturnReportOpen = (order) => {
   return Number.isFinite(deadline.getTime()) && deadline.getTime() >= Date.now();
 };
 
-const initialForm = {
+const createRequestKey = () =>
+  globalThis.crypto?.randomUUID?.() || `sales-return-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const allocateReceivedQuantity = (item, requestedQuantity) => {
+  const sources = Array.isArray(item?.source_items) && item.source_items.length
+    ? item.source_items
+    : [{ order_item_id: item?.order_item_id, returnable_quantity: item?.returnable_quantity }];
+  let pending = Number(requestedQuantity || 0);
+  return sources.reduce((allocations, source) => {
+    if (pending <= 0) return allocations;
+    const quantity = Math.min(Number(source.returnable_quantity || 0), pending);
+    if (quantity > 0) allocations.push({ order_item_id: Number(source.order_item_id), quantity });
+    pending -= quantity;
+    return allocations;
+  }, []);
+};
+
+const createInitialForm = () => ({
+  requestKey: createRequestKey(),
+  operationType: "return",
+  customerId: "",
   orderId: "",
   orderItemId: "",
+  replacementProductId: "",
+  replacementQuantity: "",
   quantity: "",
   reason: "expired",
   notes: "",
-};
+});
 
 const SalesReturnsPage = () => {
   const currentUser = authService.getCurrentUser() || {};
   const canAuthorizeReturns = isAdministrativeUser(currentUser);
-  const [options, setOptions] = useState({ orders: [], items: [], products: [] });
+  const [options, setOptions] = useState({ customers: [], orders: [], items: [], products: [] });
   const [returns, setReturns] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(createInitialForm);
   const [allowedDate, setAllowedDate] = useState("");
   const [rejectionReasons, setRejectionReasons] = useState({});
+  const [annulmentReasons, setAnnulmentReasons] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingId, setProcessingId] = useState(null);
@@ -119,6 +149,7 @@ const SalesReturnsPage = () => {
       ]);
       if (optionsResponse?.code === 1) {
         setOptions({
+          customers: normalizeRows(optionsResponse.data?.customers),
           orders: normalizeRows(optionsResponse.data?.orders),
           items: normalizeRows(optionsResponse.data?.items),
           products: normalizeRows(optionsResponse.data?.products),
@@ -150,19 +181,28 @@ const SalesReturnsPage = () => {
     () => openReturnOrders.find((order) => String(order.id) === String(form.orderId)),
     [form.orderId, openReturnOrders]
   );
+  const selectedCustomer = useMemo(
+    () => options.customers.find((customer) => String(customer.id) === String(form.customerId)),
+    [form.customerId, options.customers]
+  );
   const allowedDates = useMemo(
     () =>
       Array.from(
-        new Set(openReturnOrders.map((order) => formatDate(order.order_date || order.actual_delivered_at)).filter(Boolean))
+        new Set(
+          openReturnOrders
+            .filter((order) => form.customerId && String(order.customer_id) === String(form.customerId))
+            .map((order) => formatDate(order.order_date || order.actual_delivered_at))
+            .filter(Boolean)
+        )
       ).sort((a, b) => b.localeCompare(a)),
-    [openReturnOrders]
+    [form.customerId, openReturnOrders]
   );
   const dateFilteredOrders = useMemo(
     () =>
-      allowedDate
-        ? openReturnOrders.filter((order) => formatDate(order.order_date || order.actual_delivered_at) === allowedDate)
-        : openReturnOrders,
-    [allowedDate, openReturnOrders]
+      openReturnOrders.filter((order) =>
+        (!form.customerId || String(order.customer_id) === String(form.customerId))
+        && (!allowedDate || formatDate(order.order_date || order.actual_delivered_at) === allowedDate)),
+    [allowedDate, form.customerId, openReturnOrders]
   );
   const orderItems = useMemo(
     () => options.items.filter((item) => String(item.order_id) === String(form.orderId)),
@@ -181,7 +221,7 @@ const SalesReturnsPage = () => {
         ? salesReturn.status === "pending_authorization"
         : salesReturn.status !== "pending_authorization";
       const matchesDate = !trackingDate || formatDate(salesReturn.reported_at) === trackingDate;
-      const searchable = `${salesReturn.customer_name || ""} ${salesReturn.sales_agent_name || ""} ${(salesReturn.items || []).map((item) => item.returned_product_name).join(" ")}`.toLocaleLowerCase("es");
+      const searchable = `${salesReturn.customer_name || ""} ${salesReturn.sales_agent_name || ""} ${(salesReturn.items || []).map((item) => `${item.returned_product_name || ""} ${item.replacement_product_name || ""}`).join(" ")}`.toLocaleLowerCase("es");
       return matchesTab && matchesDate && (!search || searchable.includes(search));
     });
   }, [returns, trackingDate, trackingSearch, trackingTab]);
@@ -210,34 +250,44 @@ const SalesReturnsPage = () => {
   }, [allowedDate, allowedDates]);
 
   const createReturn = async () => {
+    const requestedQuantity = Number(form.quantity || 0);
     if (
       !selectedOrder ||
       !selectedItem ||
-      Number(form.quantity || 0) <= 0
+      !selectedCustomer ||
+      (form.operationType === "exchange" && (!form.replacementProductId || Number(form.replacementQuantity || 0) <= 0)) ||
+      !Number.isInteger(requestedQuantity) ||
+      requestedQuantity <= 0 ||
+      requestedQuantity > Number(selectedItem?.returnable_quantity || 0)
     ) {
-      toast.error("Completa pedido, producto devuelto y cantidad");
+      toast.error("Completa el pedido y registra una cantidad entera que no supere lo disponible");
       return;
     }
     setSaving(true);
     try {
+      const receivedAllocations = allocateReceivedQuantity(selectedItem, requestedQuantity);
       const result = await ordersService.createSalesReturn({
         p_order_id: Number(selectedOrder.id),
+        p_request_key: form.requestKey,
+        p_customer_id: Number(selectedCustomer.id),
+        p_operation_type: form.operationType,
         p_notes: form.notes.trim() || null,
-        p_items: [
-          {
-            order_item_id: Number(selectedItem.order_item_id),
-            quantity: Number(form.quantity),
+        p_items: receivedAllocations.map((allocation, index) =>
+          ({
+            ...allocation,
+            replacement_product_id: form.operationType === "exchange" && index === 0 ? Number(form.replacementProductId) : null,
+            replacement_quantity: form.operationType === "exchange" && index === 0 ? Number(form.replacementQuantity) : null,
             reason: form.reason,
             notes: form.notes.trim() || null,
-          },
-        ],
+          })
+        ),
       });
       if (result?.code !== 1) {
         toast.error(result?.message || "No se pudo registrar la devolucion");
         return;
       }
       toast.success(result.message);
-      setForm(initialForm);
+      setForm(createInitialForm());
       await loadData();
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message || "Error al registrar la devolucion");
@@ -285,12 +335,39 @@ const SalesReturnsPage = () => {
     }
   };
 
+  const annulExchange = async (salesReturnId) => {
+    const reason = String(annulmentReasons[salesReturnId] || "").trim();
+    if (reason.length < 5) {
+      toast.error("Escribe un motivo de anulación de al menos 5 caracteres");
+      return;
+    }
+    setProcessingId(salesReturnId);
+    try {
+      const result = await ordersService.annulSalesExchange(salesReturnId, reason);
+      if (result?.code !== 1) {
+        toast.error(result?.message || "No se pudo anular el cambio");
+        return;
+      }
+      toast.success(result.message);
+      await loadData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || "Error al anular el cambio");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <FlowPageLayout
       title="Cambios y devoluciones"
       subtitle="Reporta productos y gestiona la autorizacion del vendedor"
     >
       <Stack spacing={3}>
+        <Stack direction="row" sx={{ justifyContent: "flex-end" }}>
+          <Button href="/orders/returns-report" variant="outlined" color="secondary">
+            Abrir reporte
+          </Button>
+        </Stack>
         <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}>
             <Typography variant="body2" sx={{ fontWeight: 800 }}>Política de cambios y devoluciones</Typography>
@@ -309,18 +386,52 @@ const SalesReturnsPage = () => {
           <Stack spacing={2}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                Nueva devolución
+                Nueva operación
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Busca el pedido y registra el producto que devuelve el cliente.
+                Selecciona el cliente y el pedido original. El producto recibido queda informativo y el reemplazo se identifica por separado.
               </Typography>
             </Box>
             <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Tipo de operación"
+                  value={form.operationType}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      operationType: event.target.value,
+                      replacementProductId: "",
+                      replacementQuantity: "",
+                    }))
+                  }
+                >
+                  <MenuItem value="return">Devolución</MenuItem>
+                  <MenuItem value="exchange">Cambio</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={5}>
+                <Autocomplete
+                  fullWidth
+                  options={options.customers}
+                  value={selectedCustomer || null}
+                  getOptionLabel={(customer) => customer ? `${customer.name}${customer.document_number ? ` - ${customer.document_number}` : ""}` : ""}
+                  isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                  onChange={(_, customer) => {
+                    setAllowedDate("");
+                    setForm((current) => ({ ...current, customerId: customer?.id ? String(customer.id) : "", orderId: "", orderItemId: "" }));
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Cliente activo" placeholder="Buscar cliente" />}
+                />
+              </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
                   select
                   fullWidth
                   label="Fecha vigente"
+                  disabled={!selectedCustomer}
                   value={allowedDate}
                   onChange={(event) => {
                     const nextDate = event.target.value;
@@ -345,11 +456,12 @@ const SalesReturnsPage = () => {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} md={8}>
+              <Grid item xs={12}>
                 <Autocomplete
                   fullWidth
                   options={dateFilteredOrders}
                   value={selectedOrder || null}
+                  disabled={!selectedCustomer || !allowedDate}
                   getOptionLabel={(order) =>
                     order
                       ? `${formatDate(order.order_date || order.actual_delivered_at)} - Pedido #${dailyOrderNumberById[String(order.id)] || "-"} - ${order.customer_name}`
@@ -364,7 +476,7 @@ const SalesReturnsPage = () => {
                     }))
                   }
                   renderInput={(params) => (
-                    <TextField {...params} label="Pedido entregado" placeholder="Busca por fecha, pedido o cliente" />
+                    <TextField {...params} required label="Pedido original" placeholder="Busca el pedido del cliente seleccionado" />
                   )}
                   renderOption={(props, order) => (
                     <Box component="li" {...props}>
@@ -384,7 +496,7 @@ const SalesReturnsPage = () => {
                 <TextField
                   select
                   fullWidth
-                  label="Producto devuelto"
+                  label="Producto recibido (informativo)"
                   value={form.orderItemId}
                   disabled={!form.orderId}
                   onChange={(event) =>
@@ -393,7 +505,7 @@ const SalesReturnsPage = () => {
                 >
                   {orderItems.map((item) => (
                     <MenuItem key={item.order_item_id} value={String(item.order_item_id)}>
-                      {item.product_name} - disponible {formatNumber(item.returnable_quantity)}
+                      {item.product_name}{item.commercial_label ? ` · ${item.commercial_label}` : ""} - disponible {formatNumber(item.returnable_quantity)}{item.commercial_detail ? ` (${item.commercial_detail})` : ""}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -408,7 +520,7 @@ const SalesReturnsPage = () => {
                   inputProps={{
                     min: 0,
                     max: selectedItem?.returnable_quantity || undefined,
-                    step: 0.001,
+                    step: 1,
                   }}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, quantity: event.target.value }))
@@ -432,16 +544,42 @@ const SalesReturnsPage = () => {
                   ))}
                 </TextField>
               </Grid>
+              {form.operationType === "exchange" && selectedItem ? (
+                <>
+                  <Grid item xs={12} md={8}>
+                    <Autocomplete
+                      fullWidth
+                      options={options.products}
+                      value={options.products.find((product) => String(product.id) === String(form.replacementProductId)) || null}
+                      getOptionLabel={(product) => product ? `${product.name}${product.sku ? ` - ${product.sku}` : ""}` : ""}
+                      isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                      onChange={(_, product) => setForm((current) => ({ ...current, replacementProductId: product?.id ? String(product.id) : "" }))}
+                      renderInput={(params) => <TextField {...params} required label="Producto entregado como reemplazo" />}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      required
+                      type="number"
+                      label="Cantidad de reemplazo"
+                      value={form.replacementQuantity}
+                      inputProps={{ min: 1, step: 1 }}
+                      onChange={(event) => setForm((current) => ({ ...current, replacementQuantity: event.target.value }))}
+                    />
+                  </Grid>
+                </>
+              ) : null}
               <Grid item xs={12} md={4} sx={{ display: selectedItem ? "block" : "none", ml: { md: "auto" }, order: 2 }}>
                 <Button
                   fullWidth
                   variant="contained"
                   color="secondary"
-                  disabled={saving || loading || Number(form.quantity || 0) <= 0}
+                  disabled={saving || loading || Number(form.quantity || 0) <= 0 || (form.operationType === "exchange" && (!form.replacementProductId || Number(form.replacementQuantity || 0) <= 0))}
                   onClick={createReturn}
                   sx={{ minHeight: 56 }}
                 >
-                  {saving ? "Registrando..." : "Enviar a autorización"}
+                  {saving ? "Registrando..." : `Registrar ${form.operationType === "exchange" ? "cambio" : "devolución"}`}
                 </Button>
               </Grid>
               <Grid item xs={12} sx={{ display: selectedItem ? "block" : "none", order: 1 }}>
@@ -510,7 +648,10 @@ const SalesReturnsPage = () => {
                             {salesReturn.customer_name} | Vendedor: {salesReturn.sales_agent_name}
                           </Typography>
                         </Box>
-                        <Chip label={status.label} color={status.color} size="small" />
+                        <Stack direction="row" spacing={1}>
+                          <Chip label={salesReturn.operation_type === "exchange" ? "Cambio" : "Devolución"} variant="outlined" size="small" />
+                          <Chip label={status.label} color={status.color} size="small" />
+                        </Stack>
                       </Stack>
 
                       <Typography variant="caption" color="text.secondary">
@@ -522,8 +663,13 @@ const SalesReturnsPage = () => {
                       {(salesReturn.items || []).map((item) => (
                         <Box key={item.id}>
                           <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                            {item.returned_product_name} x {formatNumber(item.quantity)}
+                            Recibido (informativo): {item.returned_product_name} x {formatNumber(item.quantity)}
                           </Typography>
+                          {salesReturn.operation_type === "exchange" && item.replacement_product_name ? (
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                              Reemplazo: {item.replacement_product_name} x {formatNumber(item.replacement_quantity)} · Precio congelado {money.format(Number(item.replacement_unit_price || 0))}
+                            </Typography>
+                          ) : null}
                           <Typography variant="body2" color="text.secondary">
                             Saldo a favor: {money.format(Number(item.credit_amount || item.returned_commercial_value || 0))} | Motivo:{" "}
                             {reasonOptions.find((reason) => reason.value === item.reason)?.label ||
@@ -532,8 +678,18 @@ const SalesReturnsPage = () => {
                         </Box>
                       ))}
 
+                      <Alert severity={salesReturn.operation_type === "exchange" ? "info" : "warning"}>
+                        Comisión: {commissionTreatmentLabels[salesReturn.commission_treatment] || (salesReturn.operation_type === "exchange" ? "No afecta comisión" : "Reduce comisión")}
+                        {salesReturn.commission_treatment && salesReturn.status === "completed"
+                          ? ` · Antes ${money.format(Number(salesReturn.original_commission_amount || 0))} · Después ${money.format(Number(salesReturn.adjusted_commission_amount || 0))}`
+                          : ""}
+                      </Alert>
+
                       {salesReturn.rejection_reason ? (
                         <Alert severity="error">{salesReturn.rejection_reason}</Alert>
+                      ) : null}
+                      {salesReturn.annulment_reason ? (
+                        <Alert severity="warning">Anulación: {salesReturn.annulment_reason}</Alert>
                       ) : null}
 
                       {canAuthorize ? (
@@ -572,6 +728,24 @@ const SalesReturnsPage = () => {
                         <Alert severity="info">
                           Esta solicitud debe autorizarla un usuario con rol administrativo.
                         </Alert>
+                      ) : null}
+                      {canAuthorizeReturns && salesReturn.operation_type === "exchange" && salesReturn.status === "completed" ? (
+                        <Stack spacing={1}>
+                          <TextField
+                            size="small"
+                            label="Motivo obligatorio de anulación"
+                            value={annulmentReasons[salesReturn.id] || ""}
+                            onChange={(event) => setAnnulmentReasons((current) => ({ ...current, [salesReturn.id]: event.target.value }))}
+                          />
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            disabled={processingId === salesReturn.id}
+                            onClick={() => annulExchange(salesReturn.id)}
+                          >
+                            Anular cambio y compensar inventario
+                          </Button>
+                        </Stack>
                       ) : null}
                     </Stack>
                   </Paper>

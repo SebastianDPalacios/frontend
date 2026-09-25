@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Grid,
   MenuItem,
@@ -16,10 +17,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
+import { getMeasurementUnitName } from "utils/production-measurement-units";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
@@ -80,6 +83,7 @@ const ProductionMaterialUsagePage = () => {
   const [report, setReport] = useState({ rows: [], summary: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedProducts, setExpandedProducts] = useState({});
 
   const loadCatalogs = useCallback(async () => {
     try {
@@ -171,10 +175,10 @@ const ProductionMaterialUsagePage = () => {
         </Stack>
         <Grid container spacing={2}>
           <Grid item xs={12} md={3}>
-            <TextField fullWidth type="date" label="Desde" value={filters.dateFrom} onChange={updateFilter("dateFrom")} InputLabelProps={{ shrink: true }} />
+            <BalanceDatePicker fullWidth label="Desde" value={filters.dateFrom} maxDate={filters.dateTo || undefined} onChange={(value) => setFilters((current) => ({ ...current, dateFrom: value || "" }))} />
           </Grid>
           <Grid item xs={12} md={3}>
-            <TextField fullWidth type="date" label="Hasta" value={filters.dateTo} onChange={updateFilter("dateTo")} InputLabelProps={{ shrink: true }} />
+            <BalanceDatePicker fullWidth label="Hasta" value={filters.dateTo} minDate={filters.dateFrom || undefined} onChange={(value) => setFilters((current) => ({ ...current, dateTo: value || "" }))} />
           </Grid>
           <Grid item xs={12} md={3}>
             <TextField fullWidth select label="Sucursal" value={filters.branchId} onChange={updateFilter("branchId")}>
@@ -248,49 +252,87 @@ const ProductionMaterialUsagePage = () => {
                       <Typography variant="h6" sx={{ fontWeight: 900 }}>{recipe.recipeName}</Typography>
                       <Typography color="text.secondary">Version {recipe.recipeVersion || "-"}</Typography>
                     </Box>
-                    <Chip label={`Total: ${formatNumber(recipe.totalQuantity)}`} />
+                    <Chip label={`${recipe.products.length} producto(s)`} variant="outlined" />
                   </Stack>
 
                   <Stack spacing={2}>
-                    {recipe.products.map((product) => (
-                      <Box key={product.productId} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
-                        <Box sx={{ px: 2, py: 1.5, bgcolor: "grey.50" }}>
+                    {recipe.products.map((product) => {
+                      const productKey = `${day.date}-${recipe.recipeId}-${product.productId}`;
+                      const isExpanded = Boolean(expandedProducts[productKey]);
+                      const visibleMaterials = isExpanded ? product.materials : product.materials.slice(0, 3);
+                      const hiddenCount = product.materials.length - visibleMaterials.length;
+                      return (
+                      <Paper key={product.productId} variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+                        <Box sx={{ px: { xs: 2, md: 2.5 }, py: 2, bgcolor: "grey.50", borderBottom: "1px solid", borderColor: "divider" }}>
                           <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1}>
                             <Box>
                               <Typography sx={{ fontWeight: 900 }}>{product.productName}</Typography>
                               <Typography color="text.secondary" variant="body2">{product.productSku || "Sin SKU"}</Typography>
                             </Box>
-                            <Typography sx={{ fontWeight: 800 }}>Producido: {formatNumber(product.producedQuantity)}</Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              <Chip color="secondary" label={`${formatNumber(product.producedQuantity)} unidades producidas`} />
+                              <Chip variant="outlined" label={`${product.materials.length} materia(s) prima(s)`} />
+                            </Stack>
                           </Stack>
                         </Box>
-                        <TableContainer>
-                          <Table size="small">
+                        <TableContainer sx={{ maxHeight: 520 }}>
+                          <Table stickyHeader size="small" sx={{ minWidth: 760 }}>
                             <TableHead>
                               <TableRow>
-                                <TableCell>Materia prima</TableCell>
-                                <TableCell>Categoria</TableCell>
-                                <TableCell align="right">Base receta</TableCell>
-                                <TableCell align="right">Directo producto</TableCell>
-                                <TableCell align="right">Total</TableCell>
-                                <TableCell>Unidad</TableCell>
+                                <TableCell sx={{ fontWeight: 900, width: "30%" }}>Materia prima</TableCell>
+                                <TableCell sx={{ fontWeight: 900, width: "25%" }}>Categoría</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 900 }}>Según receta</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 900 }}>Adicional</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 900 }}>Consumo total</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {product.materials.map((material) => (
-                                <TableRow key={`${material.raw_material_id}-${material.raw_material_name}`}>
-                                  <TableCell sx={{ fontWeight: 800 }}>{material.raw_material_name}</TableCell>
-                                  <TableCell>{material.raw_material_category || "Sin categoria"}</TableCell>
-                                  <TableCell align="right">{formatNumber(material.base_quantity)}</TableCell>
-                                  <TableCell align="right">{formatNumber(material.direct_quantity)}</TableCell>
-                                  <TableCell align="right" sx={{ fontWeight: 900 }}>{formatNumber(material.total_quantity)}</TableCell>
-                                  <TableCell>{material.raw_material_unit}</TableCell>
-                                </TableRow>
-                              ))}
+                              {product.materials.map((material, materialIndex) => {
+                                const unitName = getMeasurementUnitName(material.raw_material_unit);
+                                const directQuantity = Number(material.direct_quantity || 0);
+                                return <TableRow key={`table-${material.raw_material_id}-${material.raw_material_name}`} sx={{ bgcolor: materialIndex % 2 ? "grey.50" : "background.paper", "&:last-child td": { borderBottom: 0 } }}>
+                                  <TableCell><Typography fontWeight={900}>{material.raw_material_name}</Typography></TableCell>
+                                  <TableCell><Typography variant="body2" color="text.secondary">{material.raw_material_category || "Sin categoría"}</Typography></TableCell>
+                                  <TableCell align="right">{formatNumber(material.base_quantity)} {unitName}</TableCell>
+                                  <TableCell align="right">{directQuantity > 0 ? <Chip size="small" color="warning" variant="outlined" label={`${formatNumber(directQuantity)} ${unitName}`} /> : <Typography color="text.secondary">No aplica</Typography>}</TableCell>
+                                  <TableCell align="right"><Typography fontWeight={900} color="secondary.main">{formatNumber(material.total_quantity)} {unitName}</Typography></TableCell>
+                                </TableRow>;
+                              })}
                             </TableBody>
                           </Table>
                         </TableContainer>
-                      </Box>
-                    ))}
+                        <Grid container spacing={1.5} sx={{ display: "none", p: { xs: 1.5, md: 2 } }}>
+                          {visibleMaterials.map((material) => {
+                            const unitName = getMeasurementUnitName(material.raw_material_unit);
+                            const directQuantity = Number(material.direct_quantity || 0);
+                            return <Grid item xs={12} sm={6} lg={4} key={`${material.raw_material_id}-${material.raw_material_name}`}>
+                              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, height: "100%", borderLeft: "4px solid", borderLeftColor: "secondary.main" }}>
+                                <Typography variant="caption" color="text.secondary">{material.raw_material_category || "Sin categoría"}</Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.2, mt: 0.25 }}>{material.raw_material_name}</Typography>
+                                <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 2, bgcolor: "grey.50" }}>
+                                  <Typography variant="caption" color="text.secondary">CONSUMO TOTAL</Typography>
+                                  <Typography variant="h5" sx={{ fontWeight: 900 }}>{formatNumber(material.total_quantity)} {unitName}</Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+                                  <Chip size="small" variant="outlined" label={`Receta: ${formatNumber(material.base_quantity)} ${unitName}`} />
+                                  {directQuantity > 0 ? <Chip size="small" color="warning" variant="outlined" label={`Adicional: ${formatNumber(directQuantity)} ${unitName}`} /> : null}
+                                </Stack>
+                              </Paper>
+                            </Grid>;
+                          })}
+                        </Grid>
+                        {product.materials.length > 3 ? <Box sx={{ display: "none", px: 2, pb: 2, textAlign: "center" }}>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            onClick={() => setExpandedProducts((current) => ({ ...current, [productKey]: !isExpanded }))}
+                          >
+                            {isExpanded ? "Mostrar menos" : `Ver ${hiddenCount} materia(s) prima(s) más`}
+                          </Button>
+                        </Box> : null}
+                      </Paper>
+                      );
+                    })}
                   </Stack>
                 </Paper>
               ))}

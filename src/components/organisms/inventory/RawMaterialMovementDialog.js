@@ -18,6 +18,7 @@ import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import AppButton from "@core/components/ui/AppButton";
 import inventoryService from "services/inventory/inventory-service";
 import { formatInventoryQuantity, getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
+import { normalizeRawMaterialEntryQuantity } from "utils/raw-material-entry-rounding";
 
 const MAX_QUANTITY = 99999999999.999;
 
@@ -80,7 +81,7 @@ const RawMaterialMovementDialog = ({ material, branchId, open, onClose, onSaved 
         return;
       }
 
-      onSaved({ movementType, quantity: parsedQuantity });
+      onSaved({ movementType, quantity: response?.data?.normalized_quantity ?? parsedQuantity });
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || "Error de red al registrar el movimiento.");
     } finally {
@@ -91,7 +92,10 @@ const RawMaterialMovementDialog = ({ material, branchId, open, onClose, onSaved 
   const currentStock = Number(material?.quantity_on_hand || 0);
   const parsedQuantity = Number(quantity);
   const stockChange = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 0;
-  const resultingStock = movementType === "adjustment_out" ? currentStock - stockChange : currentStock + stockChange;
+  const normalizedStockChange = movementType === "adjustment_in"
+    ? normalizeRawMaterialEntryQuantity(stockChange)
+    : stockChange;
+  const resultingStock = movementType === "adjustment_out" ? currentStock - stockChange : currentStock + normalizedStockChange;
   const unit = material?.unit || "unidad";
 
   return (
@@ -144,6 +148,12 @@ const RawMaterialMovementDialog = ({ material, branchId, open, onClose, onSaved 
               <Typography sx={{ fontWeight: 900 }}>{formatInventoryQuantity(Math.max(resultingStock, 0), unit)} {unit}</Typography>
             </Box>
           </Stack>
+
+          {movementType === "adjustment_in" && stockChange > 0 ? (
+            <Alert severity="info">
+              Valor ingresado: {formatInventoryQuantity(stockChange, unit)} {unit}. EntrarÃ¡ al inventario: {formatInventoryQuantity(normalizedStockChange, unit)} {unit}.
+            </Alert>
+          ) : null}
 
           <TextField
             fullWidth

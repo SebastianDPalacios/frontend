@@ -164,6 +164,8 @@ const AtomicOrderForm = () => {
   const customersLoading = false;
   const [sellers, setSellers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [pricePreview, setPricePreview] = useState([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
   const [settings, setSettings] = useState({
     bonus_percent: 20,
     bonus_minimum_amount: 2000,
@@ -222,14 +224,71 @@ const AtomicOrderForm = () => {
     load();
   }, [canAssignSeller]);
 
+  useEffect(() => {
+    let active = true;
+    const loadPrices = async () => {
+      if (!customerId || !orderDate) {
+        setPricePreview([]);
+        setPricingLoading(false);
+        return;
+      }
+      setPricingLoading(true);
+      try {
+        const response = await ordersService.getPricePreview({
+          customerId: Number(customerId),
+          effectiveDate: orderDate,
+        });
+        if (active && response?.code === 1) {
+          setPricePreview(normalizeRows(response.data?.prices));
+        } else if (active) {
+          setPricePreview([]);
+          setError(response?.message || "No fue posible resolver los precios del cliente");
+        }
+      } catch (requestError) {
+        if (active) {
+          setPricePreview([]);
+          setError(requestError?.response?.data?.message || requestError?.message || "No fue posible resolver los precios del cliente");
+        }
+      } finally {
+        if (active) setPricingLoading(false);
+      }
+    };
+    loadPrices();
+    return () => { active = false; };
+  }, [customerId, orderDate]);
+
+  const pricedProducts = useMemo(() => {
+    const previewByProduct = new Map(
+      pricePreview.map((price) => [Number(price.product_id), price])
+    );
+    return products.map((product) => {
+      const preview = previewByProduct.get(Number(product.id));
+      const regularPrice = Number(preview?.regularPriceReference ?? product.base_price ?? 0);
+      const appliedPrice = Number(preview?.appliedPrice ?? regularPrice);
+      return {
+        ...product,
+        regular_price: regularPrice,
+        base_price: appliedPrice,
+        applied_price: appliedPrice,
+        wholesale_price_found: preview?.wholesalePriceFound ?? null,
+        price_origin: preview?.priceOrigin || "regular",
+        wholesale_price_configuration_id: preview?.priceConfigurationId || null,
+        wholesale_price_list_id: preview?.priceListId || null,
+        wholesale_price_list_name: preview?.priceListName || null,
+        price_difference: regularPrice - appliedPrice,
+        customer_is_wholesale: Boolean(preview?.customerIsWholesale),
+      };
+    });
+  }, [pricePreview, products]);
+
   const productsById = useMemo(
-    () => new Map(products.map((product) => [Number(product.id), product])),
-    [products]
+    () => new Map(pricedProducts.map((product) => [Number(product.id), product])),
+    [pricedProducts]
   );
 
   const productCategories = useMemo(() => {
     const categoriesById = new Map();
-    products.forEach((product) => {
+    pricedProducts.forEach((product) => {
       const id = Number(product.category_id || 0);
       const name = String(product.category_name || "").trim();
       if (id > 0 && name && !categoriesById.has(id)) {
@@ -249,13 +308,13 @@ const AtomicOrderForm = () => {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [products]);
+  }, [pricedProducts]);
 
   const availableProducts = useMemo(() => {
-    return products.filter((product) => {
+    return pricedProducts.filter((product) => {
       return !selectedCategoryId || String(product.category_id || "") === String(selectedCategoryId);
     });
-  }, [products, selectedCategoryId]);
+  }, [pricedProducts, selectedCategoryId]);
 
   const preparedOrder = useMemo(() => {
     const preparedRows = selectedLines.map((entry) => {
@@ -446,7 +505,7 @@ const AtomicOrderForm = () => {
   };
 
   const validateBeforeConfirmation = () => {
-    if (saving) return;
+    if (saving || pricingLoading) return;
     setError("");
     if (canAssignSeller && !sellerId) {
       setError("Selecciona el vendedor al que se asignara el pedido");
@@ -586,7 +645,7 @@ const AtomicOrderForm = () => {
           onRetry={retryPendingOrderOperations}
         />
         <SellerPosOrderForm
-        loading={loading}
+        loading={loading || pricingLoading}
         saving={saving}
         error={error}
         customers={availableCustomers}
@@ -595,7 +654,7 @@ const AtomicOrderForm = () => {
         sellers={sellers}
         sellerId={sellerId}
         setSellerId={setSellerId}
-        products={products}
+        products={pricedProducts}
         productCategories={productCategories}
         selectedCategoryId={selectedCategoryId}
         setSelectedCategoryId={setSelectedCategoryId}
@@ -753,6 +812,9 @@ const AtomicOrderForm = () => {
                           {option.category_name}
                         </Typography>
                       ) : null}
+                      <Typography variant="body2" color="text.secondary">
+                        ${formatCurrencyValue(option.applied_price, 0)} por {option.unit || "unidad"}
+                      </Typography>
                     </Box>
                   )}
                   renderInput={(params) => <TextField {...params} label="Seleccionar producto final" />}
@@ -762,7 +824,7 @@ const AtomicOrderForm = () => {
                   color="secondary"
                   startIcon={<AddRoundedIcon />}
                   onClick={addProduct}
-                  disabled={!selectedProduct}
+                  disabled={!selectedProduct || pricingLoading}
                   sx={{ minWidth: { sm: 130 }, flexShrink: 0 }}
                 >
                   Agregar
@@ -805,7 +867,7 @@ const AtomicOrderForm = () => {
                             <Chip size="small" variant="outlined" label={product.category_name} />
                           ) : null}
                           <Typography variant="body2" color="text.secondary">
-                            ${formatCurrencyValue(product?.base_price, 0)} por {product?.unit || "unidad"}
+                            ${formatCurrencyValue(product?.applied_price, 0)} por {product?.unit || "unidad"}
                           </Typography>
                         </Stack>
                       </Box>
@@ -911,7 +973,7 @@ const AtomicOrderForm = () => {
             <AppButton
               fullWidth
               color="secondary"
-              disabled={saving || loading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0}
+              disabled={saving || loading || pricingLoading || customers.length === 0 || selectedLines.length === 0 || preparedOrder.invalidUnitSales.length > 0}
               onClick={validateBeforeConfirmation}
               sx={{ mt: 2.5, minHeight: 48 }}
             >

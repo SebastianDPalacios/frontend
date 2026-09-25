@@ -6,6 +6,7 @@ import ManualAdjustmentPanel from "components/organisms/inventory/ManualAdjustme
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
+import { normalizeRawMaterialEntryQuantity } from "utils/raw-material-entry-rounding";
 
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
@@ -194,7 +195,7 @@ const InventoryMovementsPage = () => {
           item_type: "product",
           item_id: Number(product.id),
           name: getDisplayName(product),
-          unit: product.unit || "unit",
+          unit: "unit",
           quantity_on_hand: product.quantity_on_hand || 0,
           sku: product.sku || product.code || "",
         }));
@@ -315,6 +316,7 @@ const InventoryMovementsPage = () => {
       unit: unitOption.value,
       unitLabel: unitOption.label,
       baseQuantity,
+      normalizedQuantity: normalizeRawMaterialEntryQuantity(baseQuantity),
       unitCost,
     };
   };

@@ -10,6 +10,10 @@ class OrdersService {
     return GetEndpoint(endpoints.orders.baseData, { params });
   }
 
+  async getPricePreview(params = {}) {
+    return GetEndpoint(endpoints.orders.pricePreview, { params });
+  }
+
   async getSalesSettings() {
     return GetEndpoint(endpoints.orders.salesSettings);
   }
@@ -131,6 +135,14 @@ class OrdersService {
 
   async rejectSalesReturn(salesReturnId, reason) {
     return PostEndpoint(endpoints.orders.rejectReturn(salesReturnId), { reason });
+  }
+
+  async getSalesOperationsReport(params = {}) {
+    return GetEndpoint(endpoints.orders.returnsReport, { params });
+  }
+
+  async annulSalesExchange(salesReturnId, reason) {
+    return PostEndpoint(endpoints.orders.annulReturn(salesReturnId), { reason });
   }
 
   async createProduction(orderId, payload = {}) {

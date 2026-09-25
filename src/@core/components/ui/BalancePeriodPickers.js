@@ -95,12 +95,13 @@ const getCalendarWeeks = (viewDate) => {
   return weeks;
 };
 
-export const BalanceDatePicker = ({ label, value, onChange, minDate, fullWidth = false, error = false, helperText }) => {
+export const BalanceDatePicker = ({ label, value, onChange, minDate, maxDate, fullWidth = false, error = false, helperText, clearable = false }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [viewDate, setViewDate] = useState(parseInputDate(value));
   const today = toDateInputValue();
   const open = Boolean(anchorEl);
   const minDateValue = minDate ? String(minDate).slice(0, 10) : null;
+  const maxDateValue = maxDate ? String(maxDate).slice(0, 10) : null;
 
   useEffect(() => {
     setViewDate(parseInputDate(value));
@@ -108,7 +109,7 @@ export const BalanceDatePicker = ({ label, value, onChange, minDate, fullWidth =
 
   const handleSelectDate = (date) => {
     const nextValue = toDateInputValue(date);
-    if (minDateValue && nextValue < minDateValue) {
+    if ((minDateValue && nextValue < minDateValue) || (maxDateValue && nextValue > maxDateValue)) {
       return;
     }
 
@@ -170,7 +171,8 @@ export const BalanceDatePicker = ({ label, value, onChange, minDate, fullWidth =
               const dateValue = toDateInputValue(item.date);
               const isSelected = dateValue === value;
               const isToday = dateValue === today;
-              const isDisabled = minDateValue && dateValue < minDateValue;
+              const isDisabled = (minDateValue && dateValue < minDateValue)
+                || (maxDateValue && dateValue > maxDateValue);
 
               return (
                 <Grid item xs={1} key={dateValue}>
@@ -204,9 +206,7 @@ export const BalanceDatePicker = ({ label, value, onChange, minDate, fullWidth =
           </Grid>
 
           <Stack direction="row" sx={{ justifyContent: "space-between", pt: 0.5 }}>
-            <Button size="small" color="inherit" onClick={() => setAnchorEl(null)}>
-              Cerrar
-            </Button>
+            {clearable ? <Button size="small" color="inherit" onClick={() => { onChange(""); setAnchorEl(null); }}>Borrar</Button> : <Button size="small" color="inherit" onClick={() => setAnchorEl(null)}>Cerrar</Button>}
             <Button size="small" color="secondary" disabled={Boolean(minDateValue && today < minDateValue)} onClick={() => handleSelectDate(new Date())}>
               Hoy
             </Button>

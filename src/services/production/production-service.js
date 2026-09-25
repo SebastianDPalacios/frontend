@@ -58,8 +58,16 @@ class ProductionService {
     return GetEndpoint(endpoints.production.packagingHistory, { params });
   }
 
-  async getJustifiedShortages(params = {}) {
-    return GetEndpoint(endpoints.production.justifiedShortages, { params });
+  async getProductionCorrections(params = {}) {
+    return GetEndpoint(endpoints.production.productionCorrections, { params });
+  }
+
+  async correctPackingItem(id, payload) {
+    return PostEndpoint(endpoints.production.packingCorrection(id), payload);
+  }
+
+  async correctProductionOutput(id, payload) {
+    return PostEndpoint(endpoints.production.productionOutputCorrection(id), payload);
   }
 
   async getDayReport(params = {}) {
@@ -72,6 +80,9 @@ class ProductionService {
 
   async getRawMaterialUsageByProductReport(params = {}) {
     return GetEndpoint(endpoints.production.rawMaterialUsageByProductReport, { params });
+  }
+  async getPackingDamageReport(params = {}) {
+    return GetEndpoint(endpoints.production.packingDamageReport, { params });
   }
   async getPlans(params = {}) {
     return GetEndpoint(endpoints.production.plans, { params });
@@ -99,34 +110,6 @@ class ProductionService {
 
   async registerMyBatch(payload) {
     return PostEndpoint(endpoints.production.myBatches, payload);
-  }
-
-  async startPlanItem(productionPlanItemId) {
-    return PostEndpoint(endpoints.production.startPlanItem(productionPlanItemId), {});
-  }
-
-  async finishPlanItem(productionPlanItemId, payload = {}) {
-    return PostEndpoint(endpoints.production.finishPlanItem(productionPlanItemId), payload);
-  }
-
-  async startPlanProduct(productionPlanOutputId) {
-    return PostEndpoint(endpoints.production.startPlanProduct(productionPlanOutputId), {});
-  }
-
-  async savePlanProductProgress(productionPlanOutputId, payload) {
-    return PatchEndpoint(endpoints.production.planProductProgress(productionPlanOutputId), payload);
-  }
-
-  async skipPlanProduct(productionPlanOutputId, justification) {
-    return PostEndpoint(endpoints.production.skipPlanProduct(productionPlanOutputId), { p_justification: justification });
-  }
-
-  async finishPlanProduct(productionPlanOutputId, payload) {
-    return PostEndpoint(endpoints.production.finishPlanProduct(productionPlanOutputId), payload);
-  }
-
-  async correctPlanProduct(productionPlanOutputId, payload) {
-    return PatchEndpoint(endpoints.production.correctPlanProduct(productionPlanOutputId), payload);
   }
 
   async getNotifications(params = {}) {

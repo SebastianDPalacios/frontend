@@ -27,9 +27,10 @@
         title: "Produccion",
         icon: "production",
         children: [
-          { title: "Resumen", path: "/production/day", icon: "dashboard", permission: "production.manage" },
+          { title: "Reporte diario", path: "/production/day", icon: "dashboard", permission: "production.manage" },
           { title: "Reporte mensual", path: "/production/month", icon: "dashboard", permission: "production.manage" },
           { title: "Materias primas usadas", path: "/production/material-usage", icon: "materials", permission: "production.manage" },
+          { title: "Reporte de daños", path: "/production/damages", icon: "production", permission: "production.manage" },
           {
             title: "Plan del panadero",
             path: "/production/planning",
@@ -41,7 +42,6 @@
           { title: "Produccion realizada", path: "/production/performed", icon: "production", permission: "production.baker" },
           { title: "Recetas", path: "/recipes", icon: "recipes", permission: "recipes.manage" },
           { title: "Conteo y empaque", path: "/production/packaging", icon: "production", permission: "production.packaging" },
-          { title: "Faltantes", path: "/production/shortages", icon: "production", permission: "production.manage" },
         ],
       },
       {
@@ -88,6 +88,7 @@
         children: [
           { title: "Proveedores", path: "/catalogo/proveedores", icon: "suppliers", permission: "materials.manage" },
           { title: "Reglas de venta", path: "/orders/settings", icon: "orders", permission: "roles.manage" },
+          { title: "Mayoristas", path: "/configuracion/mayoristas", icon: "customers", permission: "roles.manage", adminOnly: true },
           { title: "Ticket POS", path: "/settings/pos-ticket", icon: "orders", permission: "roles.manage" },
           { title: "Ticket liquidacion", path: "/settings/daily-settlement-ticket", icon: "orders", permission: "roles.manage" },
           { title: "Avisos del sistema", path: "/settings/system-announcements", icon: "users", permission: "roles.manage" },

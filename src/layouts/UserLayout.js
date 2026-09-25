@@ -50,6 +50,7 @@ import {
   bakerOnlyPaths,
   canAccessPath,
   hasPermission,
+  isAdministrativeUser,
   isBakerOnlyUser,
   isPackagingOnlyUser,
   isProductionOnlyUser,
@@ -102,6 +103,9 @@ const filterNavigationByUser = (items, user) => {
 
           if (item.children?.length) {
             const children = item.children.filter((child) => {
+              if (child.adminOnly && !isAdministrativeUser(user)) {
+                return false;
+              }
               if (child.salesOnly && !salesOnly) {
                 return false;
               }
@@ -116,6 +120,10 @@ const filterNavigationByUser = (items, user) => {
           }
 
           if (focusedPaths && !focusedPaths.includes(item.path)) {
+            return null;
+          }
+
+          if (item.adminOnly && !isAdministrativeUser(user)) {
             return null;
           }
 
@@ -226,7 +234,8 @@ const UserLayout = ({ children }) => {
     [router.pathname]
   );
   const routeAllowed = canAccessPath(currentUser, router.pathname)
-    && (!activeRoute || hasPermission(currentUser, activeRoute.permission));
+    && (!activeRoute || (hasPermission(currentUser, activeRoute.permission)
+      && (!activeRoute.adminOnly || isAdministrativeUser(currentUser))));
 
   const activeGroups = useMemo(() => {
     const groups = {};

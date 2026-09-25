@@ -11,9 +11,8 @@ const formatPlanDate = (value) => {
 
 const getStatusLabel = (status) => {
   if (status === "cancelled") return "Cancelada";
-  if (status === "completed") return "Completada";
   if (status === "viewed") return "Vista";
-  return "Asignada";
+  return "Informada";
 };
 
 const ProductionPlanCard = ({ plan, formatNumber, onEditPlan, onCancelPlan, cancelling }) => (
@@ -32,7 +31,7 @@ const ProductionPlanCard = ({ plan, formatNumber, onEditPlan, onCancelPlan, canc
       sx={{ justifyContent: "space-between", mb: 1.5 }}
     >
       <Box>
-        <Typography sx={{ fontWeight: 900 }}>{plan.baker_name || "Produccion asignada"}</Typography>
+        <Typography sx={{ fontWeight: 900 }}>{plan.baker_name || "Lista informativa"}</Typography>
         <Typography variant="body2" color="text.secondary">
           {formatPlanDate(plan.planned_date)} - {plan.branch_name}
         </Typography>
@@ -40,7 +39,7 @@ const ProductionPlanCard = ({ plan, formatNumber, onEditPlan, onCancelPlan, canc
       <Chip
         size="small"
         label={getStatusLabel(plan.status)}
-        color={plan.status === "cancelled" ? "error" : plan.status === "viewed" || plan.status === "completed" ? "success" : "warning"}
+        color={plan.status === "cancelled" ? "error" : plan.status === "viewed" ? "success" : "warning"}
         variant="outlined"
       />
       <Stack direction="row" spacing={1}>

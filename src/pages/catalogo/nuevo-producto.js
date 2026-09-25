@@ -20,22 +20,26 @@ const normalizeList = (payload) => {
 const NuevoProductoPage = () => {
   const [categories, setCategories] = useState([]);
   const [taxRates, setTaxRates] = useState([]);
+  const [physicalProducts, setPhysicalProducts] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   useEffect(() => {
     const loadOptions = async () => {
       setLoadingOptions(true);
       try {
-        const [categoriesResult, taxRatesResult] = await Promise.all([
+        const [categoriesResult, taxRatesResult, productsResult] = await Promise.all([
           catalogService.getProductCategories({ onlyActive: 1 }),
           catalogService.getTaxRates({ onlyActive: 1 }),
+          catalogService.getProducts({ onlyActive: 1, page: 1, pageSize: 500 }),
         ]);
 
         setCategories(normalizeList(categoriesResult?.data ?? categoriesResult));
         setTaxRates(normalizeList(taxRatesResult?.data ?? taxRatesResult));
+        setPhysicalProducts(normalizeList(productsResult?.data ?? productsResult).filter((product) => !product.physical_product_id));
       } catch (error) {
         setCategories([]);
         setTaxRates([]);
+        setPhysicalProducts([]);
       } finally {
         setLoadingOptions(false);
       }
@@ -52,12 +56,12 @@ const NuevoProductoPage = () => {
         description: "",
         category_id: "",
         tax_rate_id: "",
-        unit: "unit",
         base_price: "",
         min_stock: "",
         units_per_bag: "",
         is_active: "1",
         includes_bonus: "0",
+        physical_product_id: "",
       },
       async (formValues, helpers) => {
         try {
@@ -67,12 +71,13 @@ const NuevoProductoPage = () => {
             p_description: formValues.description.trim(),
             p_category_id: formValues.category_id ? Number(formValues.category_id) : null,
             p_tax_rate_id: formValues.tax_rate_id ? Number(formValues.tax_rate_id) : null,
-            p_unit: formValues.unit.trim() || null,
+            p_unit: "unit",
             p_base_price: formValues.base_price ? Number(formValues.base_price) : null,
-            p_min_stock: formValues.min_stock ? Number(formValues.min_stock) : null,
+            p_min_stock: Number(formValues.min_stock),
             p_units_per_bag: formValues.units_per_bag ? Number(formValues.units_per_bag) : null,
             p_is_active: Number(formValues.is_active),
             p_includes_bonus: Number(formValues.includes_bonus),
+            p_physical_product_id: formValues.physical_product_id ? Number(formValues.physical_product_id) : null,
           });
 
           if (result?.code !== 1) {
@@ -100,7 +105,16 @@ const NuevoProductoPage = () => {
         name: (value) => (String(value || "").trim() ? null : "El nombre es obligatorio"),
         category_id: (value) => (value ? null : "Selecciona una categoría"),
         base_price: (value) => (value !== "" && value !== null ? null : "El precio base es obligatorio"),
-        min_stock: (value) => (value !== "" && value !== null ? null : "El stock mínimo es obligatorio"),
+        min_stock: (value) => {
+          const quantity = Number(value);
+          if (value === "" || value === null) return "El stock mínimo es obligatorio";
+          return Number.isInteger(quantity) && quantity >= 0 ? null : "El stock mínimo debe estar en unidades enteras";
+        },
+        units_per_bag: (value) => {
+          if (value === "" || value === null) return null;
+          const quantity = Number(value);
+          return Number.isInteger(quantity) && quantity > 0 ? null : "Las unidades por bulto deben ser enteras";
+        },
       }
     );
 
@@ -267,6 +281,24 @@ const NuevoProductoPage = () => {
                 <Grid item xs={12} md={4}>
               <FormField
                 select
+                name="physical_product_id"
+                label="Inventario físico utilizado"
+                value={values.physical_product_id}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                helperText="Selecciona un principal solo cuando este producto sea una variante comercial."
+              >
+                <MenuItem value="">Producto propio (principal)</MenuItem>
+                {physicalProducts.map((product) => (
+                  <MenuItem key={product.id} value={String(product.id)}>
+                    {product.name} · {product.sku}
+                  </MenuItem>
+                ))}
+              </FormField>
+            </Grid>
+                <Grid item xs={12} md={4}>
+              <FormField
+                select
                 name="tax_rate_id"
                 label="Tasa de impuesto"
                 value={values.tax_rate_id}
@@ -287,20 +319,12 @@ const NuevoProductoPage = () => {
             </Grid>
                 <Grid item xs={12} md={4}>
               <FormField
-                select
-                name="unit"
-                label="Unidad"
-                value={values.unit}
-                error={errors.unit}
-                touched={touched.unit}
-                onChange={handleChange}
-                onBlur={handleBlur}
-              >
-                <MenuItem value="unit">Unidad</MenuItem>
-                <MenuItem value="kg">Kilogramo</MenuItem>
-                <MenuItem value="g">Gramo</MenuItem>
-                <MenuItem value="lb">Libra</MenuItem>
-              </FormField>
+                name="finished_product_unit"
+                label="Unidad de medida"
+                value="Unidades"
+                disabled
+                helperText="Los productos terminados se controlan siempre en unidades completas"
+              />
             </Grid>
               </Grid>
             </Box>
@@ -335,7 +359,7 @@ const NuevoProductoPage = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 placeholder="0"
-                inputProps={{ min: 0 }}
+                inputProps={{ min: 0, step: 1 }}
               />
             </Grid>
                 <Grid item xs={12} md={4}>
@@ -350,7 +374,7 @@ const NuevoProductoPage = () => {
                 onBlur={handleBlur}
                 placeholder="Ej: 900"
                 helperText="Puedes dejarlo vacío si este producto no se controla por bultos"
-                inputProps={{ min: 0.001, step: "0.001" }}
+                inputProps={{ min: 1, step: 1 }}
               />
             </Grid>
                 <Grid item xs={12} md={4}>

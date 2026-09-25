@@ -12,6 +12,7 @@ import inventoryService from "services/inventory/inventory-service";
 import ordersService from "services/orders/orders-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import { normalizeRawMaterialEntryQuantity } from "utils/raw-material-entry-rounding";
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
@@ -116,6 +117,7 @@ const getLinePurchaseData = (item, material) => {
   return {
     option,
     baseQuantity,
+    normalizedQuantity: normalizeRawMaterialEntryQuantity(baseQuantity),
     unitCost,
     totalCost,
   };

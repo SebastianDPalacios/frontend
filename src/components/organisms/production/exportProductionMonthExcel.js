@@ -1,3 +1,6 @@
+import { getMeasurementUnitName } from "utils/production-measurement-units";
+import { addPackingDamageWorksheet } from "components/organisms/production/exportPackingDamageExcel";
+
 const colors = {
   navy: "FF111827",
   orange: "FFDD5D2A",
@@ -188,7 +191,7 @@ const addInventorySection = (worksheet, title, rows) => {
       item.item_name || "",
       item.category_name || "",
       Number(item.quantity_on_hand || 0),
-      item.unit || "",
+      getMeasurementUnitName(item.unit),
       Number(item.unit_cost || 0),
       Number(item.total_value || 0),
     ]),
@@ -226,6 +229,7 @@ const exportProductionMonthExcel = async ({
   report,
   flourDailyUsage = [],
   selectedFlourName = "Todas las harinas",
+  damageReport = { rows: [], totals_by_product: [], totals_by_reason: [] },
 }) => {
   const excelModule = await import("exceljs");
   const ExcelJS = excelModule.default || excelModule;
@@ -235,7 +239,7 @@ const exportProductionMonthExcel = async ({
 
   const worksheet = workbook.addWorksheet(`Produccion ${filters.month}`);
   worksheet.views = [{ state: "frozen", ySplit: 4 }];
-  [34, 16, 18, 18, 16, 18].forEach((width, index) => {
+  [34, 14, 16, 16, 16, 14, 14, 14, 16, 22].forEach((width, index) => {
     worksheet.getColumn(index + 1).width = width;
   });
 
@@ -278,45 +282,65 @@ const exportProductionMonthExcel = async ({
 
   const productSummaryRows = Array.from(productsByCategory.entries()).flatMap(([category, products]) => {
     return [
-      [category.toUpperCase(), "", "", "", "", ""],
+      [category.toUpperCase(), "", "", "", "", "", "", "", "", ""],
       ...products.map((product) => {
         const producedQuantity = Number(product.produced_quantity || 0);
         const packedQuantity = Number(product.packed_quantity || 0);
-        const damagedQuantity = Number(product.damaged_quantity || 0);
         return [
           product.product_name || "",
           product.bags_count == null ? "" : Number(product.bags_count || 0),
+          product.informed_quantity == null ? "" : Number(product.informed_quantity || 0),
           producedQuantity,
           packedQuantity,
-          damagedQuantity,
-          producedQuantity - packedQuantity - damagedQuantity,
+          Number(product.damaged_quantity || 0),
+          Number(product.shortage_quantity || 0),
+          Number(product.surplus_quantity || 0),
+          Number(product.inventory_quantity || 0),
+          ({ pending_count: "Pendiente de conteo", matched: "Conciliado", shortage: "Con faltante", surplus: "Con sobrante", corrected: "Corregido" })[product.reconciliation_status] || "Pendiente de conteo",
         ];
       }),
     ];
   });
 
   if (productSummaryRows.length === 0) {
-    productSummaryRows.push(["Sin productos registrados", "", "", "", "", ""]);
+    productSummaryRows.push(["Sin productos registrados", "", "", "", "", "", "", "", "", ""]);
   }
 
   const summarySection = addSection(
     worksheet,
     "Resumen",
-    ["Producto", "Bultos", "Producido", "Empacado", "Daños", "Diferencia"],
+    ["Producto", "Bultos", "Informado", "Producido", "Empacado", "Dañado", "Faltante", "Sobrante", "A inventario", "Estado"],
     productSummaryRows,
-    { decimalColumns: [2, 3, 4, 5, 6], headerFill: colors.softOrange }
+    { decimalColumns: [2, 3, 4, 5, 6, 7, 8, 9], headerFill: colors.softOrange }
   );
 
   let summaryOffset = 0;
   productsByCategory.forEach((products) => {
     const rowNumber = summarySection.firstDataRow + summaryOffset;
-    worksheet.mergeCells(rowNumber, 1, rowNumber, 6);
+    worksheet.mergeCells(rowNumber, 1, rowNumber, 10);
     const categoryCell = worksheet.getCell(rowNumber, 1);
     categoryCell.font = { bold: true, color: { argb: colors.navy } };
     categoryCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.softGreen } };
     categoryCell.alignment = { vertical: "middle", horizontal: "center" };
     summaryOffset += products.length + 1;
   });
+
+  addBlankRows(worksheet);
+  addSection(
+    worksheet,
+    "Detalle diario del mes",
+    ["Fecha", "Producto", "Informado", "Producido", "Empacado", "Dañado", "Faltante", "Sobrante", "A inventario", "Estado"],
+    [...(report.daily_products || [])]
+      .sort((a, b) => String(a.produced_date).localeCompare(String(b.produced_date)) || String(a.product_name).localeCompare(String(b.product_name)))
+      .map((row) => [
+        formatDate(row.produced_date), row.product_name || "",
+        row.informed_quantity == null ? "" : Number(row.informed_quantity || 0),
+        Number(row.produced_quantity || 0), Number(row.packed_quantity || 0), Number(row.damaged_quantity || 0),
+        Number(row.shortage_quantity || 0), Number(row.surplus_quantity || 0), Number(row.inventory_quantity || 0),
+        ({ pending_count: "Pendiente de conteo", matched: "Conciliado", shortage: "Con faltante", surplus: "Con sobrante", corrected: "Corregido" })[row.reconciliation_status] || "Pendiente de conteo",
+      ]),
+    { decimalColumns: [3, 4, 5, 6, 7, 8, 9], headerFill: colors.softGreen }
+  );
 
   const flourWorksheet = workbook.addWorksheet(`Harinas ${filters.month}`);
   flourWorksheet.views = [{ state: "frozen", ySplit: 4 }];
@@ -548,6 +572,13 @@ const exportProductionMonthExcel = async ({
       footer: 0.2,
     },
   };
+
+  addPackingDamageWorksheet(workbook, {
+    rows: damageReport.rows || [],
+    filters: { dateFrom: reportRange.from, dateTo: reportRange.to },
+    totalsByProduct: damageReport.totals_by_product || [],
+    totalsByReason: damageReport.totals_by_reason || [],
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadWorkbook(`reporte-produccion-${filters.month}.xlsx`, buffer);

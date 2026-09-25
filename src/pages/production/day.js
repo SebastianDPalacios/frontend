@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, Button, Chip, Grid, LinearProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import catalogService from "services/catalog/catalog-service";
 import productionService from "services/production/production-service";
+import authService from "services/auth/auth-service";
+import { canManageProduction } from "configs/access";
+import ProductionProductSummary from "components/organisms/production/ProductionProductSummary";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import { formatMeasurementQuantity, getMeasurementUnitName, normalizeMeasurementUnit } from "utils/production-measurement-units";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 3,
@@ -32,11 +37,8 @@ const formatUnits = (value) => {
   return numberFormatter.format(numberValue);
 };
 
-const getMaterialUnit = (unit) => (unit === "ml" ? "ml" : "g");
-
 const formatMaterialQty = (value, unit) => {
-  const baseUnit = getMaterialUnit(unit);
-  return `${formatUnits(value)} ${baseUnit}`;
+  return formatMeasurementQuantity(value, unit, formatUnits);
 };
 
 const pluralize = (value, singular, plural) => {
@@ -45,30 +47,35 @@ const pluralize = (value, singular, plural) => {
 
 const formatMaterialEquivalent = (value, unit) => {
   const numberValue = Number(value || 0);
+  const normalizedUnit = normalizeMeasurementUnit(unit);
 
   if (numberValue <= 0) {
-    return unit === "ml" ? "0 litros + 0 ml" : "0 bultos de 50 kg + 0 g";
+    return `0 ${getMeasurementUnitName(unit)}`;
   }
 
-  if (unit === "ml") {
+  if (normalizedUnit === "ml") {
     const fullLiters = Math.floor(numberValue / 1000);
     const remainingMl = numberValue - fullLiters * 1000;
 
-    return `${pluralize(fullLiters, "litro", "litros")} + ${formatUnits(remainingMl)} ml`;
+    return `${pluralize(fullLiters, "litro", "litros")} + ${formatUnits(remainingMl)} mililitros`;
   }
 
-  const bagSizeGrams = 50000;
-  const fullBags = Math.floor(numberValue / bagSizeGrams);
-  const remainingGrams = numberValue - fullBags * bagSizeGrams;
-  const formatWeightRemainder = (grams) => {
-    if (grams >= 1000) {
-      return `${formatUnits(grams / 1000)} kg`;
-    }
+  if (normalizedUnit === "g") {
+    const bagSizeGrams = 50000;
+    const fullBags = Math.floor(numberValue / bagSizeGrams);
+    const remainingGrams = numberValue - fullBags * bagSizeGrams;
+    const remainder = remainingGrams >= 1000
+      ? `${formatUnits(remainingGrams / 1000)} kilogramos`
+      : `${formatUnits(remainingGrams)} gramos`;
+    return `${pluralize(fullBags, "bulto de 50 kilogramos", "bultos de 50 kilogramos")} + ${remainder}`;
+  }
 
-    return `${formatUnits(grams)} g`;
-  };
+  if (normalizedUnit === "kg") {
+    const fullBags = Math.floor(numberValue / 50);
+    return `${pluralize(fullBags, "bulto de 50 kilogramos", "bultos de 50 kilogramos")} + ${formatUnits(numberValue - fullBags * 50)} kilogramos`;
+  }
 
-  return `${pluralize(fullBags, "bulto de 50 kg", "bultos de 50 kg")} + ${formatWeightRemainder(remainingGrams)}`;
+  return formatMaterialQty(numberValue, unit);
 };
 
 const formatMoney = (value) => moneyFormatter.format(Number(value || 0));
@@ -125,37 +132,7 @@ const SmallStat = ({ label, value }) => (
 
 const getCountGap = (row) => Math.round((Number(row.produced_quantity || 0) - Number(row.counted_quantity || 0)) * 1000) / 1000;
 
-const CountGapChip = ({ gap }) => {
-  const normalizedGap = Number(gap || 0);
-
-  if (normalizedGap > 0) {
-    return (
-      <Chip
-        size="small"
-        color="warning"
-        variant="outlined"
-        label={`Falta por explicar: ${formatUnits(normalizedGap)}`}
-        sx={{ fontWeight: 800, maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.35 } }}
-      />
-    );
-  }
-
-  if (normalizedGap < 0) {
-    return (
-      <Chip
-        size="small"
-        color="info"
-        variant="outlined"
-        label={`Contador reporto mas: ${formatUnits(Math.abs(normalizedGap))}`}
-        sx={{ fontWeight: 800, maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.35 } }}
-      />
-    );
-  }
-
-  return <Chip size="small" color="success" variant="outlined" label="Sin desfase" sx={{ fontWeight: 800 }} />;
-};
-
-const BatchCard = ({ batch }) => {
+const BatchCard = ({ batch, canCorrect, reportDate, branchId }) => {
   const produced = Number(batch.produced_quantity || 0);
   const packed = Number(batch.packed_quantity || 0);
   const damaged = Number(batch.damaged_quantity || 0);
@@ -215,12 +192,19 @@ const BatchCard = ({ batch }) => {
         <Typography variant="caption" color="text.secondary">
           Panadero: {batch.baker_name || "-"}
         </Typography>
+        {canCorrect && batch.production_batch_id ? <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button size="small" variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/packaging", query: { view: "history", date: reportDate, batchId: batch.production_batch_id, correction: "production", returnTo: "/production/day", ...(branchId ? { branchId } : {}) } }}>Corregir producción</Button>
+          <Button size="small" variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/packaging", query: { view: "history", date: reportDate, batchId: batch.production_batch_id, correction: "packing", returnTo: "/production/day", ...(branchId ? { branchId } : {}) } }}>Corregir conteo y daños</Button>
+        </Stack> : null}
       </Stack>
     </Paper>
   );
 };
 
 const ProductionDayPage = () => {
+  const router = useRouter();
+  const isAdministrator = canManageProduction(authService.getCurrentUser() || {});
+  const queryLoaded = useRef(false);
   const [loading, setLoading] = useState(true);
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -239,6 +223,22 @@ const ProductionDayPage = () => {
     plan_products: [],
   });
   const reportRange = useMemo(() => getReportRange(filters), [filters]);
+
+  useEffect(() => {
+    if (!router.isReady || queryLoaded.current) return;
+    queryLoaded.current = true;
+    setFilters((current) => ({
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(router.query.date || "")) ? String(router.query.date) : current.date,
+      branchId: router.query.branchId ? String(router.query.branchId) : current.branchId,
+    }));
+  }, [router.isReady, router.query.branchId, router.query.date]);
+
+  useEffect(() => {
+    if (!router.isReady || !queryLoaded.current) return;
+    const query = { date: filters.date };
+    if (filters.branchId) query.branchId = filters.branchId;
+    router.replace({ pathname: "/production/day", query }, undefined, { shallow: true });
+  }, [filters.branchId, filters.date, router]);
 
   useEffect(() => {
     const run = async () => {
@@ -310,7 +310,6 @@ const ProductionDayPage = () => {
     () => report.raw_materials_usage.reduce((total, material) => total + Number(material.total_cost || 0), 0),
     [report.raw_materials_usage]
   );
-  const countGap = Math.round((produced - Number(summary.counted_quantity || 0)) * 1000) / 1000;
   const productsWithCountGap = useMemo(
     () => report.products
       .map((product) => ({ ...product, count_gap: getCountGap(product) }))
@@ -349,7 +348,7 @@ const ProductionDayPage = () => {
             </Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button variant="outlined" color="secondary" component={Link} href="/production/month">
+            <Button variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/month", query: { month: filters.date.slice(0, 7), day: filters.date, ...(filters.branchId ? { branchId: filters.branchId } : {}), ...(router.query.recipeId ? { recipeId: String(router.query.recipeId) } : {}) } }}>
               Reporte mensual
             </Button>
             {hasProductionData ? <Button variant="contained" color="secondary" component={Link} href="/production/packaging">
@@ -413,6 +412,19 @@ const ProductionDayPage = () => {
         </Grid>
       </Grid> : null}
 
+      {isAdministrator && hasProductionData ? <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2, borderColor: "secondary.light" }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
+          <Box>
+            <Typography sx={{ fontWeight: 900 }}>Correcciones administrativas</Typography>
+            <Typography variant="body2" color="text.secondary">Abre los registros originales de esta fecha. Selecciona el lote y producto que necesitas corregir.</Typography>
+          </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button variant="outlined" color="secondary" component={Link} href={{ pathname: "/production/packaging", query: { view: "history", date: filters.date, correction: "production", returnTo: "/production/day", ...(filters.branchId ? { branchId: filters.branchId } : {}) } }}>Corregir producción</Button>
+            <Button variant="contained" color="secondary" component={Link} href={{ pathname: "/production/packaging", query: { view: "history", date: filters.date, correction: "packing", returnTo: "/production/day", ...(filters.branchId ? { branchId: filters.branchId } : {}) } }}>Corregir conteo y daños</Button>
+          </Stack>
+        </Stack>
+      </Paper> : null}
+
       {!loading && !hasProductionData ? (
         <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2.5, md: 4 }, mb: 2, textAlign: "center" }}>
           <Typography variant="h5" sx={{ fontWeight: 900 }}>
@@ -441,7 +453,7 @@ const ProductionDayPage = () => {
         </Paper>
       ) : null}
 
-      {productsWithCountGap.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
+      {report.products.length > 0 ? <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={1}
@@ -449,38 +461,18 @@ const ProductionDayPage = () => {
         >
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
-              Diferencias por revisar
+              Resultado por producto
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              El conteo no coincide con lo reportado por el panadero.
+              Informado, producido y conciliado para la fecha operativa seleccionada.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <CountGapChip gap={countGap} />
-            <Button component={Link} href="/production/packaging" color="secondary" variant="outlined">
-              Revisar conteo
-            </Button>
-          </Stack>
+          <Chip label={`${report.products.length} productos`} variant="outlined" />
         </Stack>
 
         <Stack spacing={1}>
-          {productsWithCountGap.map((product) => (
-            <Paper key={product.product_id} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
-              <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
-                <Grid item xs={12} md={5}>
-                  <Typography sx={{ fontWeight: 900 }}>{product.product_name}</Typography>
-                </Grid>
-                <Grid item xs={6} md={2}>
-                  <SmallStat label="Reportado" value={formatUnits(product.produced_quantity)} />
-                </Grid>
-                <Grid item xs={6} md={2}>
-                  <SmallStat label="Contado" value={formatUnits(product.counted_quantity)} />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <CountGapChip gap={product.count_gap} />
-                </Grid>
-              </Grid>
-            </Paper>
+          {report.products.map((product) => (
+            <ProductionProductSummary key={product.product_id} product={product} formatUnits={formatUnits} />
           ))}
         </Stack>
       </Paper> : null}
@@ -574,7 +566,7 @@ const ProductionDayPage = () => {
             <Grid container spacing={1.5}>
               {report.batches.map((batch) => (
                 <Grid item xs={12} key={batch.production_batch_id}>
-                  <BatchCard batch={batch} />
+                  <BatchCard batch={batch} canCorrect={isAdministrator} reportDate={filters.date} branchId={filters.branchId} />
                 </Grid>
               ))}
             </Grid>

@@ -25,6 +25,7 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [items, setItems] = useState([]);
+  const [physicalProducts, setPhysicalProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [taxRates, setTaxRates] = useState([]);
   const [page, setPage] = useState(1);
@@ -39,8 +40,9 @@ const ProductsPage = () => {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const [response, categoriesResponse, taxRatesResponse] = await Promise.all([
+      const [response, physicalProductsResponse, categoriesResponse, taxRatesResponse] = await Promise.all([
         catalogService.getProducts({ page, pageSize, search: debouncedSearch }),
+        catalogService.getProducts({ onlyActive: 1, page: 1, pageSize: 500 }),
         catalogService.getProductCategories({ onlyActive: 1 }),
         catalogService.getTaxRates({ onlyActive: 0 }),
       ]);
@@ -50,6 +52,7 @@ const ProductsPage = () => {
       }
       setError(null);
       setItems(normalizeList(response.data));
+      setPhysicalProducts(normalizeList(physicalProductsResponse?.data ?? physicalProductsResponse));
       setTotal(Number(response.data?.total || 0));
       setCategories(normalizeList(categoriesResponse?.data ?? categoriesResponse));
       setTaxRates(normalizeList(taxRatesResponse?.data ?? taxRatesResponse));
@@ -79,10 +82,11 @@ const ProductsPage = () => {
     values: {
       name: product.name || "", description: product.description || "",
       category_id: String(product.category_id || ""), tax_rate_id: String(product.tax_rate_id || ""),
-      unit: product.unit || "unit", base_price: String(product.base_price ?? ""),
+      unit: "unit", base_price: String(product.base_price ?? ""),
       min_stock: String(product.min_stock ?? ""), units_per_bag: String(product.units_per_bag ?? ""),
       is_active: String(product.is_active ?? 1),
       includes_bonus: String(product.includes_bonus ?? 0),
+      physical_product_id: String(product.physical_product_id || ""),
     },
     error: null,
     saving: false,
@@ -96,14 +100,22 @@ const ProductsPage = () => {
       setEditDialog((current) => ({ ...current, error: "Nombre y categoria son obligatorios" }));
       return;
     }
+    const minimumStock = Number(values.min_stock || 0);
+    const unitsPerBag = values.units_per_bag === "" ? null : Number(values.units_per_bag);
+    if (!Number.isInteger(minimumStock) || minimumStock < 0
+      || (unitsPerBag !== null && (!Number.isInteger(unitsPerBag) || unitsPerBag <= 0))) {
+      setEditDialog((current) => ({ ...current, error: "El stock mínimo y las unidades por bulto deben ser cantidades enteras." }));
+      return;
+    }
     setEditDialog((current) => ({ ...current, saving: true, error: null }));
     try {
       const result = await catalogService.updateProduct(editDialog.product.id, {
         p_name: values.name.trim(), p_description: values.description.trim() || null,
         p_category_id: Number(values.category_id), p_tax_rate_id: values.tax_rate_id ? Number(values.tax_rate_id) : null,
-        p_unit: values.unit, p_base_price: Number(values.base_price || 0), p_min_stock: Number(values.min_stock || 0),
+        p_unit: "unit", p_base_price: Number(values.base_price || 0), p_min_stock: Number(values.min_stock || 0),
         p_units_per_bag: values.units_per_bag ? Number(values.units_per_bag) : null, p_is_active: Number(values.is_active),
         p_includes_bonus: Number(values.includes_bonus || 0),
+        p_physical_product_id: values.physical_product_id ? Number(values.physical_product_id) : null,
       });
       if (result?.code !== 1) throw new Error(result?.message || "No se pudo actualizar el producto");
       toast.success("Producto actualizado");
@@ -130,8 +142,8 @@ const ProductsPage = () => {
 
   const saveYield = async () => {
     const numericValue = Number(yieldDialog.value);
-    if (!Number.isFinite(numericValue) || numericValue <= 0) {
-      setYieldDialog((current) => ({ ...current, error: "El rendimiento debe ser mayor que 0" }));
+    if (!Number.isInteger(numericValue) || numericValue <= 0) {
+      setYieldDialog((current) => ({ ...current, error: "El rendimiento debe ser una cantidad entera mayor que 0" }));
       return;
     }
 
@@ -190,7 +202,7 @@ const ProductsPage = () => {
         p_description: product.description || null,
         p_category_id: Number(categoryDialog.value),
         p_tax_rate_id: product.tax_rate_id ? Number(product.tax_rate_id) : null,
-        p_unit: product.unit,
+        p_unit: "unit",
         p_base_price: Number(product.base_price || 0),
         p_min_stock: Number(product.min_stock || 0),
         p_units_per_bag: product.units_per_bag ? Number(product.units_per_bag) : null,
@@ -289,7 +301,7 @@ const ProductsPage = () => {
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField select fullWidth label="Categoria" value={editDialog.values.category_id || ""} onChange={(e) => setEditValue("category_id", e.target.value)}>{categories.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}</TextField>
               <TextField select fullWidth label="Tasa de impuesto" value={editDialog.values.tax_rate_id || ""} onChange={(e) => setEditValue("tax_rate_id", e.target.value)}><MenuItem value="">Sin impuesto</MenuItem>{taxRates.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name} ({item.rate_percent}%)</MenuItem>)}</TextField>
-              <TextField select fullWidth label="Unidad" value={editDialog.values.unit || "unit"} onChange={(e) => setEditValue("unit", e.target.value)}>{[["unit", "Unidad"], ["kg", "Kilogramo"], ["g", "Gramo"], ["lb", "Libra"]].map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}</TextField>
+              <TextField fullWidth label="Unidad de medida" value="Unidades" disabled helperText="Los productos terminados se controlan en unidades completas" />
             </Stack>
             </Box>
             <Divider />
@@ -297,11 +309,25 @@ const ProductsPage = () => {
             <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>Operacion</Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField fullWidth type="number" label="Precio base" value={editDialog.values.base_price || ""} onChange={(e) => setEditValue("base_price", e.target.value)} inputProps={{ min: 0 }} />
-              <TextField fullWidth type="number" label="Stock minimo" value={editDialog.values.min_stock || ""} onChange={(e) => setEditValue("min_stock", e.target.value)} inputProps={{ min: 0 }} />
-              <TextField fullWidth type="number" label="Unidades por bulto (opcional)" helperText="Déjalo vacío si no aplica" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 0.001, step: 0.001 }} />
+              <TextField fullWidth type="number" label="Stock minimo" value={editDialog.values.min_stock || ""} onChange={(e) => setEditValue("min_stock", e.target.value)} inputProps={{ min: 0, step: 1 }} />
+              <TextField fullWidth type="number" label="Unidades por bulto (opcional)" helperText="Déjalo vacío si no aplica" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 1, step: 1 }} />
               <TextField select fullWidth label="Estado" value={editDialog.values.is_active || "1"} onChange={(e) => setEditValue("is_active", e.target.value)}><MenuItem value="1">Activo</MenuItem><MenuItem value="0">Inactivo</MenuItem></TextField>
               <TextField select fullWidth label="Incluye vendaje" value={editDialog.values.includes_bonus || "0"} onChange={(e) => setEditValue("includes_bonus", e.target.value)}><MenuItem value="0">No</MenuItem><MenuItem value="1">Si</MenuItem></TextField>
             </Stack>
+            <TextField
+              select
+              fullWidth
+              label="Inventario físico utilizado"
+              value={editDialog.values.physical_product_id || ""}
+              onChange={(e) => setEditValue("physical_product_id", e.target.value)}
+              helperText="Déjalo como producto propio si este producto tiene inventario independiente."
+              sx={{ mt: 2 }}
+            >
+              <MenuItem value="">Producto propio (principal)</MenuItem>
+              {physicalProducts.filter((item) => Number(item.id) !== Number(editDialog.product?.id) && !item.physical_product_id).map((item) => (
+                <MenuItem key={item.id} value={String(item.id)}>{item.name} · {item.sku}</MenuItem>
+              ))}
+            </TextField>
             </Box>
           </Stack>
         </DialogContent>

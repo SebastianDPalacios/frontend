@@ -92,10 +92,15 @@ export const isSalesOnlyUser = (user) => {
   return roles.includes("VENTAS") && !roles.some((role) => administrativeRoles.includes(role));
 };
 
+export const canManageProduction = (user) => {
+  return isAdministrativeUser(user) || hasPermission(user, "production.manage");
+};
+
 export const isProductionOnlyUser = (user) => {
   const roles = normalizeRoleCodes(Array.isArray(user?.roles) ? user.roles : []);
   return roles.some((role) => productionRoles.includes(role))
-    && !roles.some((role) => administrativeRoles.includes(role));
+    && !roles.some((role) => administrativeRoles.includes(role))
+    && !hasPermission(user, "production.manage");
 };
 
 export const hasBakerProfile = (user) => {

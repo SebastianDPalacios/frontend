@@ -50,6 +50,11 @@ const lineTypeLabels = {
   gift: "Obsequio",
   exchange: "Cambio",
 };
+const priceOriginLabels = {
+  customer_special: "Especial del cliente",
+  wholesale_general: "Mayorista general",
+  regular: "Regular",
+};
 
 const getLineTypesForProduct = (product) => Number(product?.includes_bonus || 0) === 1
   ? [
@@ -294,6 +299,22 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                     <Typography variant="caption" color="text.secondary">
                       {item.capture_mode === "amount" ? "Por valor" : "Por cantidad"}
                     </Typography>
+                    {item.display_line_type === "sale_bonus" && item.sale_bonus_invoiced_value != null ? (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          Valor facturado: ${formatCurrencyValue(item.sale_bonus_invoiced_value, 0)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          Vendaje aplicado: {Number(item.sale_bonus_percent_applied || 0)}% (${formatCurrencyValue(item.sale_bonus_value_applied, 0)})
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          Precio utilizado: ${formatCurrencyValue(item.sale_bonus_product_price_used, 0)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontWeight: 800 }}>
+                          Resultado: {Number(item.sale_bonus_result_quantity || 0)} unidades
+                        </Typography>
+                      </Box>
+                    ) : null}
                   </TableCell>
                   <TableCell align="center">
                     <Typography sx={{ fontWeight: 900, fontSize: 20 }}>
@@ -302,7 +323,16 @@ const OrderDetailEditor = ({ order, items, loading, onRefresh }) => {
                   </TableCell>
                   <TableCell align="right">
                     <Typography sx={{ fontWeight: 800 }}>
-                      ${formatCurrencyValue(item.unit_price, 0)}
+                      ${formatCurrencyValue(item.applied_price ?? item.unit_price, 0)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      Regular ${formatCurrencyValue(item.regular_price_reference ?? item.unit_price, 0)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      {priceOriginLabels[item.price_origin] || "Regular"} · {item.wholesale_price_list_name || "Sin lista"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      Diferencia ${formatCurrencyValue(Number(item.regular_price_reference ?? item.unit_price) - Number(item.applied_price ?? item.unit_price), 0)}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">

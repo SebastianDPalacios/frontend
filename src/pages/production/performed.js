@@ -1,18 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Autocomplete, Box, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
-import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "@mui/material";
 import ProductionIngredientUsagePanel from "components/organisms/production/ProductionIngredientUsagePanel";
+import ProductionRegistrationForm from "components/organisms/production/ProductionRegistrationForm";
 import toast from "react-hot-toast";
-import AppButton from "@core/components/ui/AppButton";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import productionService from "services/production/production-service";
 import authService from "services/auth/auth-service";
+import { canManageProduction } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
-const normalizeWholeNumberInput = (value, update) => { if (value === "" || /^\d+$/.test(value)) update(value); };
+const createProductionRequestKey = () => `production:${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 const ProductionPerformedPage = () => {
   const [loading, setLoading] = useState(true);
@@ -23,10 +22,10 @@ const ProductionPerformedPage = () => {
   const [baker, setBaker] = useState(null);
   const [bakers, setBakers] = useState([]);
   const currentUser = authService.getCurrentUser() || {};
-  const isAdministrator = (currentUser.roles || []).some((role) => ["ADMIN", "SUPER_ADMIN"].includes(typeof role === "string" ? role : role?.code))
-    || (currentUser.permissions || []).some((permission) => (typeof permission === "string" ? permission : permission?.code) === "production.manage");
+  const isAdministrator = canManageProduction(currentUser);
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
-  const [form, setForm] = useState({ bakerEmployeeId: "", branchId: "", productId: "", producedQuantity: "", producedDate: toDateInputValue() });
+  const requestRef = useRef({ signature: "", key: "" });
+  const [form, setForm] = useState({ bakerEmployeeId: "", branchId: "", productId: "", producedQuantity: "", producedDate: toDateInputValue(), retroactiveReason: "" });
 
   const products = useMemo(() => recipes.flatMap((recipe) => normalizeRows(recipe.outputs).map((output) => ({
     ...output,
@@ -116,21 +115,36 @@ const ProductionPerformedPage = () => {
     if (!Number(form.branchId) || !selectedProduct) return setError("Selecciona la sucursal y el producto elaborado.");
     if (!Number.isInteger(producedQuantity) || producedQuantity <= 0) return setError("La cantidad producida debe ser un numero entero mayor a cero.");
     if (!Number.isFinite(yieldPerBatch) || yieldPerBatch <= 0) return setError("El producto no tiene un rendimiento valido en su receta vigente.");
+    const today = toDateInputValue();
+    if (form.producedDate > today) return setError("No se puede registrar produccion con fecha futura.");
+    if (!isAdministrator && form.producedDate < today) return setError("Solo un administrador puede registrar produccion retroactiva.");
+    if (isAdministrator && form.producedDate < today && form.retroactiveReason.trim().length < 5) return setError("Indica el motivo del registro retroactivo.");
+
+    const requestPayload = {
+      p_baker_employee_id: Number(baker.id),
+      p_branch_id: Number(form.branchId),
+      p_recipe_id: Number(selectedProduct.recipe_id),
+      p_batch_quantity: producedQuantity / yieldPerBatch,
+      p_produced_date: form.producedDate,
+      p_retroactive_reason: form.producedDate < today ? form.retroactiveReason.trim() : null,
+      p_outputs: [{ product_id: Number(selectedProduct.product_id), produced_quantity: producedQuantity }],
+    };
+    const signature = JSON.stringify(requestPayload);
+    if (requestRef.current.signature !== signature) {
+      requestRef.current = { signature, key: createProductionRequestKey() };
+    }
 
     setSaving(true);
     setError(null);
     try {
       const response = await productionService.registerMyBatch({
-        p_baker_employee_id: Number(baker.id),
-        p_branch_id: Number(form.branchId),
-        p_recipe_id: Number(selectedProduct.recipe_id),
-        p_batch_quantity: producedQuantity / yieldPerBatch,
-        p_produced_date: form.producedDate,
-        p_outputs: [{ product_id: Number(selectedProduct.product_id), produced_quantity: producedQuantity }],
+        ...requestPayload,
+        p_client_request_key: requestRef.current.key,
       });
       if (response?.code !== 1) throw new Error(response?.message || "No se pudo registrar la produccion.");
       toast.success(response.message || "Produccion registrada");
-      setForm((current) => ({ ...current, productId: "", producedQuantity: "" }));
+      requestRef.current = { signature: "", key: "" };
+      setForm((current) => ({ ...current, productId: "", producedQuantity: "", retroactiveReason: "" }));
       setUsageRefreshKey((current) => current + 1);
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Error de red al registrar la produccion."));
@@ -143,101 +157,33 @@ const ProductionPerformedPage = () => {
     <FlowPageLayout title="Produccion realizada" subtitle="Selecciona el producto e indica libremente las unidades completas elaboradas.">
       {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       {loading ? <Alert severity="info" sx={{ mb: 2 }}>Cargando produccion...</Alert> : null}
-      <Paper
-        variant="outlined"
-        sx={{
-          position: "relative",
-          overflow: "hidden",
-          borderRadius: { xs: 4, md: 5 },
-          borderColor: "rgba(221, 93, 38, 0.24)",
-          boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
-          "&:before": { content: '\"\"', position: "absolute", inset: "0 0 auto", height: 7, bgcolor: "secondary.main" },
+      <ProductionRegistrationForm
+        isAdministrator={isAdministrator}
+        baker={baker}
+        bakers={bakers}
+        branches={branches}
+        products={products}
+        selectedProduct={selectedProduct}
+        form={form}
+        saving={saving}
+        today={toDateInputValue()}
+        onBakerChange={(bakerEmployeeId) => {
+          setForm((current) => ({ ...current, bakerEmployeeId }));
+          setBaker(bakers.find((item) => String(item.id) === String(bakerEmployeeId)) || null);
+          setError(null);
         }}
-      >
-        <Box
-          sx={{
-            p: { xs: 2.25, sm: 3 },
-            color: "common.white",
-            background: "linear-gradient(135deg, #111827 0%, #1f2937 72%, #3b241c 100%)",
-          }}
-        >
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <Box sx={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 3, bgcolor: "secondary.main", flexShrink: 0 }}>
-              <FactoryRoundedIcon />
-            </Box>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 950, lineHeight: 1.1 }}>Registrar producto elaborado</Typography>
-              <Typography sx={{ mt: 0.5, color: "rgba(255,255,255,.72)" }}>Carga rápida de la producción terminada.</Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 0.75 }}>
-            <Chip label="Registro libre" size="small" sx={{ bgcolor: "rgba(255,255,255,.12)", color: "common.white", fontWeight: 800 }} />
-            <Chip label="Solo unidades completas" size="small" sx={{ bgcolor: "rgba(221,93,38,.28)", color: "#ffd7c4", fontWeight: 800 }} />
-          </Stack>
-        </Box>
-
-        <Box sx={{ p: { xs: 2.25, sm: 3 }, bgcolor: "background.paper" }}>
-        {!baker && !isAdministrator ? <Alert severity="warning" sx={{ mb: 2 }}>Tu usuario no tiene un empleado panadero activo asociado.</Alert> : null}
-        {isAdministrator && !baker ? <Alert severity="info" sx={{ mb: 2 }}>Como administrador, selecciona el panadero por quien vas a registrar la produccion.</Alert> : null}
-        <Grid
-          container
-          spacing={2}
-          sx={{
-            "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: "background.default", minHeight: 56 },
-            "& .MuiInputLabel-root": { fontWeight: 700 },
-          }}
-        >
-          {isAdministrator ? <Grid item xs={12} md={3}>
-            <TextField select fullWidth label="Panadero responsable" value={form.bakerEmployeeId} onChange={(event) => {
-              const bakerEmployeeId = event.target.value;
-              setForm((current) => ({ ...current, bakerEmployeeId }));
-              setBaker(bakers.find((item) => String(item.id) === String(bakerEmployeeId)) || null);
-              setError(null);
-            }}>
-              <MenuItem value="">Seleccionar panadero</MenuItem>
-              {bakers.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}
-            </TextField>
-          </Grid> : null}
-          <Grid item xs={12} md={isAdministrator ? 3 : 3}>
-            <TextField select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
-              {branches.map((branch) => <MenuItem key={branch.id} value={String(branch.id)}>{branch.name}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={isAdministrator ? 3 : 4}>
-            <Autocomplete
-              fullWidth
-              options={products}
-              value={selectedProduct}
-              onChange={(_event, product) => setForm((current) => ({ ...current, productId: product ? String(product.product_id) : "", producedQuantity: "" }))}
-              getOptionLabel={(product) => product.product_name || "Producto"}
-              isOptionEqualToValue={(option, value) => String(option.product_id) === String(value.product_id)}
-              noOptionsText="No encontramos productos"
-              renderInput={(params) => <TextField {...params} label="Producto" placeholder="Escribe para buscar" />}
-            />
-          </Grid>
-          <Grid item xs={12} md={isAdministrator ? 1.5 : 2}>
-            <TextField fullWidth type="number" label="Unidades producidas" value={form.producedQuantity} inputProps={{ min: 1, step: 1, inputMode: "numeric" }} onChange={(event) => normalizeWholeNumberInput(event.target.value, (value) => setForm((current) => ({ ...current, producedQuantity: value })))} />
-          </Grid>
-          <Grid item xs={12} md={isAdministrator ? 1.5 : 3}>
-            <TextField fullWidth type="date" label="Fecha" value={form.producedDate} InputLabelProps={{ shrink: true }} onChange={(event) => setForm((current) => ({ ...current, producedDate: event.target.value }))} />
-          </Grid>
-          <Grid item xs={12}>
-            {selectedProduct ? (
-              <Box sx={{ mb: 2, p: 1.75, borderRadius: 3, display: "flex", alignItems: "center", gap: 1.25, bgcolor: "rgba(221, 93, 38, 0.07)", border: "1px solid rgba(221, 93, 38, 0.2)" }}>
-                <Inventory2OutlinedIcon color="secondary" />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Producto seleccionado</Typography>
-                  <Typography sx={{ fontWeight: 900 }}>{selectedProduct.product_name}</Typography>
-                </Box>
-              </Box>
-            ) : null}
-            <AppButton fullWidth color="secondary" disabled={saving || !baker || !selectedProduct || !Number.isInteger(Number(form.producedQuantity)) || Number(form.producedQuantity) <= 0} onClick={saveProduction} sx={{ minHeight: 58, borderRadius: 3, fontSize: 17, fontWeight: 900, boxShadow: selectedProduct ? "0 10px 24px rgba(221, 93, 38, 0.25)" : "none" }}>
-              {saving ? "Guardando..." : "Guardar produccion"}
-            </AppButton>
-          </Grid>
-        </Grid>
-        </Box>
-      </Paper>
+        onFormChange={(field, value) => setForm((current) => ({
+          ...current,
+          [field]: value,
+          ...(field === "producedDate" ? { retroactiveReason: "" } : {}),
+        }))}
+        onProductChange={(product) => setForm((current) => ({
+          ...current,
+          productId: product ? String(product.product_id) : "",
+          producedQuantity: "",
+        }))}
+        onSubmit={saveProduction}
+      />
       <ProductionIngredientUsagePanel
         branchId={form.branchId}
         referenceDate={form.producedDate}

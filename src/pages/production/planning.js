@@ -5,10 +5,10 @@ import toast from "react-hot-toast";
 import ProductionPlanAssignmentForm from "components/organisms/production/ProductionPlanAssignmentForm";
 import ProductionPlanDesktopForm from "components/organisms/production/ProductionPlanDesktopForm";
 import ProductionPlanOverview from "components/organisms/production/ProductionPlanOverview";
-import ProductionWorkDialog from "components/organisms/production/ProductionWorkDialog";
 import AppButton from "@core/components/ui/AppButton";
+import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import authService from "services/auth/auth-service";
-import { isProductionOnlyUser } from "configs/access";
+import { canManageProduction } from "configs/access";
 import catalogService from "services/catalog/catalog-service";
 import employeesService from "services/employees/employees-service";
 import productionService from "services/production/production-service";
@@ -30,7 +30,8 @@ const toDateValue = (date) => {
 };
 
 const getTomorrow = () => {
-  const date = new Date();
+  const [year, month, day] = toDateInputValue().split("-").map(Number);
+  const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + 1);
   return toDateValue(date);
 };
@@ -86,42 +87,24 @@ const calculatePlanRow = (recipes, row) => {
     estimatedUnits: Number.isFinite(estimatedUnits) ? estimatedUnits : 0,
   };
 };
-const buildProductionQuantities = (item) => normalizeRows(item?.outputs).reduce((acc, output) => {
-  const expectedTotal = Math.round(Number(output.expected_quantity || 0) * Number(item?.arrobas || 1) * 1000) / 1000;
-  acc[String(output.product_id)] = String(output.produced_quantity ?? expectedTotal);
-  return acc;
-}, {});
-
-const buildProductionPayload = (item, quantities) => normalizeRows(item?.outputs).map((output) => ({
-  product_id: Number(output.product_id),
-  produced_quantity: Number(quantities[String(output.product_id)] || 0),
-}));
-
 const ProductionPlanningPage = () => {
   const theme = useTheme();
   const useCompactPlanning = useMediaQuery(theme.breakpoints.down("lg"));
   const currentUser = authService.getCurrentUser() || {};
-  const isAdministrator = (currentUser.roles || []).some((role) => {
-    const code = typeof role === "string" ? role : role?.code || role?.name;
-    return ["ADMIN", "SUPER_ADMIN"].includes(String(code || "").toUpperCase());
-  });
-  const canManage = isAdministrator || isProductionOnlyUser(currentUser) || (currentUser.permissions || []).includes("production.manage");
+  const isAdministrator = canManageProduction(currentUser);
+  const canManage = isAdministrator;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState("");
   const [cancellingPlanId, setCancellingPlanId] = useState("");
   const [planToCancel, setPlanToCancel] = useState(null);
   const [formResetToken, setFormResetToken] = useState(0);
-  const [startingItemId, setStartingItemId] = useState("");
-  const [finishingItemId, setFinishingItemId] = useState("");
-  const [workDialog, setWorkDialog] = useState({ plan: null, item: null, canFinish: true });
-  const [productionQuantities, setProductionQuantities] = useState({});
   const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [bakers, setBakers] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [plans, setPlans] = useState([]);
-  const [myPlans, setMyPlans] = useState([]);
+  const [, setMyPlans] = useState([]);
   const [form, setForm] = useState({
     branchId: "",
     bakerId: "",
@@ -345,82 +328,6 @@ const ProductionPlanningPage = () => {
     }
   };
 
-  const openWorkDialog = (plan, item, options = {}) => {
-    setProductionQuantities(buildProductionQuantities(item));
-    setWorkDialog({ plan, item, canFinish: options.canFinish !== false });
-  };
-
-  const startPlanItem = async (productionPlanItemId) => {
-    if (startingItemId) return;
-
-    setStartingItemId(String(productionPlanItemId));
-    setError(null);
-    try {
-      const response = await productionService.startPlanItem(productionPlanItemId);
-      if (response?.code !== 1) {
-        setError(response?.message || "No se pudo iniciar la producción.");
-        return;
-      }
-
-      toast.success(response.message || "Producción iniciada");
-      const ownerPlan = myPlans.find((plan) =>
-        normalizeRows(plan.items).some((item) => String(item.id) === String(productionPlanItemId))
-      );
-      const ownerItem = normalizeRows(ownerPlan?.items).find(
-        (item) => String(item.id) === String(productionPlanItemId)
-      );
-      openWorkDialog(ownerPlan, { ...ownerItem, started_at: new Date().toISOString() });
-      await loadData();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al iniciar la producción."));
-    } finally {
-      setStartingItemId("");
-    }
-  };
-
-  const finishPlanItem = async (productionPlanItemId) => {
-    if (finishingItemId) return;
-
-    const currentItem = workDialog.item;
-    const outputPayload = buildProductionPayload(currentItem, productionQuantities);
-    if (!outputPayload.length || outputPayload.some((output) => !Number.isFinite(output.produced_quantity) || output.produced_quantity <= 0)) {
-      setError("Todas las cantidades realizadas deben ser mayores a cero.");
-      return;
-    }
-
-    setFinishingItemId(String(productionPlanItemId));
-    setError(null);
-    try {
-      const response = await productionService.finishPlanItem(productionPlanItemId, { p_outputs: outputPayload });
-      if (response?.code !== 1) {
-        setError(response?.message || "No se pudo finalizar la produccion.");
-        return;
-      }
-
-      toast.success(response.message || "Produccion finalizada");
-      setWorkDialog((current) => ({
-        ...current,
-        plan: current.plan ? { ...current.plan, status: "completed" } : current.plan,
-        item: current.item
-          ? {
-              ...current.item,
-              finished_at: new Date().toISOString(),
-              production_batch_id: response.data?.production_batch_id,
-              outputs: normalizeRows(current.item.outputs).map((output) => ({
-                ...output,
-                produced_quantity: productionQuantities[String(output.product_id)],
-              })),
-            }
-          : current.item,
-      }));
-      await loadData();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError, "Error de red al finalizar la produccion."));
-    } finally {
-      setFinishingItemId("");
-    }
-  };
-
   const cancelPlan = async (plan) => {
     if (cancellingPlanId) return;
     setCancellingPlanId(String(plan.id));
@@ -498,29 +405,14 @@ const ProductionPlanningPage = () => {
       <ProductionPlanOverview
         canManage={canManage}
         loading={loading}
-        myPlans={myPlans}
         plans={plans}
-        startingItemId={startingItemId}
         formatNumber={formatNumber}
-        onStartItem={startPlanItem}
-        onViewItem={openWorkDialog}
         onEditPlan={editPlan}
         onCancelPlan={setPlanToCancel}
         cancellingPlanId={cancellingPlanId}
         canEditPlan={userCanEditPlan}
       />
 
-      <ProductionWorkDialog
-        open={Boolean(workDialog.item)}
-        plan={workDialog.plan}
-        item={workDialog.item}
-        finishing={Boolean(finishingItemId)}
-        canFinish={workDialog.canFinish}
-        productionQuantities={productionQuantities}
-        onQuantityChange={(productId, value) => setProductionQuantities((current) => ({ ...current, [String(productId)]: value }))}
-        onClose={() => setWorkDialog({ plan: null, item: null, canFinish: true })}
-        onFinish={finishPlanItem}
-      />
 
       <Dialog
         open={Boolean(planToCancel)}
@@ -539,7 +431,7 @@ const ProductionPlanningPage = () => {
               Esta accion no elimina produccion ni modifica inventario. El panadero dejara de ver esta lista como vigente.
             </Typography>
             <Box sx={{ p: 2, borderRadius: 3, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}>
-              <Typography sx={{ fontWeight: 900 }}>{planToCancel?.baker_name || "Panadero asignado"}</Typography>
+              <Typography sx={{ fontWeight: 900 }}>{planToCancel?.baker_name || "Panadero informado"}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {String(planToCancel?.planned_date || "").split("T")[0]} · {planToCancel?.branch_name || "Sucursal"}
               </Typography>

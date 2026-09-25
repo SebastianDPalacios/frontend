@@ -12,7 +12,7 @@ const ProductionPlanOverview = ({
 }) => (
   <Stack spacing={1.5} sx={{ mt: 3 }}>
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900 }}>Asignaciones enviadas</Typography>
+      <Typography variant="h6" sx={{ fontWeight: 900 }}>Listas informativas enviadas</Typography>
       <Typography variant="body2" color="text.secondary">
         Listas informativas enviadas a los panaderos. Puedes corregirlas o cancelarlas sin registrar produccion.
       </Typography>

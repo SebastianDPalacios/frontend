@@ -50,7 +50,6 @@ const filterSellers = createFilterOptions({
     seller?.email,
   ].filter(Boolean).join(" "),
 });
-
 const SellerPosOrderForm = ({
   loading,
   saving,
@@ -231,7 +230,9 @@ const SellerPosOrderForm = ({
                       <Typography sx={{ fontWeight: 900, fontSize: { xs: 20, sm: 22 }, lineHeight: 1.15, overflowWrap: "anywhere" }}>{product.name}</Typography>
                       <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: 16, sm: 17 }, fontWeight: 600, lineHeight: 1.2 }}>{product.category_name || "Sin categoría"}</Typography>
                     </Box>
-                    <Chip color="secondary" label={`$${formatCurrencyValue(product.base_price, 0)}`} sx={{ height: { xs: 44, sm: 48 }, fontSize: { xs: 18, sm: 20 }, fontWeight: 900, flexShrink: 0, px: 0.75 }} />
+                    <Stack spacing={0.5} sx={{ alignItems: "flex-end", flexShrink: 0 }}>
+                      <Chip color="secondary" label={`$${formatCurrencyValue(product.applied_price, 0)}`} sx={{ height: { xs: 44, sm: 48 }, fontSize: { xs: 18, sm: 20 }, fontWeight: 900, px: 0.75 }} />
+                    </Stack>
                   </Stack>
                 </Paper>
               </Grid>
@@ -365,7 +366,7 @@ const SellerPosOrderForm = ({
         <DialogTitle sx={{ pb: { xs: 0.5, sm: 1 }, px: { xs: 2, sm: 3 }, pt: { xs: 1.25, sm: 2.5 }, flexShrink: 0 }}>
           <Typography sx={{ fontWeight: 900, fontSize: { xs: 25, sm: 21 }, lineHeight: 1.15 }}>{captureProduct?.name}</Typography>
           <Typography color="text.secondary" sx={{ mt: { xs: 0.25, sm: 0.75 }, fontSize: { xs: 19, sm: 16 }, fontWeight: 700 }}>
-            ${formatCurrencyValue(captureProduct?.base_price, 0)} por {captureProduct?.unit || "unidad"}
+            ${formatCurrencyValue(captureProduct?.applied_price, 0)} por unidad
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.75, sm: 2 }, overflowY: "auto" }}>

@@ -173,10 +173,16 @@ const PurchaseInvoiceDialog = ({
                   </Grid>
                   <Grid item xs={12} md={1}>
                     <Typography variant="caption" color="text.secondary">
-                      Entra
+                      Ingresado
                     </Typography>
                     <Typography sx={{ fontWeight: 900 }}>
                       {formatNumber(purchaseData.baseQuantity, unit)} {unit}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      A inventario
+                    </Typography>
+                    <Typography sx={{ fontWeight: 900, color: "success.main" }}>
+                      {formatNumber(purchaseData.normalizedQuantity, unit)} {unit}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={1}>

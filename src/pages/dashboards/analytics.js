@@ -13,18 +13,6 @@ import { hasPermission, isBakerOnlyUser, isPackagingOnlyUser } from "configs/acc
 import { normalizeRows } from "views/modules/flow-utils";
 
 
-const getCurrentMonthRange = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return {
-    dateFrom: `${year}-${month}-01`,
-    dateTo: `${year}-${month}-${day}`,
-  };
-};
-
 const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +20,6 @@ const AnalyticsPage = () => {
   const [insights, setInsights] = useState({
     orders: null,
     production: null,
-    shortages: null,
     inventory: null,
     monthly: null,
   });
@@ -65,9 +52,6 @@ const AnalyticsPage = () => {
           production: (hasPermission(user, "production.manage") || hasPermission(user, "production.packaging"))
             ? productionService.getPendingPackaging({})
             : Promise.resolve(null),
-          shortages: !focusedProductionUser && hasPermission(user, "production.manage")
-            ? productionService.getJustifiedShortages({ ...getCurrentMonthRange(), page: 1, pageSize: 1 })
-            : Promise.resolve(null),
           inventory: !focusedProductionUser && hasPermission(user, "inventory.manage")
             ? inventoryService.getBaseData({ onlyActive: 1, page: 1, pageSize: 80 })
             : Promise.resolve(null),
@@ -76,13 +60,12 @@ const AnalyticsPage = () => {
             : Promise.resolve(null),
         };
 
-        const [users, customers, products, orders, production, shortages, inventory, monthly] = await Promise.allSettled([
+        const [users, customers, products, orders, production, inventory, monthly] = await Promise.allSettled([
           requests.users,
           requests.customers,
           requests.products,
           requests.orders,
           requests.production,
-          requests.shortages,
           requests.inventory,
           requests.monthly,
         ]);
@@ -135,9 +118,6 @@ const AnalyticsPage = () => {
                 }, 0),
                 completed: productionRows.filter((batch) => batch.status === "partially_packed").length,
               }
-            : null,
-          shortages: requests.shortages && shortages.status === "fulfilled" && shortages.value
-            ? shortages.value.data?.summary || null
             : null,
           inventory: requests.inventory
             ? {
