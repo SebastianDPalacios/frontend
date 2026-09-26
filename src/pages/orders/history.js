@@ -246,22 +246,16 @@ const StatusChip = ({ status, sx, onClick, interactive = false }) => (
 
 const DeleteOrderDialog = ({ open, dailyNumber, loading, canCancel, onClose, onConfirm }) => {
   const [reason, setReason] = useState("");
-  const [reasonError, setReasonError] = useState("");
 
   useEffect(() => {
     if (open) {
       setReason("");
-      setReasonError("");
     }
   }, [open]);
 
   const handleConfirm = () => {
     const normalizedReason = reason.trim();
-    if (normalizedReason.length < 5) {
-      setReasonError("Para cancelar indica un motivo de al menos 5 caracteres");
-      return;
-    }
-    onConfirm(normalizedReason);
+    onConfirm(normalizedReason || null);
   };
 
   return (
@@ -274,14 +268,10 @@ const DeleteOrderDialog = ({ open, dailyNumber, loading, canCancel, onClose, onC
           </Alert>
           <TextField
             fullWidth
-            label="Motivo de eliminacion"
+            label="Motivo de eliminación (opcional)"
             value={reason}
-            onChange={(event) => {
-              if (reasonError) setReasonError("");
-              setReason(event.target.value);
-            }}
-            error={Boolean(reasonError)}
-            helperText={reasonError || "Minimo 5 caracteres"}
+            onChange={(event) => setReason(event.target.value)}
+            helperText="Puedes dejar este campo vacío"
           />
         </Stack>
       </DialogContent>
