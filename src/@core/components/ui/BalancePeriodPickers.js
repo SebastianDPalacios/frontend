@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Grid, IconButton, Popover, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Grid, IconButton, MenuItem, Popover, Stack, TextField, Typography } from "@mui/material";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
+import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import {
@@ -53,6 +54,104 @@ const getMonthValueLabel = (value) => {
 const getWeekValueLabel = (value) => {
   const [yearText, weekText] = String(value || getIsoWeekInputValue()).split("-W");
   return `Semana ${Number(weekText)}, ${yearText}`;
+};
+
+const normalizeTimeValue = (value) => {
+  const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
+  if (!match) return "00:00";
+  const hour = Math.min(Math.max(Number(match[1]), 0), 23);
+  const minute = Math.min(Math.max(Number(match[2]), 0), 59);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
+const formatDisplayTime = (value) => {
+  const [hour, minute] = normalizeTimeValue(value).split(":").map(Number);
+  const suffix = hour >= 12 ? "p. m." : "a. m.";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+};
+
+export const BalanceTimePicker = ({ label, value, onChange, fullWidth = false, error = false, helperText }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [draftValue, setDraftValue] = useState(() => normalizeTimeValue(value));
+  const open = Boolean(anchorEl);
+  const [hour, minute] = draftValue.split(":");
+
+  useEffect(() => {
+    setDraftValue(normalizeTimeValue(value));
+  }, [value]);
+
+  return (
+    <>
+      <TextField
+        size="small"
+        label={label}
+        value={formatDisplayTime(value)}
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        InputLabelProps={{ shrink: true }}
+        InputProps={{
+          readOnly: true,
+          endAdornment: <AccessTimeRoundedIcon fontSize="small" color="action" />,
+        }}
+        fullWidth={fullWidth}
+        error={error}
+        helperText={helperText}
+        sx={pickerFieldSx}
+      />
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        PaperProps={{ sx: { ...popoverPaperSx, width: 280 } }}
+      >
+        <Stack spacing={2}>
+          <Typography sx={{ fontWeight: 900 }}>Seleccionar hora</Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Hora"
+              value={hour}
+              onChange={(event) => setDraftValue(`${event.target.value}:${minute}`)}
+            >
+              {Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map((option) => (
+                <MenuItem key={option} value={option}>{option}</MenuItem>
+              ))}
+            </TextField>
+            <Typography sx={{ fontWeight: 900 }}>:</Typography>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Minuto"
+              value={minute}
+              onChange={(event) => setDraftValue(`${hour}:${event.target.value}`)}
+            >
+              {Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0")).map((option) => (
+                <MenuItem key={option} value={option}>{option}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+            {formatDisplayTime(draftValue)}
+          </Typography>
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button color="inherit" onClick={() => setAnchorEl(null)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => { onChange(draftValue); setAnchorEl(null); }}
+            >
+              Aplicar
+            </Button>
+          </Stack>
+        </Stack>
+      </Popover>
+    </>
+  );
 };
 
 const getCalendarDays = (viewDate) => {
