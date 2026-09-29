@@ -54,6 +54,10 @@ class CatalogService {
     return PutEndpoint(endpoints.catalog.productById(id), payload);
   }
 
+  async deleteProduct(id, reason = null) {
+    return DeleteEndpoint(endpoints.catalog.productDelete(id), { data: { p_reason: reason } });
+  }
+
   async updateProductYield(id, payload = {}) {
     return PatchEndpoint(endpoints.catalog.productYield(id), payload);
   }
@@ -68,6 +72,10 @@ class CatalogService {
 
   async updateProductCategory(id, payload = {}) {
     return PutEndpoint(endpoints.catalog.productCategoryById(id), payload);
+  }
+
+  async deleteProductCategory(id, reason = null) {
+    return DeleteEndpoint(endpoints.catalog.productCategoryDelete(id), { data: { p_reason: reason } });
   }
 
   async createRawMaterialCategory(payload = {}) {

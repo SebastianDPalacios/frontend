@@ -66,6 +66,7 @@ const CatalogListView = ({
   getCategoryName,
   onAssignCategory,
   onEdit,
+  onDelete,
   searchValue,
   onSearchChange,
   totalItems,
@@ -157,7 +158,7 @@ const CatalogListView = ({
               <TableCell align="right">Valor</TableCell>
               <TableCell align="right">Stock minimo</TableCell>
               <TableCell>Estado</TableCell>
-              {showProductYield || showProductCategory || onEdit ? <TableCell align="right">Accion</TableCell> : null}
+              {showProductYield || showProductCategory || onEdit || onDelete ? <TableCell align="right">Accion</TableCell> : null}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -227,6 +228,11 @@ const CatalogListView = ({
                         Editar bulto
                       </Button>
                     ) : null}
+                    {onDelete ? (
+                      <Button size="small" variant="outlined" color="error" onClick={() => onDelete(item)}>
+                        Eliminar
+                      </Button>
+                    ) : null}
                   </Stack>
                 </TableCell>
               ) : null}
@@ -235,7 +241,7 @@ const CatalogListView = ({
             })}
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showProductYield || showProductCategory || onEdit ? 9 : 6}>
+                <TableCell colSpan={showProductYield || showProductCategory || onEdit || onDelete ? 9 : 6}>
                   <Typography color="text.secondary">{emptyMessage}</Typography>
                 </TableCell>
               </TableRow>

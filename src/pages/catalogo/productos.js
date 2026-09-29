@@ -36,6 +36,7 @@ const ProductsPage = () => {
   const [editDialog, setEditDialog] = useState({ open: false, product: null, values: {}, error: null, saving: false });
   const [yieldDialog, setYieldDialog] = useState({ open: false, product: null, value: "", error: null, saving: false });
   const [categoryDialog, setCategoryDialog] = useState({ open: false, product: null, value: "", error: null, saving: false });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, product: null, reason: "", error: null, saving: false });
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -231,6 +232,26 @@ const ProductsPage = () => {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!deleteDialog.saving) setDeleteDialog({ open: false, product: null, reason: "", error: null, saving: false });
+  };
+
+  const deleteSelectedProduct = async () => {
+    setDeleteDialog((current) => ({ ...current, saving: true, error: null }));
+    try {
+      const result = await catalogService.deleteProduct(
+        deleteDialog.product.id,
+        deleteDialog.reason.trim() || null
+      );
+      if (result?.code !== 1) throw new Error(result?.message || "No se pudo eliminar el producto");
+      toast.success(result.message || "Producto eliminado");
+      setDeleteDialog({ open: false, product: null, reason: "", error: null, saving: false });
+      await loadProducts();
+    } catch (requestError) {
+      setDeleteDialog((current) => ({ ...current, saving: false, error: getApiErrorMessage(requestError, requestError.message) }));
+    }
+  };
+
   return (
     <>
       <CatalogListView
@@ -250,6 +271,7 @@ const ProductsPage = () => {
         showProductYield
         onEditYield={openYieldDialog}
         onEdit={openEditDialog}
+        onDelete={(product) => setDeleteDialog({ open: true, product, reason: "", error: null, saving: false })}
         searchValue={search}
         onSearchChange={(value) => { setSearch(value); setPage(1); }}
         totalItems={total}
@@ -262,6 +284,32 @@ const ProductsPage = () => {
           </Stack>
         )}
       />
+
+      <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900 }}>Eliminar producto</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="warning">
+              {deleteDialog.product?.name || "Este producto"} dejará de estar disponible para nuevas operaciones. Sus ventas, movimientos, recetas y registros históricos se conservarán.
+            </Alert>
+            {deleteDialog.error ? <Alert severity="error">{deleteDialog.error}</Alert> : null}
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Justificación (opcional)"
+              value={deleteDialog.reason}
+              onChange={(event) => setDeleteDialog((current) => ({ ...current, reason: event.target.value, error: null }))}
+              inputProps={{ maxLength: 500 }}
+              helperText="Puedes dejar este campo vacío"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <AppButton variant="outlined" color="secondary" onClick={closeDeleteDialog} disabled={deleteDialog.saving}>Cancelar</AppButton>
+          <AppButton color="error" onClick={deleteSelectedProduct} loading={deleteDialog.saving} loadingLabel="Eliminando...">Eliminar producto</AppButton>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={editDialog.open}

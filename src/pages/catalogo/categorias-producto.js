@@ -23,6 +23,7 @@ import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import AppButton from "@core/components/ui/AppButton";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) {
@@ -72,6 +73,7 @@ const ProductCategoriesPage = () => {
     description: "",
     isActive: "1",
   });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, category: null, reason: "", error: null, saving: false });
 
   const loadCategories = useCallback(async () => {
     setLoading(true);
@@ -160,6 +162,26 @@ const ProductCategoriesPage = () => {
       await loadCategories();
     } catch (requestError) {
       toast.error(getApiErrorMessage(requestError, "Error de red al actualizar categoria"));
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    if (!deleteDialog.saving) setDeleteDialog({ open: false, category: null, reason: "", error: null, saving: false });
+  };
+
+  const deleteSelectedCategory = async () => {
+    setDeleteDialog((current) => ({ ...current, saving: true, error: null }));
+    try {
+      const response = await catalogService.deleteProductCategory(
+        deleteDialog.category.id,
+        deleteDialog.reason.trim() || null
+      );
+      if (response?.code !== 1) throw new Error(response?.message || "No se pudo eliminar la categoría");
+      toast.success(response.message || "Categoría eliminada");
+      setDeleteDialog({ open: false, category: null, reason: "", error: null, saving: false });
+      await loadCategories();
+    } catch (requestError) {
+      setDeleteDialog((current) => ({ ...current, saving: false, error: getApiErrorMessage(requestError, requestError.message) }));
     }
   };
 
@@ -304,6 +326,14 @@ const ProductCategoriesPage = () => {
                       >
                         {active ? "Desactivar" : "Activar"}
                       </Button>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="error"
+                        onClick={() => setDeleteDialog({ open: true, category, reason: "", error: null, saving: false })}
+                      >
+                        Eliminar
+                      </Button>
                     </Stack>
                   </Stack>
                 </Paper>
@@ -360,6 +390,32 @@ const ProductCategoriesPage = () => {
           <Button variant="contained" color="secondary" onClick={saveEdit} disabled={editSaving}>
             {editSaving ? "Guardando..." : "Guardar cambios"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900 }}>Eliminar categoría</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="warning">
+              La categoría {deleteDialog.category?.name || "seleccionada"} dejará de aparecer en los catálogos. Solo puede eliminarse cuando no tenga productos asociados.
+            </Alert>
+            {deleteDialog.error ? <Alert severity="error">{deleteDialog.error}</Alert> : null}
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Justificación (opcional)"
+              value={deleteDialog.reason}
+              onChange={(event) => setDeleteDialog((current) => ({ ...current, reason: event.target.value, error: null }))}
+              inputProps={{ maxLength: 500 }}
+              helperText="Puedes dejar este campo vacío"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <AppButton variant="outlined" color="secondary" onClick={closeDeleteDialog} disabled={deleteDialog.saving}>Cancelar</AppButton>
+          <AppButton color="error" onClick={deleteSelectedCategory} loading={deleteDialog.saving} loadingLabel="Eliminando...">Eliminar categoría</AppButton>
         </DialogActions>
       </Dialog>
     </FlowPageLayout>
