@@ -113,8 +113,8 @@ const InventoryProductsPage = () => {
         branchId={selectedBranch}
         open={selectedProduct !== undefined}
         onClose={() => setSelectedProduct(undefined)}
-        onSaved={() => {
-          toast.success("Entrada de producto registrada");
+        onSaved={({ movementType }) => {
+          toast.success(movementType === "zero_stock" ? "Stock eliminado" : movementType === "adjustment_out" ? "Salida registrada" : "Entrada registrada");
           setSelectedProduct(undefined);
           setReloadKey((current) => current + 1);
         }}

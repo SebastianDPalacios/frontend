@@ -17,6 +17,7 @@ import authService from "services/auth/auth-service";
 import ordersService from "services/orders/orders-service";
 import settingsService from "services/settings/settings-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const money = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -361,7 +362,7 @@ const DailySettlementPage = () => {
             sx={{ minWidth: { md: 220 } }}
           />
           {canChooseSeller ? (
-            <TextField
+            <SearchableSelect
               select
               label="Vendedor"
               value={sellerId}
@@ -374,7 +375,7 @@ const DailySettlementPage = () => {
                   {seller.full_name}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           ) : null}
           <Box sx={{ flex: 1 }} />
           <Button

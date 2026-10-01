@@ -5,6 +5,7 @@ import { toDateInputValue } from "@core/components/ui/balance-date-utils";
 import exportPackingDamageExcel from "components/organisms/production/exportPackingDamageExcel";
 import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const reasonLabels = { production: "Producción", oven: "Horno", cut: "Corte", packaging: "Empaque" };
 const statusLabels = { matched: "Conciliado", shortage: "Con faltante", surplus: "Con sobrante" };
@@ -59,14 +60,14 @@ const PackingDamageReportPage = () => {
     {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, mb: 2 }}>
       <Grid container spacing={2}>
-        <Grid item xs={12} md={2}><TextField select fullWidth label="Consultar por" value={mode} onChange={(event) => setMode(event.target.value)}><MenuItem value="day">Día</MenuItem><MenuItem value="month">Mes</MenuItem><MenuItem value="range">Rango</MenuItem></TextField></Grid>
+        <Grid item xs={12} md={2}><SearchableSelect select fullWidth label="Consultar por" value={mode} onChange={(event) => setMode(event.target.value)}><MenuItem value="day">Día</MenuItem><MenuItem value="month">Mes</MenuItem><MenuItem value="range">Rango</MenuItem></SearchableSelect></Grid>
         {mode === "day" ? <Grid item xs={12} md={3}><BalanceDatePicker fullWidth label="Fecha" value={day} onChange={setDay} /></Grid> : null}
         {mode === "month" ? <Grid item xs={12} md={3}><BalanceMonthPicker fullWidth label="Mes" value={month} onChange={setMonth} /></Grid> : null}
         {mode === "range" ? <><Grid item xs={12} md={2}><BalanceDatePicker fullWidth label="Desde" value={range.dateFrom} maxDate={range.dateTo} onChange={(value) => setRange((current) => ({ ...current, dateFrom: value }))} /></Grid><Grid item xs={12} md={2}><BalanceDatePicker fullWidth label="Hasta" value={range.dateTo} minDate={range.dateFrom} onChange={(value) => setRange((current) => ({ ...current, dateTo: value }))} /></Grid></> : null}
-        <Grid item xs={12} md={2}><TextField select fullWidth label="Sucursal" value={filters.branchId} onChange={updateFilter("branchId")}><MenuItem value="">Todas</MenuItem>{(data.catalogs?.branches || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={2}><TextField select fullWidth label="Producto" value={filters.productId} onChange={updateFilter("productId")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.products || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={2}><TextField select fullWidth label="Motivo" value={filters.damageReason} onChange={updateFilter("damageReason")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.reasons || []).map((reason) => <MenuItem key={reason} value={reason}>{reasonLabels[reason] || reason}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={2}><TextField select fullWidth label="Empaquetador" value={filters.packerEmployeeId} onChange={updateFilter("packerEmployeeId")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.packers || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
+        <Grid item xs={12} md={2}><SearchableSelect select fullWidth label="Sucursal" value={filters.branchId} onChange={updateFilter("branchId")}><MenuItem value="">Todas</MenuItem>{(data.catalogs?.branches || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={2}><SearchableSelect select fullWidth label="Producto" value={filters.productId} onChange={updateFilter("productId")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.products || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={2}><SearchableSelect select fullWidth label="Motivo" value={filters.damageReason} onChange={updateFilter("damageReason")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.reasons || []).map((reason) => <MenuItem key={reason} value={reason}>{reasonLabels[reason] || reason}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={2}><SearchableSelect select fullWidth label="Empaquetador" value={filters.packerEmployeeId} onChange={updateFilter("packerEmployeeId")}><MenuItem value="">Todos</MenuItem>{(data.catalogs?.packers || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
         <Grid item xs={12} md={2}><Button fullWidth variant="contained" color="secondary" onClick={exportExcel} disabled={!data.total}>Exportar Excel</Button></Grid>
       </Grid>
     </Paper>

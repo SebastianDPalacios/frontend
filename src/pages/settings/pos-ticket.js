@@ -20,6 +20,7 @@ import AppCard from "@core/components/ui/AppCard";
 import SectionHeader from "components/atoms/SectionHeader";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import settingsService from "services/settings/settings-service";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const initialValues = {
   businessName: "PANADERIA",
@@ -750,7 +751,7 @@ const PosTicketSettingsPage = () => {
                     />
                   </Box>
                   <Box sx={{ minWidth: 0 }}>
-                    <TextField
+                    <SearchableSelect
                       name="fontScale"
                       label="Preset de letra"
                       value={values.fontScale}
@@ -761,7 +762,7 @@ const PosTicketSettingsPage = () => {
                       <MenuItem value="normal">Normal</MenuItem>
                       <MenuItem value="large">Grande</MenuItem>
                       <MenuItem value="extra_large">Muy grande</MenuItem>
-                    </TextField>
+                    </SearchableSelect>
                   </Box>
                   <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
                     <TextField

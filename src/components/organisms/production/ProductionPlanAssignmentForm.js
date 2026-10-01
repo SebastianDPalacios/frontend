@@ -3,6 +3,7 @@ import { Box, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/m
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import AppButton from "@core/components/ui/AppButton";
 import ProductionPlanRecipeTable from "components/organisms/production/ProductionPlanRecipeTable";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getBakerLabel = (baker) => baker.full_name || baker.username || `Empleado #${baker.id}`;
 
@@ -70,7 +71,7 @@ const ProductionPlanAssignmentForm = ({
       {step === 0 ? (
         <Stack spacing={2.5}>
           <Typography sx={{ fontSize: 20, fontWeight: 900 }}>¿Quién y para cuándo?</Typography>
-          <TextField
+          <SearchableSelect
             select
             fullWidth
             label="Panadero"
@@ -80,7 +81,7 @@ const ProductionPlanAssignmentForm = ({
             {bakers.map((baker) => (
               <MenuItem key={baker.id} value={String(baker.id)}>{getBakerLabel(baker)}</MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
           <BalanceDatePicker label="Fecha de producción" value={form.plannedDate} onChange={onDateChange} fullWidth />
           <TextField
             fullWidth

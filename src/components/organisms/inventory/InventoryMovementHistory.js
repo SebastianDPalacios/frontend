@@ -2,6 +2,7 @@ import { Alert, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import SectionHeader from "components/atoms/SectionHeader";
 import PaginationControls from "components/molecules/PaginationControls";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const InventoryMovementHistory = ({
   historyTotal,
@@ -48,16 +49,16 @@ const InventoryMovementHistory = ({
           />
         </Grid>
         <Grid item xs={12} md={2}>
-          <TextField select fullWidth label="Item" value={historyItemType} onChange={(event) => onHistoryItemTypeChange(event.target.value)}>
+          <SearchableSelect select fullWidth label="Item" value={historyItemType} onChange={(event) => onHistoryItemTypeChange(event.target.value)}>
             {Object.entries(itemTypeLabels).map(([value, label]) => (
               <MenuItem key={value} value={value}>
                 {label}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Grid>
         <Grid item xs={12} md={3}>
-          <TextField
+          <SearchableSelect
             select
             fullWidth
             label="Movimiento"
@@ -69,7 +70,7 @@ const InventoryMovementHistory = ({
                 {label}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Grid>
         <Grid item xs={12} md={2}>
           <BalanceDatePicker

@@ -32,6 +32,7 @@ import ordersService from "services/orders/orders-service";
 import { calculateOrderEntry, calculateSaleBonusOrder } from "utils/order-sale-bonus-calculation";
 import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit, normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const today = toDateInputValue();
 const createOrderRequestKey = () => (
@@ -565,6 +566,7 @@ const AtomicOrderForm = () => {
           detail: response.message,
         });
         setSelectedLines([]);
+        setSellerId("");
         setCustomerId("");
         setNotes("");
         orderRequestKeyRef.current = createOrderRequestKey();
@@ -580,6 +582,7 @@ const AtomicOrderForm = () => {
             detail: response.message,
           });
           setSelectedLines([]);
+          setSellerId("");
           setCustomerId("");
           setNotes("");
           orderRequestKeyRef.current = createOrderRequestKey();
@@ -593,6 +596,7 @@ const AtomicOrderForm = () => {
       setPersistedOrder(null);
       toast.success(`Pedido #${response.data.order_id} guardado`);
       setSelectedLines([]);
+      setSellerId("");
       setCustomerId("");
       setNotes("");
       orderRequestKeyRef.current = createOrderRequestKey();
@@ -698,9 +702,9 @@ const AtomicOrderForm = () => {
         </Typography>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} lg={3}>
-            <TextField select fullWidth label="Sucursal" value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+            <SearchableSelect select fullWidth label="Sucursal" value={branchId} onChange={(event) => setBranchId(event.target.value)}>
               {branches.map((branch) => <MenuItem key={branch.id} value={String(branch.id)}>{getDisplayName(branch)}</MenuItem>)}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} sm={6} lg={3}>
             {canAssignSeller ? (
@@ -775,7 +779,7 @@ const AtomicOrderForm = () => {
               </Typography>
               {productCategories.length > 0 ? (
                 <Box sx={{ mb: 2 }}>
-                  <TextField
+                  <SearchableSelect
                     select
                     fullWidth
                     label="Categoria"
@@ -792,7 +796,7 @@ const AtomicOrderForm = () => {
                         {category.name}
                       </MenuItem>
                     ))}
-                  </TextField>
+                  </SearchableSelect>
                 </Box>
               ) : null}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -883,7 +887,7 @@ const AtomicOrderForm = () => {
                       sx={{ alignItems: "center", width: "100%", ml: 0 }}
                     >
                       <Grid item xs={12} md={4}>
-                        <TextField
+                        <SearchableSelect
                           select
                           fullWidth
                           label="Tipo"
@@ -893,7 +897,7 @@ const AtomicOrderForm = () => {
                           {rowOrderModes.map((mode) => (
                             <MenuItem key={mode.value} value={mode.value}>{mode.label}</MenuItem>
                           ))}
-                        </TextField>
+                        </SearchableSelect>
                       </Grid>
                       <Grid item xs={12} md={3}>
                         <CaptureModeSwitch

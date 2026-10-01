@@ -1,5 +1,6 @@
 import { Alert, Chip, Divider, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const PendingPurchaseOrdersPanel = ({
   loading,
@@ -41,13 +42,13 @@ const PendingPurchaseOrdersPanel = ({
 
     <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
       <Grid item xs={12} md={6}>
-        <TextField select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => onBranchChange(event.target.value)}>
+        <SearchableSelect select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => onBranchChange(event.target.value)}>
           {branches.map((branch) => (
             <MenuItem key={branch.id} value={String(branch.id)}>
               {getDisplayName(branch)}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
       <Grid item xs={12} md={6}>
         <TextField

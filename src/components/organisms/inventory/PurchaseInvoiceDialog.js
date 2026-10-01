@@ -14,6 +14,7 @@ import {
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const PurchaseInvoiceDialog = ({
   open,
@@ -44,7 +45,7 @@ const PurchaseInvoiceDialog = ({
         </Typography>
         <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
           <Grid item xs={12} md={3}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Proveedor"
@@ -57,7 +58,7 @@ const PurchaseInvoiceDialog = ({
                   {getDisplayName(supplier)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} md={3}>
             <TextField
@@ -110,7 +111,7 @@ const PurchaseInvoiceDialog = ({
               <Paper key={`po-item-${index}`} variant="outlined" sx={{ borderRadius: 2, p: 2, bgcolor: "background.default" }}>
                 <Grid container spacing={1.5} sx={{ alignItems: "flex-start" }}>
                   <Grid item xs={12} md={4}>
-                    <TextField
+                    <SearchableSelect
                       select
                       fullWidth
                       label="Producto comprado"
@@ -124,7 +125,7 @@ const PurchaseInvoiceDialog = ({
                           {getDisplayName(materialOption)}
                         </MenuItem>
                       ))}
-                    </TextField>
+                    </SearchableSelect>
                     <Button
                       type="button"
                       color="secondary"
@@ -148,7 +149,7 @@ const PurchaseInvoiceDialog = ({
                     />
                   </Grid>
                   <Grid item xs={12} md={2}>
-                    <TextField
+                    <SearchableSelect
                       select
                       fullWidth
                       label="Como viene"
@@ -161,7 +162,7 @@ const PurchaseInvoiceDialog = ({
                           {option.label}
                         </MenuItem>
                       ))}
-                    </TextField>
+                    </SearchableSelect>
                   </Grid>
                   <Grid item xs={12} md={2}>
                     <ColombianCurrencyField

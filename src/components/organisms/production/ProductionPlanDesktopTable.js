@@ -5,6 +5,7 @@ import {
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getProducts = (recipes) => recipes.flatMap((recipe) => recipe.outputs.map((output) => ({
   ...output,
@@ -56,13 +57,13 @@ const ProductionPlanDesktopTable = ({ rows, recipes, onChange, onMove, onRemove 
                     />
                   </TableCell>
                   <TableCell>
-                    <TextField select fullWidth size="small" label="Tipo" value={row.requestMode}
+                    <SearchableSelect select fullWidth size="small" label="Tipo" value={row.requestMode}
                       onChange={(event) => onChange(index, { requestMode: event.target.value, requestedQuantity: "" })}>
                       <MenuItem value="units">Por unidades</MenuItem>
                       <MenuItem value="arrobas">Por arrobas</MenuItem>
                       <MenuItem value="bags">Por bultos</MenuItem>
                       <MenuItem value="trays">Por latas</MenuItem>
-                    </TextField>
+                    </SearchableSelect>
                   </TableCell>
                   <TableCell>
                     <TextField fullWidth size="small" type="number"

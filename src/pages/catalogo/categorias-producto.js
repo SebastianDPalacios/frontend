@@ -24,6 +24,7 @@ import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import AppButton from "@core/components/ui/AppButton";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) {
@@ -371,7 +372,7 @@ const ProductCategoriesPage = () => {
               onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))}
               inputProps={{ maxLength: 255 }}
             />
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Estado"
@@ -380,7 +381,7 @@ const ProductCategoriesPage = () => {
             >
               <MenuItem value="1">Activa</MenuItem>
               <MenuItem value="0">Inactiva</MenuItem>
-            </TextField>
+            </SearchableSelect>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

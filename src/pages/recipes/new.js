@@ -11,6 +11,7 @@ import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import RecipeIngredientsTable from "components/organisms/recipes/RecipeIngredientsTable";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
@@ -524,7 +525,7 @@ const RecipeCreatePage = () => {
                       />
                     </Grid>
                     <Grid item xs={12} md={3}>
-                      <TextField
+                      <SearchableSelect
                         select
                         fullWidth
                         label="Usar existente"
@@ -543,7 +544,7 @@ const RecipeCreatePage = () => {
                             {getProductDisplayName(product)}
                           </MenuItem>
                         ))}
-                      </TextField>
+                      </SearchableSelect>
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>
                       <TextField

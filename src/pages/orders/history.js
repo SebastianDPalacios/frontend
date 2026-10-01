@@ -42,6 +42,7 @@ import OrderDetailEditor from "components/organisms/orders/OrderDetailEditor";
 import OrderCustomerEditor from "components/organisms/orders/OrderCustomerEditor";
 import OrderSellerEditor from "components/organisms/orders/OrderSellerEditor";
 import OrderPrintManager from "components/organisms/orders/OrderPrintManager";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -1378,7 +1379,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
             spacing={2}
             sx={{ display: { xs: "none", md: "flex" }, justifyContent: "space-between", alignItems: "center", mt: 2 }}
           >
-            <TextField
+            <SearchableSelect
               select
               size="small"
               label="Pedidos por página"
@@ -1387,7 +1388,7 @@ export const OrdersHistoryPage = ({ mode = "today" }) => {
               sx={{ minWidth: 180 }}
             >
               {[25, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-            </TextField>
+            </SearchableSelect>
             <Pagination
               count={Math.max(totalPages, 1)}
               page={Math.min(page, Math.max(totalPages, 1))}

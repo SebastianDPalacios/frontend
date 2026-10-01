@@ -1,16 +1,17 @@
 import { Grid, MenuItem, Paper, TextField, Typography } from "@mui/material";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const InventoryRawMaterialFilters = ({ branches, selectedBranch, onBranchChange, search, onSearchChange, getDisplayName }) => (
   <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
     <Grid container spacing={2} sx={{ alignItems: "center" }}>
       <Grid item xs={12} md={4}>
-        <TextField select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => onBranchChange(event.target.value)}>
+        <SearchableSelect select fullWidth label="Sucursal" value={selectedBranch} onChange={(event) => onBranchChange(event.target.value)}>
           {branches.map((branch) => (
             <MenuItem key={branch.id} value={String(branch.id)}>
               {getDisplayName(branch)}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
       <Grid item xs={12} md={4}>
         <TextField

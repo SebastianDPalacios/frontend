@@ -3,6 +3,7 @@ import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import AppButton from "@core/components/ui/AppButton";
 import ProductionPlanDesktopTable from "components/organisms/production/ProductionPlanDesktopTable";
 import { getDisplayName } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getBakerLabel = (baker) => {
   const name = baker.full_name || baker.username || `Empleado #${baker.id}`;
@@ -48,7 +49,7 @@ const ProductionPlanDesktopForm = ({
 
     <Grid container spacing={2} sx={{ mb: 2 }}>
       <Grid item xs={12} md={3}>
-        <TextField
+        <SearchableSelect
           select
           fullWidth
           label="Sucursal"
@@ -60,11 +61,11 @@ const ProductionPlanDesktopForm = ({
               {getDisplayName(branch)}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
 
       <Grid item xs={12} md={3}>
-        <TextField
+        <SearchableSelect
           select
           fullWidth
           label="Panadero"
@@ -79,7 +80,7 @@ const ProductionPlanDesktopForm = ({
               {getBakerLabel(baker)}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
 
       <Grid item xs={12} md={3}>

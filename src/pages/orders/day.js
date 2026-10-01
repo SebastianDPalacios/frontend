@@ -21,6 +21,7 @@ import { normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker, BalanceMonthPicker, BalanceWeekPicker } from "@core/components/ui/BalancePeriodPickers";
 import { getIsoWeekInputValue, getPeriodRange, toDateInputValue, toMonthInputValue } from "@core/components/ui/balance-date-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -289,13 +290,13 @@ const OrdersDayPage = () => {
               "& > .MuiFormControl-root": { minWidth: 0, width: "100%" },
             }}
           >
-            <TextField select size="small" label="Periodo" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: { sm: 160 } }}>
+            <SearchableSelect select size="small" label="Periodo" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: { sm: 160 } }}>
               {periodOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
             {period === "daily" ? (
               <BalanceDatePicker label="Dia" value={dayValue} onChange={setDayValue} />
             ) : null}
@@ -305,10 +306,10 @@ const OrdersDayPage = () => {
             {period === "fortnight" ? (
               <>
                 <BalanceMonthPicker label="Mes" value={fortnightMonth} onChange={setFortnightMonth} />
-                <TextField select size="small" label="Quincena" value={fortnightHalf} onChange={(event) => setFortnightHalf(event.target.value)} sx={{ minWidth: { sm: 138 } }}>
+                <SearchableSelect select size="small" label="Quincena" value={fortnightHalf} onChange={(event) => setFortnightHalf(event.target.value)} sx={{ minWidth: { sm: 138 } }}>
                   <MenuItem value="1">1 al 15</MenuItem>
                   <MenuItem value="2">16 al cierre</MenuItem>
-                </TextField>
+                </SearchableSelect>
               </>
             ) : null}
             {period === "monthly" ? (
@@ -317,10 +318,10 @@ const OrdersDayPage = () => {
             {period === "semester" ? (
               <>
                 <TextField size="small" label="Anio" type="number" value={semesterYear} onChange={(event) => setSemesterYear(event.target.value)} inputProps={{ min: 2020, max: 2100 }} sx={{ maxWidth: { sm: 112 } }} />
-                <TextField select size="small" label="Semestre" value={semesterHalf} onChange={(event) => setSemesterHalf(event.target.value)} sx={{ minWidth: { sm: 138 } }}>
+                <SearchableSelect select size="small" label="Semestre" value={semesterHalf} onChange={(event) => setSemesterHalf(event.target.value)} sx={{ minWidth: { sm: 138 } }}>
                   <MenuItem value="1">Enero - Junio</MenuItem>
                   <MenuItem value="2">Julio - Diciembre</MenuItem>
-                </TextField>
+                </SearchableSelect>
               </>
             ) : null}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, auto)" }, gap: 1.25, width: { xs: "100%", sm: "auto" }, gridColumn: { xs: "1 / -1", sm: "auto" }, mt: { xs: 0.25, sm: 0 } }}>

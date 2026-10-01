@@ -6,6 +6,7 @@ import {
 import reportsService from "services/reports/reports-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const actionLabels = {
   "system.post": "Creó información", "system.put": "Actualizó información",
@@ -199,9 +200,9 @@ const AuditPage = () => {
         <Typography sx={{ mb: 2, fontWeight: 900 }}>Buscar cambios</Typography>
         <Grid container spacing={2}>
           <Grid item xs={12} md={4}><TextField fullWidth label="Buscar usuario, acción o referencia" value={filters.search} onChange={(e) => changeFilter("search", e.target.value)} /></Grid>
-          <Grid item xs={12} sm={6} md={2}><TextField select fullWidth label="Módulo" value={filters.entityName} onChange={(e) => changeFilter("entityName", e.target.value)}><MenuItem value="">Todos</MenuItem>{normalizeRows(options.entities).map((item) => <MenuItem key={item.value} value={item.value}>{formatEntity(item.value)}</MenuItem>)}</TextField></Grid>
-          <Grid item xs={12} sm={6} md={2}><TextField select fullWidth label="Acción" value={filters.action} onChange={(e) => changeFilter("action", e.target.value)}><MenuItem value="">Todas</MenuItem>{normalizeRows(options.actions).map((item) => <MenuItem key={item.value} value={item.value}>{formatAction(item.value)}</MenuItem>)}</TextField></Grid>
-          <Grid item xs={12} sm={6} md={2}><TextField select fullWidth label="Usuario" value={filters.actorUserId} onChange={(e) => changeFilter("actorUserId", e.target.value)}><MenuItem value="">Todos</MenuItem>{normalizeRows(options.actors).map((item) => <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>)}</TextField></Grid>
+          <Grid item xs={12} sm={6} md={2}><SearchableSelect select fullWidth label="Módulo" value={filters.entityName} onChange={(e) => changeFilter("entityName", e.target.value)}><MenuItem value="">Todos</MenuItem>{normalizeRows(options.entities).map((item) => <MenuItem key={item.value} value={item.value}>{formatEntity(item.value)}</MenuItem>)}</SearchableSelect></Grid>
+          <Grid item xs={12} sm={6} md={2}><SearchableSelect select fullWidth label="Acción" value={filters.action} onChange={(e) => changeFilter("action", e.target.value)}><MenuItem value="">Todas</MenuItem>{normalizeRows(options.actions).map((item) => <MenuItem key={item.value} value={item.value}>{formatAction(item.value)}</MenuItem>)}</SearchableSelect></Grid>
+          <Grid item xs={12} sm={6} md={2}><SearchableSelect select fullWidth label="Usuario" value={filters.actorUserId} onChange={(e) => changeFilter("actorUserId", e.target.value)}><MenuItem value="">Todos</MenuItem>{normalizeRows(options.actors).map((item) => <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>)}</SearchableSelect></Grid>
           <Grid item xs={6} md={1}><TextField fullWidth type="date" label="Desde" InputLabelProps={{ shrink: true }} value={filters.dateFrom} onChange={(e) => changeFilter("dateFrom", e.target.value)} /></Grid>
           <Grid item xs={6} md={1}><TextField fullWidth type="date" label="Hasta" InputLabelProps={{ shrink: true }} value={filters.dateTo} onChange={(e) => changeFilter("dateTo", e.target.value)} /></Grid>
         </Grid>

@@ -23,11 +23,11 @@ import authService from "services/auth/auth-service";
 import { isAdministrativeUser } from "configs/access";
 import { normalizeRows } from "views/modules/flow-utils";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const reasonOptions = [
   { value: "expired", label: "Vencido" },
   { value: "mold", label: "Moho" },
-  { value: "wet", label: "Mojado" },
   { value: "malformed", label: "Mal moldeado" },
   { value: "other", label: "Otro" },
 ];
@@ -394,8 +394,7 @@ const SalesReturnsPage = () => {
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={3}>
-                <TextField
-                  select
+                <SearchableSelect
                   fullWidth
                   label="Tipo de operación"
                   value={form.operationType}
@@ -410,7 +409,7 @@ const SalesReturnsPage = () => {
                 >
                   <MenuItem value="return">Devolución</MenuItem>
                   <MenuItem value="exchange">Cambio</MenuItem>
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} md={5}>
                 <Autocomplete
@@ -427,8 +426,7 @@ const SalesReturnsPage = () => {
                 />
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField
-                  select
+                <SearchableSelect
                   fullWidth
                   label="Fecha vigente"
                   disabled={!selectedCustomer}
@@ -454,7 +452,7 @@ const SalesReturnsPage = () => {
                       {date}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12}>
                 <Autocomplete
@@ -493,8 +491,7 @@ const SalesReturnsPage = () => {
                 />
               </Grid>
               <Grid item xs={12} md={5} sx={{ display: selectedOrder ? "block" : "none" }}>
-                <TextField
-                  select
+                <SearchableSelect
                   fullWidth
                   label="Producto recibido (informativo)"
                   value={form.orderItemId}
@@ -508,7 +505,7 @@ const SalesReturnsPage = () => {
                       {item.product_name}{item.commercial_label ? ` · ${item.commercial_label}` : ""} - disponible {formatNumber(item.returnable_quantity)}{item.commercial_detail ? ` (${item.commercial_detail})` : ""}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} sm={6} md={3} sx={{ display: selectedItem ? "block" : "none" }}>
                 <TextField
@@ -528,8 +525,7 @@ const SalesReturnsPage = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={4} sx={{ display: selectedItem ? "block" : "none" }}>
-                <TextField
-                  select
+                <SearchableSelect
                   fullWidth
                   label="Motivo"
                   value={form.reason}
@@ -542,7 +538,7 @@ const SalesReturnsPage = () => {
                       {reason.label}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               {form.operationType === "exchange" && selectedItem ? (
                 <>

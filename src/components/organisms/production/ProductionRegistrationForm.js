@@ -3,6 +3,7 @@ import FactoryRoundedIcon from "@mui/icons-material/FactoryRounded";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const fieldSx = {
   "& .MuiOutlinedInput-root": {
@@ -75,15 +76,15 @@ const ProductionRegistrationForm = ({
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(12, minmax(0, 1fr))" }, gap: 2 }}>
           {isAdministrator ? (
-            <TextField select fullWidth label="Panadero responsable" value={form.bakerEmployeeId} onChange={(event) => onBakerChange(event.target.value)} sx={{ ...fieldSx, gridColumn: { lg: "span 4" } }}>
+            <SearchableSelect select fullWidth label="Panadero responsable" value={form.bakerEmployeeId} onChange={(event) => onBakerChange(event.target.value)} sx={{ ...fieldSx, gridColumn: { lg: "span 4" } }}>
               <MenuItem value="">Seleccionar panadero</MenuItem>
               {bakers.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}
-            </TextField>
+            </SearchableSelect>
           ) : null}
 
-          <TextField select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => onFormChange("branchId", event.target.value)} sx={{ ...fieldSx, gridColumn: { lg: isAdministrator ? "span 4" : "span 6" } }}>
+          <SearchableSelect select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => onFormChange("branchId", event.target.value)} sx={{ ...fieldSx, gridColumn: { lg: isAdministrator ? "span 4" : "span 6" } }}>
             {branches.map((branch) => <MenuItem key={branch.id} value={String(branch.id)}>{branch.name}</MenuItem>)}
-          </TextField>
+          </SearchableSelect>
 
           <Autocomplete
             fullWidth

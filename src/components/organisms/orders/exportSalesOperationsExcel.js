@@ -17,7 +17,14 @@ const styleHeader = (row) => {
   row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4510B" } };
 };
 
-const exportSalesOperationsExcel = async ({ items, totalsBySeller, totalsByProduct, filters }) => {
+const reasonLabels = {
+  expired: "Producto vencido", mold: "Producto con moho", wet: "Producto mojado",
+  malformed: "Mala presentación", other: "Otro motivo", gift: "Obsequio",
+};
+
+const operationLabel = (type) => type === "exchange" ? "Cambio" : type === "return" ? "Devolución" : "Obsequio";
+
+const exportSalesOperationsExcel = async ({ items, totalsBySeller, totalsByProduct, totalsByReason, filters }) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Panadería";
 
@@ -96,6 +103,26 @@ const exportSalesOperationsExcel = async ({ items, totalsBySeller, totalsByProdu
   };
   addSummary("Totales por vendedor", totalsBySeller || []);
   addSummary("Totales por producto", totalsByProduct || [], true);
+
+  const reasonSheet = workbook.addWorksheet("Totales por motivo");
+  reasonSheet.columns = [
+    { header: "Motivo", key: "reason", width: 30 },
+    { header: "Tipo", key: "type", width: 18 },
+    { header: "Resultados", key: "count", width: 14 },
+    { header: "Recibidos", key: "received", width: 15 },
+    { header: "Entregados", key: "delivered", width: 15 },
+    { header: "Valor total", key: "total", width: 18 },
+  ];
+  styleHeader(reasonSheet.getRow(1));
+  (totalsByReason || []).forEach((row) => reasonSheet.addRow({
+    reason: reasonLabels[row.reason] || row.reason || "Sin motivo registrado",
+    type: operationLabel(row.operation_type),
+    count: Number(row.result_count || 0),
+    received: Number(row.received_quantity || 0),
+    delivered: Number(row.delivered_quantity || 0),
+    total: Number(row.total_value || 0),
+  }));
+  reasonSheet.getColumn("total").numFmt = moneyFormat;
 
   const buffer = await workbook.xlsx.writeBuffer();
   const suffix = filters?.dateFrom || new Date().toISOString().slice(0, 10);

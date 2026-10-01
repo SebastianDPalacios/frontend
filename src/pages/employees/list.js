@@ -18,6 +18,7 @@ import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined
 import AppCard from "@core/components/ui/AppCard";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import employeesService from "services/employees/employees-service";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -113,7 +114,7 @@ const EmployeesListPage = () => {
             placeholder="Nombre, usuario, correo o documento"
             fullWidth
           />
-          <TextField
+          <SearchableSelect
             select
             label="Cargo operativo"
             value={jobType}
@@ -126,7 +127,7 @@ const EmployeesListPage = () => {
             <MenuItem value="operator">Operador</MenuItem>
             <MenuItem value="admin">Administrativo</MenuItem>
             <MenuItem value="other">Otro</MenuItem>
-          </TextField>
+          </SearchableSelect>
           <Button variant="contained" color="secondary" onClick={loadEmployees} disabled={loading}>
             Buscar
           </Button>

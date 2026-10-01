@@ -23,6 +23,7 @@
   },
   catalog: {
     branches: "/catalog/branches",
+    branchById: (id) => `/catalog/branches/${id}`,
     customers: "/catalog/customers",
     products: "/catalog/products",
     productById: (id) => `/catalog/products/${id}`,
@@ -133,6 +134,7 @@
   inventory: {
     baseData: "/inventory/base-data",
     movements: "/inventory/movements",
+    zeroStock: "/inventory/stock/zero",
   },
   reports: {
     audit: "/reports/audit",

@@ -5,6 +5,7 @@ import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import AppButton from "@core/components/ui/AppButton";
 import { getDisplayName } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getUnitLabel = (material) => (material?.unit === "ml" ? "Mililitros" : "Gramos");
 
@@ -49,7 +50,7 @@ const RecipeIngredientsTable = ({
                   />
                 </TableCell>
                 <TableCell>
-                  <TextField
+                  <SearchableSelect
                     select
                     fullWidth
                     size="small"
@@ -63,7 +64,7 @@ const RecipeIngredientsTable = ({
                         {getDisplayName(item)}
                       </MenuItem>
                     ))}
-                  </TextField>
+                  </SearchableSelect>
                 </TableCell>
                 <TableCell>
                   <TextField

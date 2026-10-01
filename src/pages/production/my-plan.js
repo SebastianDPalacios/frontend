@@ -9,6 +9,7 @@ import authService from "services/auth/auth-service";
 import { canManageProduction } from "configs/access";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const formatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => formatter.format(Number(value || 0));
@@ -77,10 +78,10 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
           {isHistory ? (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField select label="Consultar por" value={periodType} onChange={(event) => setPeriodType(event.target.value)} sx={{ minWidth: 170 }}>
+              <SearchableSelect select label="Consultar por" value={periodType} onChange={(event) => setPeriodType(event.target.value)} sx={{ minWidth: 170 }}>
                 <MenuItem value="day">Dia</MenuItem>
                 <MenuItem value="month">Mes</MenuItem>
-              </TextField>
+              </SearchableSelect>
               <Box sx={{ width: { xs: "100%", sm: 260 } }}>
                 {periodType === "month" ? (
                   <BalanceMonthPicker label="Mes" value={selectedDate.slice(0, 7)} onChange={(value) => setSelectedDate(`${value}-01`)} />
@@ -92,10 +93,10 @@ export const ProductionMyPlanPage = ({ mode = "today" }) => {
           ) : (
             <Box><Typography variant="caption" color="text.secondary">Fecha de trabajo</Typography><Typography variant="h6" sx={{ fontWeight: 900 }}>{selectedDate}</Typography></Box>
           )}
-          {isAdministrator ? <TextField select label="Panadero" value={bakerEmployeeId} onChange={(event) => setBakerEmployeeId(event.target.value)} sx={{ minWidth: 260 }}>
+          {isAdministrator ? <SearchableSelect select label="Panadero" value={bakerEmployeeId} onChange={(event) => setBakerEmployeeId(event.target.value)} sx={{ minWidth: 260 }}>
             <MenuItem value="">Todos los panaderos</MenuItem>
             {bakers.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}
-          </TextField> : null}
+          </SearchableSelect> : null}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             {isAdministrator ? <AppButton component={Link} href="/production/planning" color="secondary">Administrar planes</AppButton> : null}
             <AppButton component={Link} href={isHistory ? "/production/my-plan" : "/production/history"} variant="outlined" color="secondary">

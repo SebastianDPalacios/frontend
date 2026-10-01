@@ -18,6 +18,7 @@ import AppCard from "@core/components/ui/AppCard";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import navigationItems from "configs/navigation";
 import rbacService from "services/users/rbac-service";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -293,7 +294,7 @@ const ViewAccessPage = () => {
               Usa rol para cambiar accesos generales o usuario para una excepcion puntual.
             </Typography>
           </Box>
-          <TextField
+          <SearchableSelect
             select
             SelectProps={{ native: true }}
             label="Asignar por"
@@ -303,9 +304,9 @@ const ViewAccessPage = () => {
           >
             <option value="role">Rol</option>
             <option value="user">Usuario</option>
-          </TextField>
+          </SearchableSelect>
           {targetType === "role" ? (
-            <TextField
+            <SearchableSelect
               select
               SelectProps={{ native: true }}
               label="Rol"
@@ -316,9 +317,9 @@ const ViewAccessPage = () => {
               {roles.map((role) => (
                 <option key={role.id} value={role.id}>{role.name || role.code}</option>
               ))}
-            </TextField>
+            </SearchableSelect>
           ) : (
-            <TextField
+            <SearchableSelect
               select
               SelectProps={{ native: true }}
               label="Usuario"
@@ -331,7 +332,7 @@ const ViewAccessPage = () => {
                   {user.full_name || user.username} - {user.email || "sin correo"}
                 </option>
               ))}
-            </TextField>
+            </SearchableSelect>
           )}
           <Button
             variant="contained"

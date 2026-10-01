@@ -31,6 +31,7 @@ import OrderDraftSummary from "components/molecules/OrderDraftSummary";
 import { calculateSaleBonusOrder } from "utils/order-sale-bonus-calculation";
 import getInvalidUnitSaleAmount from "utils/order-sale-validation";
 import { getDisplayName, isIntegerUnit } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const keypadNumberKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const keypadZeroKeys = ["0", "00", "000"];
@@ -181,7 +182,7 @@ const SellerPosOrderForm = ({
                 </Badge>
               </IconButton>
             </Stack>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Categoría"
@@ -200,7 +201,7 @@ const SellerPosOrderForm = ({
                   {category.name}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Paper>
 
           {loading ? <Alert severity="info">Cargando productos...</Alert> : null}

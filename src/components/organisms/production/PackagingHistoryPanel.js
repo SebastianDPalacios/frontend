@@ -12,6 +12,7 @@ import productionService from "services/production/production-service";
 import authService from "services/auth/auth-service";
 import { canManageProduction } from "configs/access";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const formatUnits = (value) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Number(value || 0));
 const normalizeWholeNumberInput = (value, update) => {
@@ -188,10 +189,10 @@ const PackagingHistoryPanel = () => {
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
         <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
           <Grid item xs={12} sm={4} md={2}>
-            <TextField select fullWidth label="Consultar por" value={periodType} onChange={(event) => setPeriodType(event.target.value)}>
+            <SearchableSelect select fullWidth label="Consultar por" value={periodType} onChange={(event) => setPeriodType(event.target.value)}>
               <MenuItem value="day">Dia</MenuItem>
               <MenuItem value="month">Mes</MenuItem>
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} sm={8} md={3}>
             {periodType === "month" ? (
@@ -298,7 +299,7 @@ const PackagingHistoryPanel = () => {
                 </Stack>
                 {correctedDamages.map((damage, index) => <Grid container spacing={1} key={damage.id} alignItems="center">
                   <Grid item xs={12} sm={3}><TextField type="number" fullWidth label={`Cantidad ${index + 1}`} value={damage.quantity} onChange={(event) => normalizeWholeNumberInput(event.target.value, (value) => setCorrectedDamages((current) => current.map((entry) => entry.id === damage.id ? { ...entry, quantity: value } : entry)))} inputProps={{ min: 1, step: 1, inputMode: "numeric" }} /></Grid>
-                  <Grid item xs={12} sm={3}><TextField select fullWidth label="Motivo" value={damage.reason} onChange={(event) => setCorrectedDamages((current) => current.map((entry) => entry.id === damage.id ? { ...entry, reason: event.target.value } : entry))}>{Object.entries(damageLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}</TextField></Grid>
+                  <Grid item xs={12} sm={3}><SearchableSelect select fullWidth label="Motivo" value={damage.reason} onChange={(event) => setCorrectedDamages((current) => current.map((entry) => entry.id === damage.id ? { ...entry, reason: event.target.value } : entry))}>{Object.entries(damageLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}</SearchableSelect></Grid>
                   <Grid item xs={12} sm={4}><TextField fullWidth label="Detalle opcional" value={damage.detail} onChange={(event) => setCorrectedDamages((current) => current.map((entry) => entry.id === damage.id ? { ...entry, detail: event.target.value } : entry))} /></Grid>
                   <Grid item xs={12} sm={2}><AppButton fullWidth variant="outlined" color="error" onClick={() => setCorrectedDamages((current) => current.filter((entry) => entry.id !== damage.id))}>Retirar</AppButton></Grid>
                 </Grid>)}

@@ -13,6 +13,7 @@ import ProductionProductSummary from "components/organisms/production/Production
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 import { formatMeasurementQuantity, getMeasurementUnitName, normalizeMeasurementUnit } from "utils/production-measurement-units";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 3,
@@ -367,7 +368,7 @@ const ProductionDayPage = () => {
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Sucursal"
@@ -381,7 +382,7 @@ const ProductionDayPage = () => {
                   {getDisplayName(branch)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <AppButton

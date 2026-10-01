@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import ProductionReservationCard from "components/molecules/ProductionReservationCard";
 import ordersService from "services/orders/orders-service";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getErrorMessage = (error, fallback) =>
   error?.response?.data?.message || error?.message || fallback;
@@ -138,7 +139,7 @@ const ProductionReservationManager = ({ order, disabled, onChanged }) => {
 
             <Stack spacing={1.5}>
               <Typography variant="h6" sx={{ fontWeight: 900 }}>Nueva reserva</Typography>
-              <TextField
+              <SearchableSelect
                 select
                 fullWidth
                 label="Producción disponible"
@@ -158,7 +159,7 @@ const ProductionReservationManager = ({ order, disabled, onChanged }) => {
                     {" · "}{numberFormatter.format(Number(option.available_to_reserve || 0))} disponibles
                   </MenuItem>
                 ))}
-              </TextField>
+              </SearchableSelect>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <TextField
                   fullWidth

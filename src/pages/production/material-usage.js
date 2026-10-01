@@ -23,6 +23,7 @@ import productionService from "services/production/production-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import { getMeasurementUnitName } from "utils/production-measurement-units";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
@@ -181,20 +182,20 @@ const ProductionMaterialUsagePage = () => {
             <BalanceDatePicker fullWidth label="Hasta" value={filters.dateTo} minDate={filters.dateFrom || undefined} onChange={(value) => setFilters((current) => ({ ...current, dateTo: value || "" }))} />
           </Grid>
           <Grid item xs={12} md={3}>
-            <TextField fullWidth select label="Sucursal" value={filters.branchId} onChange={updateFilter("branchId")}>
+            <SearchableSelect fullWidth select label="Sucursal" value={filters.branchId} onChange={updateFilter("branchId")}>
               <MenuItem value="">Todas</MenuItem>
               {branches.map((branch) => <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>)}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} md={3}>
-            <TextField fullWidth select label="Receta" value={filters.recipeId} onChange={updateFilter("recipeId")}>
+            <SearchableSelect fullWidth select label="Receta" value={filters.recipeId} onChange={updateFilter("recipeId")}>
               <MenuItem value="">Todas</MenuItem>
               {recipes.map((recipe) => (
                 <MenuItem key={recipe.id} value={recipe.id}>
                   {recipe.name || recipe.product_name || `Receta #${recipe.id}`} - V{recipe.version_no}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12}>
             <TextField fullWidth label="Buscar producto, receta o materia prima" value={filters.search} onChange={updateFilter("search")} />

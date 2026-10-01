@@ -188,7 +188,7 @@ const InventoryRawMaterialsPage = () => {
         open={Boolean(selectedMaterial)}
         onClose={() => setSelectedMaterial(null)}
         onSaved={({ movementType }) => {
-          toast.success(movementType === "adjustment_in" ? "Entrada registrada" : "Salida registrada");
+          toast.success(movementType === "zero_stock" ? "Stock eliminado" : movementType === "adjustment_in" ? "Entrada registrada" : "Salida registrada");
           setSelectedMaterial(null);
           setReloadKey((current) => current + 1);
         }}

@@ -6,6 +6,14 @@ class CatalogService {
     return GetEndpoint(endpoints.catalog.branches, { params });
   }
 
+  async createBranch(payload = {}) {
+    return PostEndpoint(endpoints.catalog.branches, payload);
+  }
+
+  async updateBranch(id, payload = {}) {
+    return PutEndpoint(endpoints.catalog.branchById(id), payload);
+  }
+
   async getCustomers(params = {}) {
     return GetEndpoint(endpoints.catalog.customers, { params });
   }

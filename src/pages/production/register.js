@@ -8,6 +8,7 @@ import AppButton from "@core/components/ui/AppButton";
 import AppCard from "@core/components/ui/AppCard";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getErrorMessage = (error, fallback) => {
   return error?.response?.data?.message || error?.message || fallback;
@@ -223,7 +224,7 @@ const ProductionRegisterPage = () => {
       <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 3 }}>
         <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
           <Grid item xs={12} md={4}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Sucursal"
@@ -240,7 +241,7 @@ const ProductionRegisterPage = () => {
                   {getDisplayName(branch)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} md={4}>
             <Alert severity="info">
@@ -339,7 +340,7 @@ const ProductionRegisterPage = () => {
                   </Stack>
 
                   {hasRecipe ? (
-                    <TextField
+                    <SearchableSelect
                       select
                       fullWidth
                       label="Receta"
@@ -357,7 +358,7 @@ const ProductionRegisterPage = () => {
                             {getRecipeParts(recipe).name}
                           </MenuItem>
                         ))}
-                      </TextField>
+                      </SearchableSelect>
                   ) : (
                     <Alert severity="info">Crea una receta activa para poder registrar este producto.</Alert>
                   )}

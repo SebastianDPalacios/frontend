@@ -4,6 +4,7 @@ import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 import {
   getIsoWeekInputValue,
   getWeekRange,
@@ -109,7 +110,7 @@ export const BalanceTimePicker = ({ label, value, onChange, fullWidth = false, e
         <Stack spacing={2}>
           <Typography sx={{ fontWeight: 900 }}>Seleccionar hora</Typography>
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               size="small"
@@ -120,9 +121,9 @@ export const BalanceTimePicker = ({ label, value, onChange, fullWidth = false, e
               {Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map((option) => (
                 <MenuItem key={option} value={option}>{option}</MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
             <Typography sx={{ fontWeight: 900 }}>:</Typography>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               size="small"
@@ -133,7 +134,7 @@ export const BalanceTimePicker = ({ label, value, onChange, fullWidth = false, e
               {Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0")).map((option) => (
                 <MenuItem key={option} value={option}>{option}</MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
             {formatDisplayTime(draftValue)}

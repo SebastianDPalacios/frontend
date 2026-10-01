@@ -6,6 +6,7 @@ import ordersService from "services/orders/orders-service";
 import { normalizeRows } from "views/modules/flow-utils";
 import exportSalesOperationsExcel from "components/organisms/orders/exportSalesOperationsExcel";
 import { BalanceDatePicker, BalanceMonthPicker } from "@core/components/ui/BalancePeriodPickers";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
@@ -39,7 +40,7 @@ const resolveDates = (mode, day, month, from, to) => {
 const SalesOperationsReportPage = () => {
   const [options, setOptions] = useState({ customers: [], products: [], orders: [], priceLists: [] });
   const [filters, setFilters] = useState({ mode: "day", day: today(), month: today().slice(0, 7), from: today(), to: today(), sellerId: "", customerId: "", receivedProductId: "", deliveredProductId: "", operationType: "", orderId: "", customerPriceType: "", priceListId: "", physicalProductId: "", commercialVariantId: "", appliedPrice: "" });
-  const [data, setData] = useState({ items: [], total: 0, totalPages: 0, totalsBySeller: [], totalsByProduct: [] });
+  const [data, setData] = useState({ items: [], total: 0, totalPages: 0, totalsBySeller: [], totalsByProduct: [], totalsByReason: [] });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(false);
@@ -97,7 +98,7 @@ const SalesOperationsReportPage = () => {
         const response = await ordersService.getSalesOperationsReport(buildParams(current, 100));
         allItems.push(...normalizeRows(response.data?.items));
       }
-      await exportSalesOperationsExcel({ items: allItems, totalsBySeller: first.data?.totalsBySeller, totalsByProduct: first.data?.totalsByProduct, filters: buildParams(1, 100) });
+      await exportSalesOperationsExcel({ items: allItems, totalsBySeller: first.data?.totalsBySeller, totalsByProduct: first.data?.totalsByProduct, totalsByReason: first.data?.totalsByReason, filters: buildParams(1, 100) });
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message || "No se pudo generar Excel");
     }
@@ -106,20 +107,20 @@ const SalesOperationsReportPage = () => {
   return <FlowPageLayout title="Reporte de cambios y devoluciones" subtitle="Cambios, devoluciones y obsequios se presentan como operaciones independientes.">
     <Stack spacing={3}>
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}><Grid container spacing={2}>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Consultar por" value={filters.mode} onChange={(e) => updateFilter("mode", e.target.value)}><MenuItem value="day">Día</MenuItem><MenuItem value="month">Mes</MenuItem><MenuItem value="range">Rango</MenuItem></TextField></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Consultar por" value={filters.mode} onChange={(e) => updateFilter("mode", e.target.value)}><MenuItem value="day">Día</MenuItem><MenuItem value="month">Mes</MenuItem><MenuItem value="range">Rango</MenuItem></SearchableSelect></Grid>
         {filters.mode === "day" ? <Grid item xs={12} md={3}><BalanceDatePicker fullWidth label="Día" value={filters.day} onChange={(value) => updateFilter("day", value)} /></Grid> : null}
         {filters.mode === "month" ? <Grid item xs={12} md={3}><BalanceMonthPicker fullWidth label="Mes" value={filters.month} onChange={(value) => updateFilter("month", value)} /></Grid> : null}
         {filters.mode === "range" ? <><Grid item xs={12} md={3}><BalanceDatePicker fullWidth label="Desde" value={filters.from} maxDate={filters.to || undefined} onChange={(value) => updateFilter("from", value)} /></Grid><Grid item xs={12} md={3}><BalanceDatePicker fullWidth label="Hasta" value={filters.to} minDate={filters.from || undefined} onChange={(value) => updateFilter("to", value)} /></Grid></> : null}
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Tipo" value={filters.operationType} onChange={(e) => updateFilter("operationType", e.target.value)}><MenuItem value="">Todos</MenuItem><MenuItem value="exchange">Cambio</MenuItem><MenuItem value="return">Devolución</MenuItem><MenuItem value="gift">Obsequio</MenuItem></TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Vendedor" value={filters.sellerId} onChange={(e) => updateFilter("sellerId", e.target.value)}><MenuItem value="">Todos</MenuItem>{sellers.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Cliente" value={filters.customerId} onChange={(e) => updateFilter("customerId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.customers.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Producto recibido" value={filters.receivedProductId} onChange={(e) => updateFilter("receivedProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Producto entregado como reemplazo" value={filters.deliveredProductId} onChange={(e) => updateFilter("deliveredProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Tipo" value={filters.operationType} onChange={(e) => updateFilter("operationType", e.target.value)}><MenuItem value="">Todos</MenuItem><MenuItem value="exchange">Cambio</MenuItem><MenuItem value="return">Devolución</MenuItem><MenuItem value="gift">Obsequio</MenuItem></SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Vendedor" value={filters.sellerId} onChange={(e) => updateFilter("sellerId", e.target.value)}><MenuItem value="">Todos</MenuItem>{sellers.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Cliente" value={filters.customerId} onChange={(e) => updateFilter("customerId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.customers.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Producto recibido" value={filters.receivedProductId} onChange={(e) => updateFilter("receivedProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Producto entregado como reemplazo" value={filters.deliveredProductId} onChange={(e) => updateFilter("deliveredProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
         <Grid item xs={12} md={3}><TextField fullWidth type="number" label="Pedido original" value={filters.orderId} onChange={(e) => updateFilter("orderId", e.target.value)} /></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Tipo de precio" value={filters.customerPriceType} onChange={(e) => updateFilter("customerPriceType", e.target.value)}><MenuItem value="">Regular y mayorista</MenuItem><MenuItem value="regular">Venta regular</MenuItem><MenuItem value="wholesale">Venta mayorista</MenuItem></TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Lista de precios" value={filters.priceListId} onChange={(e) => updateFilter("priceListId", e.target.value)}><MenuItem value="">Todas</MenuItem>{options.priceLists.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Producto físico" value={filters.physicalProductId} onChange={(e) => updateFilter("physicalProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{physicalProducts.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
-        <Grid item xs={12} md={3}><TextField select fullWidth label="Variante comercial" value={filters.commercialVariantId} onChange={(e) => updateFilter("commercialVariantId", e.target.value)}><MenuItem value="">Todas</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</TextField></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Tipo de precio" value={filters.customerPriceType} onChange={(e) => updateFilter("customerPriceType", e.target.value)}><MenuItem value="">Regular y mayorista</MenuItem><MenuItem value="regular">Venta regular</MenuItem><MenuItem value="wholesale">Venta mayorista</MenuItem></SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Lista de precios" value={filters.priceListId} onChange={(e) => updateFilter("priceListId", e.target.value)}><MenuItem value="">Todas</MenuItem>{options.priceLists.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Producto físico" value={filters.physicalProductId} onChange={(e) => updateFilter("physicalProductId", e.target.value)}><MenuItem value="">Todos</MenuItem>{physicalProducts.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
+        <Grid item xs={12} md={3}><SearchableSelect fullWidth label="Variante comercial" value={filters.commercialVariantId} onChange={(e) => updateFilter("commercialVariantId", e.target.value)}><MenuItem value="">Todas</MenuItem>{options.products.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</SearchableSelect></Grid>
         <Grid item xs={12} md={3}><TextField fullWidth type="number" label="Precio aplicado" value={filters.appliedPrice} onChange={(e) => updateFilter("appliedPrice", e.target.value)} inputProps={{ min: 1, step: 1 }} /></Grid>
         <Grid item xs={12} md={3}><Button fullWidth variant="contained" color="secondary" onClick={exportExcel} disabled={!data.total}>Exportar Excel</Button></Grid>
       </Grid></Paper>
@@ -131,8 +132,13 @@ const SalesOperationsReportPage = () => {
         <Grid container spacing={1.5}>{normalizeRows(data.totalsByProduct).map((item) => <Grid item xs={12} md={4} key={`${item.product_id}-${item.operation_type}`}><Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}><Typography fontWeight={800}>{item.product_name}</Typography><Typography variant="body2">{operationLabel(item.operation_type)} · {item.result_count} registro(s)</Typography><Typography variant="body2">Recibidos: {Number(item.received_quantity || 0)} · Entregados: {Number(item.delivered_quantity || 0)}</Typography><Typography fontWeight={800}>{money.format(Number(item.total_value || 0))}</Typography></Paper></Grid>)}</Grid>
       </Paper>
 
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+        <Typography variant="h6" fontWeight={900} sx={{ mb: 1 }}>Totales por motivo</Typography>
+        <Grid container spacing={1.5}>{normalizeRows(data.totalsByReason).map((item) => <Grid item xs={12} md={4} key={`${item.operation_type}-${item.reason}`}><Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}><Typography fontWeight={800}>{reasonLabel(item.reason)}</Typography><Typography variant="body2">{operationLabel(item.operation_type)} · {item.result_count} registro(s)</Typography><Typography variant="body2">Recibidos: {Number(item.received_quantity || 0)} · Entregados: {Number(item.delivered_quantity || 0)}</Typography><Typography fontWeight={800}>{money.format(Number(item.total_value || 0))}</Typography></Paper></Grid>)}</Grid>
+      </Paper>
+
       <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden", "& > .MuiTableContainer-root": { display: "none" } }}>
-        <Stack direction={{ xs: "column", sm: "row" }} sx={{ p: 2, justifyContent: "space-between", alignItems: { sm: "center" } }}><Typography variant="h6" fontWeight={900}>{data.total || 0} resultado(s)</Typography><TextField select size="small" label="Por página" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>{[25, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}</TextField></Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} sx={{ p: 2, justifyContent: "space-between", alignItems: { sm: "center" } }}><Typography variant="h6" fontWeight={900}>{data.total || 0} resultado(s)</Typography><SearchableSelect fullWidth={false} size="small" label="Por página" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>{[25, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}</SearchableSelect></Stack>
         {loading ? <Alert severity="info">Cargando reporte...</Alert> : null}
         {!loading && !normalizeRows(data.items).length ? <Alert severity="info">No hay operaciones para los filtros seleccionados.</Alert> : null}
         <Stack spacing={2} sx={{ px: 2, pb: 2 }}>

@@ -26,6 +26,7 @@ import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import { toDateInputValue } from "@core/components/ui/balance-date-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getTodayInputValue = () => toDateInputValue();
 
@@ -703,7 +704,7 @@ const ProductionOrdersPage = () => {
         </Typography>
         <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
           <Grid item xs={12} md={3}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Sucursal"
@@ -720,7 +721,7 @@ const ProductionOrdersPage = () => {
                   {getDisplayName(branch)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} md={3}>
             <BalanceDatePicker
@@ -838,7 +839,7 @@ const ProductionOrdersPage = () => {
           ) : null}
           <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
             <Grid item xs={12} md={6}>
-              <TextField
+              <SearchableSelect
                 select
                 fullWidth
                 label="Producto disponible"
@@ -862,7 +863,7 @@ const ProductionOrdersPage = () => {
                     {getDisplayName(product)}
                   </MenuItem>
                 ))}
-              </TextField>
+              </SearchableSelect>
             </Grid>
             <Grid item xs={12} md={3}>
               <TextField

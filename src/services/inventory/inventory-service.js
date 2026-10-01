@@ -13,6 +13,10 @@ class InventoryService {
   async applyMovement(payload) {
     return PostEndpoint(endpoints.inventory.movements, payload);
   }
+
+  async zeroStock(payload) {
+    return PostEndpoint(endpoints.inventory.zeroStock, payload);
+  }
 }
 
 const inventoryService = new InventoryService();

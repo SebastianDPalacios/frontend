@@ -95,7 +95,7 @@ const ProductStockGrid = ({ loading, error, rows, sortedRows, getDisplayName, fo
                 </Grid>
 
                 <AppButton onClick={() => onLoadStock(row)} variant="outlined" color="secondary">
-                  Agregar stock
+                  Cargar movimiento
                 </AppButton>
               </Stack>
             </Paper>

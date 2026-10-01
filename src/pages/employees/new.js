@@ -17,6 +17,7 @@ import FormField from "@core/components/ui/FormField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import employeesService from "services/employees/employees-service";
 import usersService from "services/users/users-service";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -185,7 +186,7 @@ const EmployeesNewPage = () => {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={8}>
-                  <TextField
+                  <SearchableSelect
                     select
                     fullWidth
                     label="Usuario"
@@ -200,10 +201,10 @@ const EmployeesNewPage = () => {
                         {user.full_name || user.username} - {user.email || user.username}
                       </MenuItem>
                     ))}
-                  </TextField>
+                  </SearchableSelect>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <TextField
+                  <SearchableSelect
                     select
                     fullWidth
                     label="Cargo operativo"
@@ -222,7 +223,7 @@ const EmployeesNewPage = () => {
                     <MenuItem value="operator">Operador</MenuItem>
                     <MenuItem value="admin">Administrativo</MenuItem>
                     <MenuItem value="other">Otro</MenuItem>
-                  </TextField>
+                  </SearchableSelect>
                 </Grid>
                 {form.job_type === "other" ? (
                   <Grid item xs={12}>

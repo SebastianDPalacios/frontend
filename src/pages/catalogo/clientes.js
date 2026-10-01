@@ -26,6 +26,7 @@ import { getApiErrorMessage } from "utils/api-error";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import AppButton from "@core/components/ui/AppButton";
 import PaginationControls from "components/molecules/PaginationControls";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) {
@@ -223,7 +224,7 @@ const CustomersPage = () => {
         {hasLoaded ? (<>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ p: 2 }}>
             <TextField fullWidth label="Buscar cliente" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
-            <TextField select label="Por pagina" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>{[10, 20, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}</TextField>
+            <SearchableSelect select label="Por pagina" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>{[10, 20, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}</SearchableSelect>
           </Stack>
           <TableContainer sx={{ overflowX: "auto" }}>
             <Table sx={{ minWidth: 860 }}>
@@ -350,7 +351,7 @@ const CustomersPage = () => {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 2 }}><TextField fullWidth label="Direccion" value={editDialog.values.address || ""} onChange={(e) => setEditValue("address", e.target.value)} /><TextField fullWidth label="Barrio / zona" value={editDialog.values.neighborhood || ""} onChange={(e) => setEditValue("neighborhood", e.target.value)} /></Stack>
           </Box><Divider />
           <Box><Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>Condiciones comerciales</Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}><TextField fullWidth type="number" label="Limite de credito" value={editDialog.values.credit_limit || ""} onChange={(e) => setEditValue("credit_limit", e.target.value)} inputProps={{ min: 0 }} /><TextField select fullWidth label="Estado" value={editDialog.values.status || "active"} onChange={(e) => setEditValue("status", e.target.value)}><MenuItem value="active">Activo</MenuItem><MenuItem value="inactive">Inactivo</MenuItem></TextField><TextField select fullWidth label="Vendedor" value={editDialog.values.sales_agent_user_id || ""} onChange={(e) => setEditValue("sales_agent_user_id", e.target.value)}><MenuItem value="">Sin vendedor</MenuItem>{sellers.map((seller) => <MenuItem key={seller.id} value={String(seller.id)}>{seller.full_name || seller.username}</MenuItem>)}</TextField></Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}><TextField fullWidth type="number" label="Limite de credito" value={editDialog.values.credit_limit || ""} onChange={(e) => setEditValue("credit_limit", e.target.value)} inputProps={{ min: 0 }} /><SearchableSelect select fullWidth label="Estado" value={editDialog.values.status || "active"} onChange={(e) => setEditValue("status", e.target.value)}><MenuItem value="active">Activo</MenuItem><MenuItem value="inactive">Inactivo</MenuItem></SearchableSelect><SearchableSelect select fullWidth label="Vendedor" value={editDialog.values.sales_agent_user_id || ""} onChange={(e) => setEditValue("sales_agent_user_id", e.target.value)}><MenuItem value="">Sin vendedor</MenuItem>{sellers.map((seller) => <MenuItem key={seller.id} value={String(seller.id)}>{seller.full_name || seller.username}</MenuItem>)}</SearchableSelect></Stack>
           </Box>
         </Stack></DialogContent>
         <DialogActions sx={{ px: { xs: 2.5, md: 4 }, py: 2.5, bgcolor: "background.default", borderTop: "1px solid", borderColor: "divider", gap: 1 }}><AppButton variant="outlined" color="secondary" onClick={closeEdit} disabled={editDialog.saving}>Cancelar</AppButton><AppButton color="secondary" onClick={saveCustomer} loading={editDialog.saving} loadingLabel="Guardando...">Guardar cambios</AppButton></DialogActions>

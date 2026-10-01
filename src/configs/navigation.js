@@ -89,6 +89,7 @@
           { title: "Proveedores", path: "/catalogo/proveedores", icon: "suppliers", permission: "materials.manage" },
           { title: "Reglas de venta", path: "/orders/settings", icon: "orders", permission: "roles.manage" },
           { title: "Mayoristas", path: "/configuracion/mayoristas", icon: "customers", permission: "roles.manage", adminOnly: true },
+          { title: "Sucursales", path: "/configuracion/sucursales", icon: "catalog", permission: "roles.manage", adminOnly: true },
           { title: "Ticket POS", path: "/settings/pos-ticket", icon: "orders", permission: "roles.manage" },
           { title: "Ticket liquidacion", path: "/settings/daily-settlement-ticket", icon: "orders", permission: "roles.manage" },
           { title: "Avisos del sistema", path: "/settings/system-announcements", icon: "users", permission: "roles.manage" },

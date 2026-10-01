@@ -9,6 +9,7 @@ import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { FIELD_VALIDATORS } from "constants/validation";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -264,7 +265,7 @@ const UsersNewPage = () => {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <TextField
+                  <SearchableSelect
                     select
                     fullWidth
                     name="role_code"
@@ -282,7 +283,7 @@ const UsersNewPage = () => {
                         {role.name || role.code}
                       </MenuItem>
                     ))}
-                  </TextField>
+                  </SearchableSelect>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Alert severity="info" sx={{ height: "100%", alignItems: "center" }}>

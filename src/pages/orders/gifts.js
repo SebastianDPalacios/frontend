@@ -27,6 +27,7 @@ import { formatCurrencyValue } from "components/atoms/ColombianCurrencyField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import ordersService from "services/orders/orders-service";
 import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const today = toDateInputValue();
 
@@ -252,11 +253,11 @@ const GiftsPage = () => {
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
-                <TextField select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => updateForm("branchId", event.target.value)}>
+                <SearchableSelect select fullWidth label="Sucursal" value={form.branchId} onChange={(event) => updateForm("branchId", event.target.value)}>
                   {branches.map((branch) => (
                     <MenuItem key={branch.id} value={String(branch.id)}>{getDisplayName(branch)}</MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} md={4}>
                 <Autocomplete

@@ -1,4 +1,5 @@
 import { MenuItem, TextField } from "@mui/material";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const lineTypes = [
   { value: "sale_bonus", label: "Venta + vendaje" },
@@ -9,7 +10,7 @@ const lineTypes = [
 ];
 
 const OrderLineTypeSelect = ({ value, onChange, disabled = false, options = lineTypes }) => (
-  <TextField
+  <SearchableSelect
     select
     fullWidth
     size="small"
@@ -23,7 +24,7 @@ const OrderLineTypeSelect = ({ value, onChange, disabled = false, options = line
         {type.label}
       </MenuItem>
     ))}
-  </TextField>
+  </SearchableSelect>
 );
 
 export { lineTypes };

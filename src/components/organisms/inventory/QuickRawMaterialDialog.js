@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const QuickRawMaterialDialog = ({
   open,
@@ -45,7 +46,7 @@ const QuickRawMaterialDialog = ({
                 />
               </Grid>
               <Grid item xs={12} md={5}>
-                <TextField
+                <SearchableSelect
                   select
                   fullWidth
                   label="Categoria"
@@ -59,7 +60,7 @@ const QuickRawMaterialDialog = ({
                       {category.name}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} md={8}>
                 <TextField
@@ -91,10 +92,10 @@ const QuickRawMaterialDialog = ({
             <Typography sx={{ fontWeight: 900 }}>Como se compra</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={3}>
-                <TextField select fullWidth label="Unidad base" value={quickMaterial.unit} onChange={onUpdate("unit")} disabled={saving}>
+                <SearchableSelect select fullWidth label="Unidad base" value={quickMaterial.unit} onChange={onUpdate("unit")} disabled={saving}>
                   <MenuItem value="g">Gramo</MenuItem>
                   <MenuItem value="ml">Mililitro</MenuItem>
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField
@@ -119,13 +120,13 @@ const QuickRawMaterialDialog = ({
                 />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField select fullWidth label="Unidad" value={quickMaterial.packageUnit} onChange={onUpdate("packageUnit")} disabled={saving}>
+                <SearchableSelect select fullWidth label="Unidad" value={quickMaterial.packageUnit} onChange={onUpdate("packageUnit")} disabled={saving}>
                   {purchaseUnitOptions[quickMaterial.unit].map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
             </Grid>
           </Stack>

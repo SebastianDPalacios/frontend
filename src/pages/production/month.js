@@ -12,6 +12,7 @@ import exportProductionMonthExcel from "components/organisms/production/exportPr
 import ProductionProductSummary from "components/organisms/production/ProductionProductSummary";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 3,
@@ -387,7 +388,7 @@ const ProductionMonthPage = () => {
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Sucursal"
@@ -401,10 +402,10 @@ const ProductionMonthPage = () => {
                   {getDisplayName(branch)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Receta"
@@ -418,7 +419,7 @@ const ProductionMonthPage = () => {
                   {recipe.display_name}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <AppButton
@@ -507,7 +508,7 @@ const ProductionMonthPage = () => {
               Resumen dia por dia para la hoja de Excel mensual.
             </Typography>
           </Box>
-          <TextField
+          <SearchableSelect
             select
             label="Tipo de harina"
             value={flourMaterialId}
@@ -521,7 +522,7 @@ const ProductionMonthPage = () => {
                 {flour.name}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Stack>
 
         {loading ? <Alert severity="info">Cargando consumo de harinas...</Alert> : null}

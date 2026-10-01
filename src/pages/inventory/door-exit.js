@@ -7,6 +7,7 @@ import PaginationControls from "components/molecules/PaginationControls";
 import inventoryService from "services/inventory/inventory-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { formatInventoryQuantity, getDisplayName, normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const ITEMS_PAGE_SIZE = 12;
 const MAX_INVENTORY_QUANTITY = 99999999999.999;
@@ -210,7 +211,7 @@ const DoorExitPage = () => {
       <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, md: 3 }, mb: 2 }}>
         <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
           <Grid item xs={12} md={4}>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Sucursal"
@@ -224,7 +225,7 @@ const DoorExitPage = () => {
                   {getDisplayName(branch)}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Grid>
           <Grid item xs={12} md={4}>
             <TextField

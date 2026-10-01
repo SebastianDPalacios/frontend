@@ -3,6 +3,7 @@ import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import SectionHeader from "components/atoms/SectionHeader";
 import PaginationControls from "components/molecules/PaginationControls";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const ManualAdjustmentPanel = ({
   show,
@@ -112,7 +113,7 @@ const ManualAdjustmentPanel = ({
         <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
           <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
             <Grid item xs={12} md={4}>
-              <TextField
+              <SearchableSelect
                 select
                 fullWidth
                 label="Sucursal"
@@ -126,14 +127,14 @@ const ManualAdjustmentPanel = ({
                     {getDisplayName(branch)}
                   </MenuItem>
                 ))}
-              </TextField>
+              </SearchableSelect>
             </Grid>
             <Grid item xs={12} md={4}>
-              <TextField select fullWidth label="Ver" value={itemTypeFilter} onChange={(event) => onItemTypeFilterChange(event.target.value)}>
+              <SearchableSelect select fullWidth label="Ver" value={itemTypeFilter} onChange={(event) => onItemTypeFilterChange(event.target.value)}>
                 <MenuItem value="raw_material">Materia prima</MenuItem>
                 <MenuItem value="product">Productos</MenuItem>
                 <MenuItem value="all">Todos</MenuItem>
-              </TextField>
+              </SearchableSelect>
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField fullWidth label="Buscar item" value={search} onChange={(event) => onSearchChange(event.target.value)} />
@@ -248,7 +249,7 @@ const ManualAdjustmentPanel = ({
                               />
                             </Grid>
                             <Grid item xs={6}>
-                              <TextField
+                              <SearchableSelect
                                 select
                                 label="Unidad"
                                 value={purchaseRow.unit}
@@ -260,7 +261,7 @@ const ManualAdjustmentPanel = ({
                                     {option.label}
                                   </MenuItem>
                                 ))}
-                              </TextField>
+                              </SearchableSelect>
                             </Grid>
                             <Grid item xs={12}>
                               <ColombianCurrencyField

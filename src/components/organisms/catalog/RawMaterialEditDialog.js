@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const RawMaterialEditDialog = ({
   open,
@@ -43,32 +44,32 @@ const RawMaterialEditDialog = ({
           <TextField label="Descripcion" value={form.description} onChange={onUpdateField("description")} fullWidth />
         </Grid>
         <Grid item xs={12} md={6}>
-          <TextField label="Categoria" value={form.category_id} onChange={onUpdateField("category_id")} select fullWidth required>
+          <SearchableSelect label="Categoria" value={form.category_id} onChange={onUpdateField("category_id")} select fullWidth required>
             {categories.map((category) => (
               <MenuItem key={category.id} value={String(category.id)}>
                 {category.name}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Grid>
         <Grid item xs={12} md={6}>
-          <TextField label="Proveedor" value={form.supplier_id} onChange={onUpdateField("supplier_id")} select fullWidth>
+          <SearchableSelect label="Proveedor" value={form.supplier_id} onChange={onUpdateField("supplier_id")} select fullWidth>
             <MenuItem value="">Sin proveedor</MenuItem>
             {suppliers.map((supplier) => (
               <MenuItem key={supplier.id} value={String(supplier.id)}>
                 {supplier.name}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Grid>
         <Grid item xs={12} md={4}>
-          <TextField label="Unidad" value={form.unit} onChange={onUpdateField("unit")} select fullWidth helperText={unitHelperText}>
+          <SearchableSelect label="Unidad" value={form.unit} onChange={onUpdateField("unit")} select fullWidth helperText={unitHelperText}>
             {unitOptions.map((unit) => (
               <MenuItem key={unit.value} value={unit.value}>
                 {unit.label}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableSelect>
         </Grid>
         <Grid item xs={12}>
           <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2 }}>
@@ -98,13 +99,13 @@ const RawMaterialEditDialog = ({
                 />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="Unidad del empaque" value={form.package_unit} onChange={onUpdateField("package_unit")} select fullWidth>
+                <SearchableSelect label="Unidad del empaque" value={form.package_unit} onChange={onUpdateField("package_unit")} select fullWidth>
                   {purchaseUnitOptions[form.unit].map((unit) => (
                     <MenuItem key={unit.value} value={unit.value}>
                       {unit.label}
                     </MenuItem>
                   ))}
-                </TextField>
+                </SearchableSelect>
               </Grid>
               <Grid item xs={12} md={3}>
                 <ColombianCurrencyField

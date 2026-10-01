@@ -11,6 +11,7 @@ import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import RecipeIngredientsTable from "components/organisms/recipes/RecipeIngredientsTable";
 import { normalizeRows } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const moneyFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
@@ -272,14 +273,14 @@ const RecipeEditPage = () => {
                   </Stack>
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={4}>
-                      <TextField select fullWidth label="Producto final" value={output.productId} onChange={(event) => {
+                      <SearchableSelect select fullWidth label="Producto final" value={output.productId} onChange={(event) => {
                         const selected = products.find((product) => String(product.id) === String(event.target.value));
                         updateOutput(index, "productId", event.target.value);
                         updateOutput(index, "productName", selected ? getProductName(selected) : "");
                       }}>
                         <MenuItem value="">Seleccionar</MenuItem>
                         {products.map((product) => <MenuItem key={product.id} value={String(product.id)}>{getProductName(product)}</MenuItem>)}
-                      </TextField>
+                      </SearchableSelect>
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>
                       <TextField fullWidth type="number" label="Cantidad" value={output.expectedQuantity} onChange={(event) => updateOutput(index, "expectedQuantity", event.target.value)} inputProps={{ min: 0.01, step: "0.01" }} />

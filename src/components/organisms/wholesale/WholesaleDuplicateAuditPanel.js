@@ -4,6 +4,7 @@ import AppButton from "@core/components/ui/AppButton";
 import AppCard from "@core/components/ui/AppCard";
 import toast from "react-hot-toast";
 import wholesaleService from "services/wholesale/wholesale-service";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const emptyAudit = { items: [], products: [], branches: [] };
@@ -70,8 +71,8 @@ const WholesaleDuplicateAuditPanel = () => {
     <Dialog open={Boolean(dialog)} onClose={() => !saving && setDialog(null)} fullWidth maxWidth="md"><DialogTitle>Aprobar equivalencia física</DialogTitle><DialogContent><Stack spacing={2} sx={{ mt: 1 }}>
       <Alert severity="warning">El stock no se sumará. Debes indicar la existencia física comprobada en la sucursal.</Alert>
       <Typography><b>Variante comercial:</b> {dialog?.item?.name}</Typography>
-      <Grid container spacing={2}><Grid item xs={12} md={6}><TextField select fullWidth label="Producto físico principal" value={dialog?.physicalProductId || ""} onChange={(event) => update("physicalProductId", event.target.value)}>{data.products.filter((product) => Number(product.id) !== Number(dialog?.item?.id)).map((product) => <MenuItem key={product.id} value={product.id}>{product.name} · {product.sku}</MenuItem>)}</TextField></Grid>
-      <Grid item xs={12} md={6}><TextField select fullWidth label="Sucursal" value={dialog?.branchId || ""} onChange={(event) => update("branchId", event.target.value)}>{data.branches.map((branch) => <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>)}</TextField></Grid>
+      <Grid container spacing={2}><Grid item xs={12} md={6}><SearchableSelect select fullWidth label="Producto físico principal" value={dialog?.physicalProductId || ""} onChange={(event) => update("physicalProductId", event.target.value)}>{data.products.filter((product) => Number(product.id) !== Number(dialog?.item?.id)).map((product) => <MenuItem key={product.id} value={product.id}>{product.name} · {product.sku}</MenuItem>)}</SearchableSelect></Grid>
+      <Grid item xs={12} md={6}><SearchableSelect select fullWidth label="Sucursal" value={dialog?.branchId || ""} onChange={(event) => update("branchId", event.target.value)}>{data.branches.map((branch) => <MenuItem key={branch.id} value={branch.id}>{branch.name}</MenuItem>)}</SearchableSelect></Grid>
       <Grid item xs={12} md={6}><TextField fullWidth type="number" label="Stock físico correcto" value={dialog?.confirmedPhysicalStock || ""} onChange={(event) => update("confirmedPhysicalStock", event.target.value)} inputProps={{ min: 0, step: 1 }} /></Grid>
       <Grid item xs={12} md={6}><TextField fullWidth label="Motivo opcional" value={dialog?.reason || ""} onChange={(event) => update("reason", event.target.value)} /></Grid></Grid>
     </Stack></DialogContent><DialogActions><AppButton onClick={() => setDialog(null)} disabled={saving}>Cancelar</AppButton><AppButton variant="contained" onClick={approve} disabled={saving}>Confirmar respaldo y conciliación</AppButton></DialogActions></Dialog>

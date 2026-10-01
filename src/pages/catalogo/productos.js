@@ -7,6 +7,7 @@ import { getApiErrorMessage } from "utils/api-error";
 import AppButton from "@core/components/ui/AppButton";
 import CatalogListView from "views/modules/CatalogListView";
 import PaginationControls from "components/molecules/PaginationControls";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) {
@@ -277,9 +278,9 @@ const ProductsPage = () => {
         totalItems={total}
         pagination={(
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center" justifyContent="center">
-            <TextField select size="small" label="Por pagina" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>
+            <SearchableSelect select size="small" label="Por pagina" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} sx={{ minWidth: 130 }}>
               {[10, 20, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-            </TextField>
+            </SearchableSelect>
             <PaginationControls currentPage={page} totalPages={Math.max(1, Math.ceil(total / pageSize))} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </Stack>
         )}
@@ -347,8 +348,8 @@ const ProductsPage = () => {
             <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>Clasificacion</Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <TextField select fullWidth label="Categoria" value={editDialog.values.category_id || ""} onChange={(e) => setEditValue("category_id", e.target.value)}>{categories.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}</TextField>
-              <TextField select fullWidth label="Tasa de impuesto" value={editDialog.values.tax_rate_id || ""} onChange={(e) => setEditValue("tax_rate_id", e.target.value)}><MenuItem value="">Sin impuesto</MenuItem>{taxRates.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name} ({item.rate_percent}%)</MenuItem>)}</TextField>
+              <SearchableSelect select fullWidth label="Categoria" value={editDialog.values.category_id || ""} onChange={(e) => setEditValue("category_id", e.target.value)}>{categories.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}</SearchableSelect>
+              <SearchableSelect select fullWidth label="Tasa de impuesto" value={editDialog.values.tax_rate_id || ""} onChange={(e) => setEditValue("tax_rate_id", e.target.value)}><MenuItem value="">Sin impuesto</MenuItem>{taxRates.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name} ({item.rate_percent}%)</MenuItem>)}</SearchableSelect>
               <TextField fullWidth label="Unidad de medida" value="Unidades" disabled helperText="Los productos terminados se controlan en unidades completas" />
             </Stack>
             </Box>
@@ -359,10 +360,10 @@ const ProductsPage = () => {
               <TextField fullWidth type="number" label="Precio base" value={editDialog.values.base_price || ""} onChange={(e) => setEditValue("base_price", e.target.value)} inputProps={{ min: 0 }} />
               <TextField fullWidth type="number" label="Stock minimo" value={editDialog.values.min_stock || ""} onChange={(e) => setEditValue("min_stock", e.target.value)} inputProps={{ min: 0, step: 1 }} />
               <TextField fullWidth type="number" label="Unidades por bulto (opcional)" helperText="Déjalo vacío si no aplica" value={editDialog.values.units_per_bag || ""} onChange={(e) => setEditValue("units_per_bag", e.target.value)} inputProps={{ min: 1, step: 1 }} />
-              <TextField select fullWidth label="Estado" value={editDialog.values.is_active || "1"} onChange={(e) => setEditValue("is_active", e.target.value)}><MenuItem value="1">Activo</MenuItem><MenuItem value="0">Inactivo</MenuItem></TextField>
-              <TextField select fullWidth label="Incluye vendaje" value={editDialog.values.includes_bonus || "0"} onChange={(e) => setEditValue("includes_bonus", e.target.value)}><MenuItem value="0">No</MenuItem><MenuItem value="1">Si</MenuItem></TextField>
+              <SearchableSelect select fullWidth label="Estado" value={editDialog.values.is_active || "1"} onChange={(e) => setEditValue("is_active", e.target.value)}><MenuItem value="1">Activo</MenuItem><MenuItem value="0">Inactivo</MenuItem></SearchableSelect>
+              <SearchableSelect select fullWidth label="Incluye vendaje" value={editDialog.values.includes_bonus || "0"} onChange={(e) => setEditValue("includes_bonus", e.target.value)}><MenuItem value="0">No</MenuItem><MenuItem value="1">Si</MenuItem></SearchableSelect>
             </Stack>
-            <TextField
+            <SearchableSelect
               select
               fullWidth
               label="Inventario físico utilizado"
@@ -375,7 +376,7 @@ const ProductsPage = () => {
               {physicalProducts.filter((item) => Number(item.id) !== Number(editDialog.product?.id) && !item.physical_product_id).map((item) => (
                 <MenuItem key={item.id} value={String(item.id)}>{item.name} · {item.sku}</MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
             </Box>
           </Stack>
         </DialogContent>
@@ -419,7 +420,7 @@ const ProductsPage = () => {
               {categoryDialog.product?.name || "Producto"}: selecciona la categoria comercial del producto final.
             </Typography>
             {categoryDialog.error ? <Alert severity="error">{categoryDialog.error}</Alert> : null}
-            <TextField
+            <SearchableSelect
               select
               autoFocus
               fullWidth
@@ -432,7 +433,7 @@ const ProductsPage = () => {
                   {category.name}
                 </MenuItem>
               ))}
-            </TextField>
+            </SearchableSelect>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

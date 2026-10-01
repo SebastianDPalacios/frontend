@@ -7,6 +7,7 @@ const normalizeWholeNumberInput = (value, update) => {
   if (value === "" || /^\d+$/.test(value)) update(value);
 };
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const damageOptions = [
   { value: "production", label: "Producción" },
@@ -27,7 +28,7 @@ const PackingReadyPanel = ({ canSelectPacker, clearPackingRow, createPackingRepo
     </Stack>
 
     <Grid container spacing={2} sx={{ alignItems: "flex-start", mb: 2 }}>
-      <Grid item xs={12} md={4}><TextField select fullWidth disabled={!canSelectPacker} label="Contador / empaquetador" value={packingForm.packerId} onChange={(event) => setPackingForm((current) => ({ ...current, packerId: event.target.value }))} helperText={canSelectPacker ? "Puedes registrar por otro empaquetador activo." : "El conteo quedará registrado a tu nombre."}>{packers.map((employee) => <MenuItem key={employee.id} value={String(employee.id)}>{employee.full_name || employee.username || `Empleado ${employee.id}`}</MenuItem>)}</TextField></Grid>
+      <Grid item xs={12} md={4}><SearchableSelect select fullWidth disabled={!canSelectPacker} label="Contador / empaquetador" value={packingForm.packerId} onChange={(event) => setPackingForm((current) => ({ ...current, packerId: event.target.value }))} helperText={canSelectPacker ? "Puedes registrar por otro empaquetador activo." : "El conteo quedará registrado a tu nombre."}>{packers.map((employee) => <MenuItem key={employee.id} value={String(employee.id)}>{employee.full_name || employee.username || `Empleado ${employee.id}`}</MenuItem>)}</SearchableSelect></Grid>
       <Grid item xs={12} md={3}><Tooltip title="Fecha en la que se realizó el empaque" arrow><Box><BalanceDatePicker label="Fecha de empaque" value={packingForm.packedDate} maxDate={today} onChange={(value) => setPackingForm((current) => ({ ...current, packedDate: value }))} fullWidth /></Box></Tooltip></Grid>
       <Grid item xs={12} md={5}><Tooltip title="Observación general opcional del lote" arrow><TextField fullWidth label="Notas del empaque" value={packingForm.notes} onChange={(event) => setPackingForm((current) => ({ ...current, notes: event.target.value }))} /></Tooltip></Grid>
     </Grid>
@@ -53,7 +54,7 @@ const PackingReadyPanel = ({ canSelectPacker, clearPackingRow, createPackingRepo
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}><Box><Typography sx={{ fontWeight: 900 }}>Daños</Typography><Typography variant="caption" color="text.secondary">Cada daño debe tener cantidad y motivo.</Typography></Box><Tooltip title="Añade otro daño con su cantidad y motivo" arrow><span><AppButton color="secondary" variant="outlined" onClick={addDamage} startIcon={<AddRoundedIcon />} sx={{ minHeight: 38 }}>Agregar daño</AppButton></span></Tooltip></Stack>
           {damages.map((damage, index) => <Grid container spacing={1} key={damage.id} alignItems="center">
             <Grid item xs={12} sm={3}><Tooltip title="Unidades que no pueden ingresar al inventario" arrow><TextField type="number" fullWidth label={`Cantidad dañada ${index + 1}`} value={damage.quantity} onChange={(event) => normalizeWholeNumberInput(event.target.value, (value) => updateDamage(damage.id, { quantity: value }))} inputProps={{ min: 1, step: 1, inputMode: "numeric" }} /></Tooltip></Grid>
-            <Grid item xs={10} sm={4}><TextField select fullWidth label="Motivo" value={damage.reason} onChange={(event) => { const selected = damageOptions.find((option) => option.value === event.target.value); updateDamage(damage.id, { reason: event.target.value, reason_label: selected?.label || event.target.value }); }}>{damageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</TextField></Grid>
+            <Grid item xs={10} sm={4}><SearchableSelect select fullWidth label="Motivo" value={damage.reason} onChange={(event) => { const selected = damageOptions.find((option) => option.value === event.target.value); updateDamage(damage.id, { reason: event.target.value, reason_label: selected?.label || event.target.value }); }}>{damageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</SearchableSelect></Grid>
             <Grid item xs={10} sm={4}><Tooltip title="Detalle opcional para la auditoría" arrow><TextField fullWidth label="Detalle opcional" value={damage.notes || ""} onChange={(event) => updateDamage(damage.id, { notes: event.target.value })} /></Tooltip></Grid>
             <Grid item xs={2} sm={1}><Tooltip title="Eliminar este daño" arrow><IconButton color="error" onClick={() => removeDamage(damage.id)}><DeleteOutlineRoundedIcon /></IconButton></Tooltip></Grid>
           </Grid>)}

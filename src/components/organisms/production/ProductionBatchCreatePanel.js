@@ -2,6 +2,7 @@ import { Box, Checkbox, Chip, Grid, MenuItem, Paper, Stack, TextField, Typograph
 import AppButton from "@core/components/ui/AppButton";
 import { BalanceDatePicker } from "@core/components/ui/BalancePeriodPickers";
 import { getDisplayName } from "views/modules/flow-utils";
+import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const ProductionBatchCreatePanel = ({
   batchForm,
@@ -30,7 +31,7 @@ const ProductionBatchCreatePanel = ({
 
     <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
       <Grid item xs={12} md={3}>
-        <TextField
+        <SearchableSelect
           select
           fullWidth
           label="Sucursal"
@@ -42,10 +43,10 @@ const ProductionBatchCreatePanel = ({
               {getDisplayName(branch)}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
       <Grid item xs={12} md={3}>
-        <TextField
+        <SearchableSelect
           select
           fullWidth
           label="Receta"
@@ -57,10 +58,10 @@ const ProductionBatchCreatePanel = ({
               {getRecipeName(recipe)} · V{recipe.version_no || 1} vigente {recipe.outputs?.length ? `(${recipe.outputs.length} productos)` : ""}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
       <Grid item xs={12} md={2}>
-        <TextField
+        <SearchableSelect
           select
           fullWidth
           label="Panadero"
@@ -72,7 +73,7 @@ const ProductionBatchCreatePanel = ({
               {employee.full_name || employee.username || `Empleado ${employee.id}`}
             </MenuItem>
           ))}
-        </TextField>
+        </SearchableSelect>
       </Grid>
       <Grid item xs={6} md={2}>
         <TextField
