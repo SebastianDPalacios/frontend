@@ -9,7 +9,7 @@ const textFromNode = (node) => {
   return "";
 };
 
-const SearchableSelect = ({ children, value, onChange, name, label, placeholder = "Buscar...", required, disabled, fullWidth = true, size, error, helperText, sx, select: _legacySelect, SelectProps: _legacySelectProps, ...textFieldProps }) => {
+const SearchableSelect = ({ children, value, onChange, name, label, placeholder, required, disabled, fullWidth = true, size, error, helperText, sx, select: _legacySelect, SelectProps: _legacySelectProps, ...textFieldProps }) => {
   const options = useMemo(() => Children.toArray(children)
     .filter((child) => isValidElement(child) && child.props.value !== undefined)
     .map((child) => ({
@@ -17,7 +17,12 @@ const SearchableSelect = ({ children, value, onChange, name, label, placeholder 
       label: textFromNode(child.props.children).trim(),
       disabled: Boolean(child.props.disabled),
     })), [children]);
-  const selected = options.find((option) => String(option.value) === String(value ?? "")) || null;
+  const normalizedValue = value ?? "";
+  const emptyOption = options.find((option) => String(option.value) === "");
+  const selected = String(normalizedValue) === ""
+    ? null
+    : options.find((option) => String(option.value) === String(normalizedValue)) || null;
+  const inputPlaceholder = placeholder ?? emptyOption?.label ?? "Buscar...";
 
   return <Autocomplete
     fullWidth={fullWidth}
@@ -30,7 +35,7 @@ const SearchableSelect = ({ children, value, onChange, name, label, placeholder 
     getOptionDisabled={(option) => option.disabled}
     onChange={(_, option) => onChange?.({ target: { name, value: option?.value ?? "" } })}
     noOptionsText="Sin resultados"
-    renderInput={(params) => <TextField {...params} {...textFieldProps} name={name} label={label} placeholder={placeholder} required={required} error={error} helperText={helperText} />}
+    renderInput={(params) => <TextField {...params} {...textFieldProps} name={name} label={label} placeholder={inputPlaceholder} required={required} error={error} helperText={helperText} />}
     sx={sx}
   />;
 };

@@ -134,6 +134,7 @@ const NuevaMateriaPrimaPage = () => {
         package_unit: "kg",
         package_cost: "",
         unit_cost: "",
+        is_inventory_valued: "1",
         min_stock: "",
         is_active: "1",
       },
@@ -146,15 +147,15 @@ const NuevaMateriaPrimaPage = () => {
           toast.error("Selecciona una categoria activa para la materia prima.");
           return;
         }
-        if (!formValues.package_quantity || Number(formValues.package_quantity) <= 0) {
+        if (Number(formValues.is_inventory_valued) === 1 && (!formValues.package_quantity || Number(formValues.package_quantity) <= 0)) {
           toast.error("Escribe la cantidad del empaque para calcular el costo.");
           return;
         }
-        if (!formValues.package_cost || Number(formValues.package_cost) <= 0) {
+        if (Number(formValues.is_inventory_valued) === 1 && (!formValues.package_cost || Number(formValues.package_cost) <= 0)) {
           toast.error("Escribe el costo total del empaque.");
           return;
         }
-        if (!formValues.unit_cost || Number(formValues.unit_cost) <= 0) {
+        if (Number(formValues.is_inventory_valued) === 1 && (!formValues.unit_cost || Number(formValues.unit_cost) <= 0)) {
           toast.error("Calcula o escribe el costo por gramo/ml antes de guardar.");
           return;
         }
@@ -169,6 +170,7 @@ const NuevaMateriaPrimaPage = () => {
             p_purchase_package_name: formValues.purchase_package_name.trim() || getDefaultPackageName(formValues.unit),
             p_purchase_package_quantity: toBaseQuantity(formValues.package_quantity, formValues.package_unit),
             p_inventory_usage_type: getInventoryUsageType(formValues.category_id, categories),
+            p_is_inventory_valued: Number(formValues.is_inventory_valued),
             p_unit_cost: formValues.unit_cost ? Number(formValues.unit_cost) : null,
             p_min_stock: formValues.min_stock ? Number(formValues.min_stock) : null,
             p_is_active: Number(formValues.is_active),

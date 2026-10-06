@@ -111,7 +111,7 @@ const RawMaterialsTable = ({
               <TableCell>Materia prima</TableCell>
               <TableCell>Categoria</TableCell>
               <TableCell>Proveedor</TableCell>
-              <TableCell>Uso</TableCell>
+              <TableCell>Uso / valoración</TableCell>
               <TableCell>Unidad</TableCell>
               <TableCell>Presentacion</TableCell>
               <TableCell align="right">Costo</TableCell>
@@ -138,13 +138,22 @@ const RawMaterialsTable = ({
                   <TableCell>{getOptionName(categories, item.category_id)}</TableCell>
                   <TableCell>{getOptionName(suppliers, item.supplier_id)}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={item.inventory_usage_type === "packaging" ? "Empaque" : "Produccion"}
-                      color={item.inventory_usage_type === "packaging" ? "info" : "secondary"}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontWeight: 800 }}
-                    />
+                    <Stack spacing={0.75} sx={{ alignItems: "flex-start" }}>
+                      <Chip
+                        label={item.inventory_usage_type === "packaging" ? "Empaque" : "Producción"}
+                        color={item.inventory_usage_type === "packaging" ? "info" : "secondary"}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontWeight: 800 }}
+                      />
+                      <Chip
+                        label={Number(item.is_inventory_valued ?? 1) === 1 ? "Valorizada" : "No valorizada"}
+                        color={Number(item.is_inventory_valued ?? 1) === 1 ? "success" : "default"}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontWeight: 800 }}
+                      />
+                    </Stack>
                   </TableCell>
                   <TableCell>{unitOptions.find((unit) => unit.value === item.unit)?.label || item.unit || "Sin unidad"}</TableCell>
                   <TableCell>{formatPackageSummary(item)}</TableCell>

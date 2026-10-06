@@ -143,6 +143,7 @@ const emptyForm = {
   package_unit: "kg",
   package_cost: "",
   unit_cost: "",
+  is_inventory_valued: 1,
   min_stock: "",
   is_active: 1,
 };
@@ -233,6 +234,7 @@ const RawMaterialsPage = () => {
       package_unit: packageUnit,
       package_cost: "",
       unit_cost: item.unit_cost ?? "",
+      is_inventory_valued: Number(item.is_inventory_valued ?? 1),
       min_stock: item.min_stock ?? "",
       is_active: Number(item.is_active ?? 1),
     });
@@ -247,7 +249,7 @@ const RawMaterialsPage = () => {
   };
 
   const updateField = (field) => (event) => {
-    const value = field === "is_active" ? Number(event.target.checked) : event.target.value;
+    const value = ["is_active", "is_inventory_valued"].includes(field) ? Number(event.target.checked) : event.target.value;
     setForm((current) => {
       const next = { ...current, [field]: value };
       if (field === "unit") {
@@ -294,6 +296,7 @@ const RawMaterialsPage = () => {
         p_purchase_package_name: form.purchase_package_name.trim() || getDefaultPackageName(form.unit),
         p_purchase_package_quantity: toBaseQuantity(form.package_quantity, form.package_unit),
         p_inventory_usage_type: getInventoryUsageType(form.category_id, categories),
+        p_is_inventory_valued: Number(form.is_inventory_valued),
         p_unit_cost: form.unit_cost === "" ? null : Number(form.unit_cost),
         p_min_stock: form.min_stock === "" ? null : Number(form.min_stock),
         p_is_active: Number(form.is_active),

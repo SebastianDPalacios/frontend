@@ -1,10 +1,12 @@
 import {
+  Alert,
   Box,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
+  FormControlLabel,
   MenuItem,
   Stack,
   Switch,
@@ -72,6 +74,22 @@ const RawMaterialEditDialog = ({
           </SearchableSelect>
         </Grid>
         <Grid item xs={12}>
+          <FormControlLabel
+            control={(
+              <Switch
+                checked={Number(form.is_inventory_valued) === 1}
+                onChange={onUpdateField("is_inventory_valued")}
+              />
+            )}
+            label="Incluir esta materia prima en la valoración del inventario y los costos"
+          />
+          {Number(form.is_inventory_valued) === 0 ? (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              Insumo simbólico: seguirá en recetas, consumos y existencias, pero aportará $0 a los reportes financieros.
+            </Alert>
+          ) : null}
+        </Grid>
+        <Grid item xs={12}>
           <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2 }}>
             <Typography sx={{ fontWeight: 900, mb: 0.5 }}>Costo de compra</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -85,6 +103,7 @@ const RawMaterialEditDialog = ({
                   onChange={onUpdateField("purchase_package_name")}
                   fullWidth
                   placeholder={form.unit === "ml" ? "Garrafa" : "Bulto"}
+                  disabled={Number(form.is_inventory_valued) === 0}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -96,10 +115,11 @@ const RawMaterialEditDialog = ({
                   fullWidth
                   placeholder={form.unit === "ml" ? "5" : "50"}
                   inputProps={{ min: 0, step: "0.001" }}
+                  disabled={Number(form.is_inventory_valued) === 0}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
-                <SearchableSelect label="Unidad del empaque" value={form.package_unit} onChange={onUpdateField("package_unit")} select fullWidth>
+                <SearchableSelect label="Unidad del empaque" value={form.package_unit} onChange={onUpdateField("package_unit")} select fullWidth disabled={Number(form.is_inventory_valued) === 0}>
                   {purchaseUnitOptions[form.unit].map((unit) => (
                     <MenuItem key={unit.value} value={unit.value}>
                       {unit.label}
@@ -113,6 +133,7 @@ const RawMaterialEditDialog = ({
                   value={form.package_cost}
                   onChange={onUpdateField("package_cost")}
                   placeholder="150000"
+                  disabled={Number(form.is_inventory_valued) === 0}
                 />
               </Grid>
             </Grid>
@@ -125,6 +146,7 @@ const RawMaterialEditDialog = ({
             onChange={onUpdateField("unit_cost")}
             decimalScale={6}
             helperText="Este valor se guarda internamente para costear recetas."
+            disabled={Number(form.is_inventory_valued) === 0}
           />
         </Grid>
         <Grid item xs={12} md={4}>

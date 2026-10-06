@@ -186,22 +186,23 @@ const addInventorySection = (worksheet, title, rows) => {
   const section = addSection(
     worksheet,
     title,
-    ["Producto", "Categoria", "Cantidad", "Unidad", "Valor unitario", "Total"],
+    ["Producto", "Categoria", "Cantidad", "Unidad", "Valoración", "Valor unitario", "Total"],
     rows.map((item) => [
       item.item_name || "",
       item.category_name || "",
       Number(item.quantity_on_hand || 0),
       getMeasurementUnitName(item.unit),
+      Number(item.is_inventory_valued ?? 1) === 0 ? "No valorizado" : "Valorizado",
       Number(item.unit_cost || 0),
       Number(item.total_value || 0),
     ]),
-    { decimalColumns: [3], currencyColumns: [5, 6], headerFill: colors.softOrange }
+    { decimalColumns: [3], currencyColumns: [6, 7], headerFill: colors.softOrange }
   );
 
-  const totalRow = worksheet.addRow(["TOTAL", "", "", "", "", sumBy(rows, "total_value")]);
+  const totalRow = worksheet.addRow(["TOTAL", "", "", "", "", "", sumBy(rows, "total_value")]);
   totalRow.eachCell((cell, columnNumber) => {
     styleCell(cell, { bold: true, fill: colors.soft });
-    if (columnNumber === 6) {
+    if (columnNumber === 7) {
       cell.numFmt = '"$" #,##0';
     }
   });
@@ -480,7 +481,7 @@ const exportProductionMonthExcel = async ({
 
   const inventorySnapshot = report.inventory_snapshot || {};
   const inventoryWorksheet = workbook.addWorksheet(`Inventarios ${filters.month}`);
-  [34, 22, 16, 14, 18, 18].forEach((width, index) => {
+  [34, 22, 16, 14, 18, 18, 18].forEach((width, index) => {
     inventoryWorksheet.getColumn(index + 1).width = width;
   });
   inventoryWorksheet.views = [{ state: "frozen", ySplit: 4 }];
@@ -488,7 +489,7 @@ const exportProductionMonthExcel = async ({
     inventoryWorksheet,
     `Inventarios de ${monthLabel(filters.month)}`,
     "Materia prima, producto terminado, rollos y bolsas",
-    6
+    7
   );
   addBlankRows(inventoryWorksheet);
 

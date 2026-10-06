@@ -1,4 +1,4 @@
-import { Box, Grid, MenuItem, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, FormControlLabel, Grid, MenuItem, Paper, Stack, Switch, Typography } from "@mui/material";
 import AppButton from "@core/components/ui/AppButton";
 import FormField from "@core/components/ui/FormField";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
@@ -121,6 +121,23 @@ const RawMaterialCreateForm = ({
           </FormField>
         </Grid>
         <Grid item xs={12}>
+          <FormControlLabel
+            control={(
+              <Switch
+                name="is_inventory_valued"
+                checked={Number(values.is_inventory_valued) === 1}
+                onChange={(event) => onChange({ target: { name: "is_inventory_valued", value: event.target.checked ? "1" : "0" } })}
+              />
+            )}
+            label="Incluir esta materia prima en la valoración del inventario y los costos"
+          />
+          {Number(values.is_inventory_valued) === 0 ? (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              Insumo simbólico: conservará cantidades, recetas y consumos, pero su valor financiero será $0.
+            </Alert>
+          ) : null}
+        </Grid>
+        <Grid item xs={12}>
           <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2 }}>
             <Typography sx={{ fontWeight: 900, mb: 0.5 }}>Costo de compra</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -137,6 +154,7 @@ const RawMaterialCreateForm = ({
                   onChange={onChange}
                   onBlur={onBlur}
                   placeholder={values.unit === "ml" ? "Garrafa" : "Bulto"}
+                  disabled={Number(values.is_inventory_valued) === 0}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -151,6 +169,7 @@ const RawMaterialCreateForm = ({
                   onBlur={onBlur}
                   placeholder={values.unit === "ml" ? "5" : "50"}
                   inputProps={{ min: 0, step: "0.001" }}
+                  disabled={Number(values.is_inventory_valued) === 0}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -163,6 +182,7 @@ const RawMaterialCreateForm = ({
                   touched={touched.package_unit}
                   onChange={onCostCalculatorChange}
                   onBlur={onBlur}
+                  disabled={Number(values.is_inventory_valued) === 0}
                 >
                   {purchaseUnitOptions[values.unit].map((unit) => (
                     <MenuItem key={unit.value} value={unit.value}>
@@ -181,6 +201,7 @@ const RawMaterialCreateForm = ({
                   onChange={onCostCalculatorChange}
                   onBlur={onBlur}
                   placeholder="150000"
+                  disabled={Number(values.is_inventory_valued) === 0}
                 />
               </Grid>
             </Grid>
@@ -198,6 +219,7 @@ const RawMaterialCreateForm = ({
             decimalScale={6}
             placeholder="0"
             helperText="Este valor se guarda internamente para costear recetas."
+            disabled={Number(values.is_inventory_valued) === 0}
           />
         </Grid>
         <Grid item xs={12} md={4}>

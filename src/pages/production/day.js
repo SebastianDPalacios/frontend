@@ -606,7 +606,10 @@ const ProductionDayPage = () => {
                       </Typography>
                     </Grid>
                     <Grid item xs={6} sm={3} md={2}>
-                      <SmallStat label="Costo" value={formatMoney(material.total_cost)} />
+                      <SmallStat
+                        label="Costo"
+                        value={Number(material.is_inventory_valued ?? 1) === 0 ? "No valorizado" : formatMoney(material.total_cost)}
+                      />
                     </Grid>
                     <Grid item xs={6} sm={3} md={2}>
                       <SmallStat label="Total" value={formatMaterialQty(material.total_quantity, material.raw_material_unit)} />
@@ -617,7 +620,7 @@ const ProductionDayPage = () => {
                         value={formatMaterialQty(material.base_quantity, material.raw_material_unit)}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {formatMoney(material.base_cost)}
+                        {Number(material.is_inventory_valued ?? 1) === 0 ? "No valorizado" : formatMoney(material.base_cost)}
                       </Typography>
                     </Grid>
                     <Grid item xs={6} sm={3} md={2}>
