@@ -39,7 +39,7 @@ const formatDate = (value) => {
 };
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));

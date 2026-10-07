@@ -11,7 +11,7 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
-const formatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const formatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const formatNumber = (value) => formatter.format(Number(value || 0));
 const getLocalDate = () => toDateInputValue();
 const getMonthRange = (date) => {

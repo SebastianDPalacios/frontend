@@ -62,9 +62,8 @@ export const formatEditableNumber = (value, fallback = "") => {
 
 export const formatInventoryQuantity = (value, unit) => {
   const number = Number(value || 0);
-  const maximumFractionDigits = isIntegerUnit(unit) ? 0 : hasDecimals(number) ? 3 : 0;
 
   return new Intl.NumberFormat("es-CO", {
-    maximumFractionDigits,
+    maximumFractionDigits: 0,
   }).format(number);
 };

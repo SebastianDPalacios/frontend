@@ -13,7 +13,7 @@ import DashboardOperationalSignals from "components/organisms/dashboard/Dashboar
 import DashboardWelcomePanel from "components/organisms/dashboard/DashboardWelcomePanel";
 import { hasPermission, isBakerOnlyUser, isPackagingOnlyUser } from "configs/access";
 
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const moneyFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
   style: "currency",

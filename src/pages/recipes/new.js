@@ -24,7 +24,7 @@ const moneyFormatter = new Intl.NumberFormat("es-CO", {
 });
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const emptyBaseRow = () => ({

@@ -59,7 +59,7 @@ const ITEMS_PAGE_SIZE = 9;
 const formatNumber = (value, unit) => formatInventoryQuantity(value, unit);
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const moneyFormatter = new Intl.NumberFormat("es-CO", {
@@ -89,14 +89,14 @@ const formatPackageQuantity = (quantity, unit) => {
   const amount = Number(quantity || 0);
   if (amount <= 0) return "";
   if (unit === "ml") {
-    return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} litros` : `${amount.toLocaleString("es-CO")} ml`;
+    return amount >= 1000 ? `${Number(amount / 1000).toLocaleString("es-CO", { maximumFractionDigits: 0 })} litros` : `${amount.toLocaleString("es-CO", { maximumFractionDigits: 0 })} ml`;
   }
   if (unit === "g") {
-    return amount >= 1000 ? `${Number((amount / 1000).toFixed(3)).toLocaleString("es-CO")} kg` : `${amount.toLocaleString("es-CO")} g`;
+    return amount >= 1000 ? `${Number(amount / 1000).toLocaleString("es-CO", { maximumFractionDigits: 0 })} kg` : `${amount.toLocaleString("es-CO", { maximumFractionDigits: 0 })} g`;
   }
   const option = purchaseUnitOptions.find((item) => item.baseUnit === unit);
   const label = option?.label?.toLowerCase() || unit;
-  return `${amount.toLocaleString("es-CO")} ${label}`;
+  return `${amount.toLocaleString("es-CO", { maximumFractionDigits: 0 })} ${label}`;
 };
 
 const getPurchaseUnitOptions = (item) => {

@@ -15,7 +15,7 @@ import { getDisplayName, normalizeRows } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const moneyFormatter = new Intl.NumberFormat("es-CO", {

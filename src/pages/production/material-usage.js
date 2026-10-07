@@ -25,7 +25,7 @@ import { normalizeRows } from "views/modules/flow-utils";
 import { getMeasurementUnitName } from "utils/production-measurement-units";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 

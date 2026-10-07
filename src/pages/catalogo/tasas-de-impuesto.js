@@ -33,7 +33,7 @@ const normalizeList = (payload) => {
 const formatPercent = (value) => {
   const number = Number(value || 0);
   return new Intl.NumberFormat("es-CO", {
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).format(number);
 };
 

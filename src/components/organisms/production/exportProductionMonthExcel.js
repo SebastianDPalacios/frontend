@@ -86,7 +86,7 @@ const addSection = (worksheet, title, headers, rows, options = {}) => {
       } else if (options.percentColumns?.includes(columnNumber)) {
         cell.numFmt = "0%";
       } else if (options.decimalColumns?.includes(columnNumber)) {
-        cell.numFmt = "#,##0.###";
+        cell.numFmt = "#,##0";
       }
     });
   });
@@ -124,7 +124,7 @@ const addBlankRows = (worksheet, count = 1) => {
 const sumBy = (rows, field) => rows.reduce((total, row) => total + Number(row?.[field] || 0), 0);
 
 const inventoryQuantityFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const formatInventoryRemainder = (quantity, unit) => {

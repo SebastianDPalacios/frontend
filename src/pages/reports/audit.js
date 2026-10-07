@@ -105,7 +105,7 @@ const idKeys = new Set([
 ]);
 const countKeys = new Set(["items_count", "item_count", "products", "recipes"]);
 const currencyFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 const formatDateTime = (value) => value ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";

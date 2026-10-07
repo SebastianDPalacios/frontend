@@ -15,7 +15,7 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const formatUnits = (value) => {

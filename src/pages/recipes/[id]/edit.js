@@ -14,7 +14,7 @@ import { formatEditableNumber, normalizeRows } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const moneyFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 const toNumber = (value) => {
   const parsed = Number(value);

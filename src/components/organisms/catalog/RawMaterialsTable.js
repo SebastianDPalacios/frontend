@@ -163,7 +163,7 @@ const RawMaterialsTable = ({
                       por {unitOptions.find((unit) => unit.value === item.unit)?.label?.toLowerCase() || item.unit || "unidad"}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">{Number(item.min_stock || 0).toLocaleString("es-CO")}</TableCell>
+                  <TableCell align="right">{Number(item.min_stock || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                       <Chip

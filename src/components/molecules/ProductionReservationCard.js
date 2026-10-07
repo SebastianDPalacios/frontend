@@ -1,7 +1,7 @@
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import ProductionReservationStatusChip from "components/atoms/ProductionReservationStatusChip";
 
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
 const ProductionReservationCard = ({ reservation, busy, onDeliver, onRelease }) => {
   const canManage = ["reserved", "partially_delivered"].includes(reservation.status);

@@ -59,7 +59,7 @@ const formatDate = (value) => {
 };
 
 const formatNumber = (value) =>
-  Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 3 });
+  Number(value || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 });
 
 const money = new Intl.NumberFormat("es-CO", {
   style: "currency",

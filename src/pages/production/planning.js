@@ -16,9 +16,9 @@ import recipesService from "services/recipes/recipes-service";
 import FlowPageLayout from "views/modules/FlowPageLayout";
 import { normalizeRows } from "views/modules/flow-utils";
 
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-const arrobaFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
+const arrobaFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const formatArrobas = (value) => arrobaFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 

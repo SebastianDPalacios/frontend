@@ -12,7 +12,7 @@ const getErrorMessage = (error, fallback) => {
 };
 
 const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
+  maximumFractionDigits: 0,
 });
 
 const formatUnits = (value) => numberFormatter.format(Number(value || 0));

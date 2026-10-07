@@ -22,7 +22,7 @@ const money = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
 
-const number = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const number = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
 const escapeHtml = (value) =>
   String(value ?? "")

@@ -191,7 +191,7 @@ const CatalogListView = ({
               {showProductYield ? (
                 <TableCell align="right">
                   <Typography sx={{ fontWeight: 800 }}>
-                    {item.units_per_bag ? Number(item.units_per_bag).toLocaleString("es-CO") : "Sin configurar"}
+                    {item.units_per_bag ? Number(item.units_per_bag).toLocaleString("es-CO", { maximumFractionDigits: 0 }) : "Sin configurar"}
                   </Typography>
                 </TableCell>
               ) : null}
@@ -199,7 +199,7 @@ const CatalogListView = ({
                 <Typography sx={{ fontWeight: 800 }}>{price || "$ 0"}</Typography>
               </TableCell>
               <TableCell align="right">
-                <Typography sx={{ fontWeight: 800 }}>{Number(item.min_stock || 0).toLocaleString("es-CO")}</Typography>
+                <Typography sx={{ fontWeight: 800 }}>{Number(item.min_stock || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}</Typography>
               </TableCell>
               <TableCell>
                 <Chip

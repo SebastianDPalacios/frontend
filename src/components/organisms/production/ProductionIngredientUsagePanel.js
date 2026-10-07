@@ -7,7 +7,7 @@ import productionService from "services/production/production-service";
 import { normalizeRows } from "views/modules/flow-utils";
 import { getMeasurementUnitName } from "utils/production-measurement-units";
 
-const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
+const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
 const formatMeasurementUnit = getMeasurementUnitName;
 const getWeekValue = (value) => {
