@@ -10,7 +10,7 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import RecipeIngredientsTable from "components/organisms/recipes/RecipeIngredientsTable";
-import { normalizeRows } from "views/modules/flow-utils";
+import { formatEditableNumber, normalizeRows } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getErrorMessage = (error, fallback) => {
@@ -553,6 +553,7 @@ const RecipeCreatePage = () => {
                         label="Cantidad"
                         value={output.expectedQuantity}
                         onChange={(event) => updateOutput(outputIndex, "expectedQuantity", event.target.value)}
+                        onBlur={(event) => updateOutput(outputIndex, "expectedQuantity", formatEditableNumber(event.target.value))}
                         inputProps={{ min: 0.01, step: "0.01" }}
                       />
                     </Grid>
@@ -563,6 +564,7 @@ const RecipeCreatePage = () => {
                         label="Peso unidad"
                         value={output.unitWeightGrams}
                         onChange={(event) => updateOutput(outputIndex, "unitWeightGrams", event.target.value)}
+                        onBlur={(event) => updateOutput(outputIndex, "unitWeightGrams", formatEditableNumber(event.target.value))}
                         inputProps={{ min: 0, step: "0.01" }}
                       />
                     </Grid>

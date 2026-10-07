@@ -8,6 +8,7 @@ import AppButton from "@core/components/ui/AppButton";
 import CatalogListView from "views/modules/CatalogListView";
 import PaginationControls from "components/molecules/PaginationControls";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
+import { formatEditableNumber } from "views/modules/flow-utils";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) {
@@ -349,7 +350,7 @@ const ProductsPage = () => {
             <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1.5 }}>Clasificacion</Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <SearchableSelect select fullWidth label="Categoria" value={editDialog.values.category_id || ""} onChange={(e) => setEditValue("category_id", e.target.value)}>{categories.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name}</MenuItem>)}</SearchableSelect>
-              <SearchableSelect select fullWidth label="Tasa de impuesto" value={editDialog.values.tax_rate_id || ""} onChange={(e) => setEditValue("tax_rate_id", e.target.value)}><MenuItem value="">Sin impuesto</MenuItem>{taxRates.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name} ({item.rate_percent}%)</MenuItem>)}</SearchableSelect>
+              <SearchableSelect select fullWidth label="Tasa de impuesto" value={editDialog.values.tax_rate_id || ""} onChange={(e) => setEditValue("tax_rate_id", e.target.value)}><MenuItem value="">Sin impuesto</MenuItem>{taxRates.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.name} ({formatEditableNumber(item.rate_percent, "0")}%)</MenuItem>)}</SearchableSelect>
               <TextField fullWidth label="Unidad de medida" value="Unidades" disabled helperText="Los productos terminados se controlan en unidades completas" />
             </Stack>
             </Box>

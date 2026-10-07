@@ -123,6 +123,41 @@ const addBlankRows = (worksheet, count = 1) => {
 
 const sumBy = (rows, field) => rows.reduce((total, row) => total + Number(row?.[field] || 0), 0);
 
+const inventoryQuantityFormatter = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 3,
+});
+
+const formatInventoryRemainder = (quantity, unit) => {
+  const amount = Number(quantity || 0);
+
+  if (unit === "g" && amount >= 1000) {
+    return `${inventoryQuantityFormatter.format(amount / 1000)} kg`;
+  }
+  if (unit === "ml" && amount >= 1000) {
+    return `${inventoryQuantityFormatter.format(amount / 1000)} litros`;
+  }
+
+  return `${inventoryQuantityFormatter.format(amount)} ${getMeasurementUnitName(unit)}`;
+};
+
+const formatInventoryPresentation = (item) => {
+  const quantity = Number(item.quantity_on_hand || 0);
+  const packageQuantity = Number(item.purchase_package_quantity || 0);
+  const packageName = String(item.purchase_package_name || "").trim();
+
+  if (!packageName || packageQuantity <= 0) {
+    return "—";
+  }
+
+  const packages = Math.trunc(quantity / packageQuantity);
+  const remainder = quantity - packages * packageQuantity;
+  const packageLabel = packages === 1 || packageName.toLowerCase().endsWith("s")
+    ? packageName
+    : `${packageName}s`;
+
+  return `${inventoryQuantityFormatter.format(packages)} ${packageLabel} + ${formatInventoryRemainder(remainder, item.unit)}`;
+};
+
 const buildReturnsMatrix = (rows, valueField, salesUsers = []) => {
   const sellers = [];
   const sellerKeys = new Set();
@@ -186,13 +221,13 @@ const addInventorySection = (worksheet, title, rows) => {
   const section = addSection(
     worksheet,
     title,
-    ["Producto", "Categoria", "Cantidad", "Unidad", "Valoración", "Valor unitario", "Total"],
+    ["Producto", "Categoria", "Cantidad", "Unidad", "Bultos / presentación", "Valor unitario", "Total"],
     rows.map((item) => [
       item.item_name || "",
       item.category_name || "",
       Number(item.quantity_on_hand || 0),
       getMeasurementUnitName(item.unit),
-      Number(item.is_inventory_valued ?? 1) === 0 ? "No valorizado" : "Valorizado",
+      formatInventoryPresentation(item),
       Number(item.unit_cost || 0),
       Number(item.total_value || 0),
     ]),
@@ -488,7 +523,7 @@ const exportProductionMonthExcel = async ({
   addSheetHeader(
     inventoryWorksheet,
     `Inventarios de ${monthLabel(filters.month)}`,
-    "Materia prima, producto terminado, rollos y bolsas",
+    "Materia prima, producto terminado, plásticos, rollos y bolsas",
     7
   );
   addBlankRows(inventoryWorksheet);
@@ -497,13 +532,13 @@ const exportProductionMonthExcel = async ({
   addBlankRows(inventoryWorksheet, 2);
   addInventorySection(inventoryWorksheet, "Inventario producto terminado", inventorySnapshot.finished_products || []);
   addBlankRows(inventoryWorksheet, 2);
-  addInventorySection(inventoryWorksheet, "Inventario de rollos y bolsas", inventorySnapshot.packaging || []);
+  addInventorySection(inventoryWorksheet, "Inventario de plásticos, rollos y bolsas", inventorySnapshot.packaging || []);
   addBlankRows(inventoryWorksheet, 2);
 
   const inventoryTotals = [
     ["Inventario de materia prima", sumBy(inventorySnapshot.raw_materials || [], "total_value")],
     ["Inventario producto terminado", sumBy(inventorySnapshot.finished_products || [], "total_value")],
-    ["Inventario de rollos y bolsas", sumBy(inventorySnapshot.packaging || [], "total_value")],
+    ["Inventario de plásticos, rollos y bolsas", sumBy(inventorySnapshot.packaging || [], "total_value")],
   ];
   inventoryTotals.push(["TOTAL", inventoryTotals.reduce((total, row) => total + Number(row[1] || 0), 0)]);
   addSection(

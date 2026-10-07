@@ -49,6 +49,17 @@ export const isIntegerUnit = (unit) => {
 
 export const hasDecimals = (value) => Math.abs(Number(value || 0) % 1) > 0;
 
+// Conserva la precisión real, pero evita exponer ceros decimales provenientes
+// de columnas DECIMAL de la base de datos (por ejemplo, 50000.0000 -> 50000).
+export const formatEditableNumber = (value, fallback = "") => {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? String(number) : String(value);
+};
+
 export const formatInventoryQuantity = (value, unit) => {
   const number = Number(value || 0);
   const maximumFractionDigits = isIntegerUnit(unit) ? 0 : hasDecimals(number) ? 3 : 0;

@@ -8,6 +8,7 @@ import PercentageField from "components/atoms/PercentageField";
 import SectionHeader from "components/atoms/SectionHeader";
 import SalesRulesSummary from "components/molecules/SalesRulesSummary";
 import ordersService from "services/orders/orders-service";
+import { formatEditableNumber } from "views/modules/flow-utils";
 
 const initialValues = {
   bonus_percent: "20",
@@ -37,11 +38,12 @@ const SalesSettingsForm = () => {
       }
 
       setValues({
-        bonus_percent: String(response.data.bonus_percent ?? 20),
-        bonus_minimum_amount: String(response.data.bonus_minimum_amount ?? 2000),
-        bonus_max_company_loss_amount: String(response.data.bonus_max_company_loss_amount ?? 1500),
-        external_seller_commission_percent: String(
-          response.data.external_seller_commission_percent ?? 15
+        bonus_percent: formatEditableNumber(response.data.bonus_percent, "20"),
+        bonus_minimum_amount: formatEditableNumber(response.data.bonus_minimum_amount, "2000"),
+        bonus_max_company_loss_amount: formatEditableNumber(response.data.bonus_max_company_loss_amount, "1500"),
+        external_seller_commission_percent: formatEditableNumber(
+          response.data.external_seller_commission_percent,
+          "15"
         ),
       });
     } catch (requestError) {

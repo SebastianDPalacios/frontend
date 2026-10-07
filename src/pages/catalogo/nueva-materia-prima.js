@@ -81,8 +81,13 @@ const getUnitCostLabel = (unit) => unitCostLabels[unit] || "Costo unitario";
 
 const getInventoryUsageType = (categoryId, categories) => {
   const category = categories.find((item) => String(item.id) === String(categoryId));
-  const name = String(category?.name || "").toLowerCase();
-  return name.includes("rollo") || name.includes("bolsa") ? "packaging" : "production";
+  const name = String(category?.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return name.includes("rollo") || name.includes("bolsa") || name.includes("plastic")
+    ? "packaging"
+    : "production";
 };
 
 const getFriendlyRawMaterialError = (error) => {

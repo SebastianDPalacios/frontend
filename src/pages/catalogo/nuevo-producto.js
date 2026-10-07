@@ -9,6 +9,7 @@ import FormField from "@core/components/ui/FormField";
 import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import { formatEditableNumber } from "views/modules/flow-utils";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -312,7 +313,7 @@ const NuevoProductoPage = () => {
                 <MenuItem value="">Sin impuesto</MenuItem>
                 {taxRates.map((taxRate) => (
                   <MenuItem key={taxRate.id} value={taxRate.id}>
-                    {taxRate.name} ({taxRate.rate_percent}%)
+                    {taxRate.name} ({formatEditableNumber(taxRate.rate_percent, "0")}%)
                   </MenuItem>
                 ))}
               </FormField>

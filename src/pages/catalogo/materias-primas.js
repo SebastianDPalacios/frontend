@@ -5,6 +5,7 @@ import RawMaterialsTable from "components/organisms/catalog/RawMaterialsTable";
 import catalogService from "services/catalog/catalog-service";
 import { getApiErrorMessage } from "utils/api-error";
 import FlowPageLayout from "views/modules/FlowPageLayout";
+import { formatEditableNumber } from "views/modules/flow-utils";
 
 const unitOptions = [
   { value: "g", label: "Gramo" },
@@ -127,8 +128,13 @@ const getOptionName = (items, id, fallback = "Sin asignar") => {
 
 const getInventoryUsageType = (categoryId, categories) => {
   const category = categories.find((item) => String(item.id) === String(categoryId));
-  const name = String(category?.name || "").toLowerCase();
-  return name.includes("rollo") || name.includes("bolsa") ? "packaging" : "production";
+  const name = String(category?.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return name.includes("rollo") || name.includes("bolsa") || name.includes("plastic")
+    ? "packaging"
+    : "production";
 };
 
 const emptyForm = {
@@ -233,9 +239,9 @@ const RawMaterialsPage = () => {
       package_quantity: fromBaseQuantity(item.purchase_package_quantity, packageUnit),
       package_unit: packageUnit,
       package_cost: "",
-      unit_cost: item.unit_cost ?? "",
+      unit_cost: formatEditableNumber(item.unit_cost),
       is_inventory_valued: Number(item.is_inventory_valued ?? 1),
-      min_stock: item.min_stock ?? "",
+      min_stock: formatEditableNumber(item.min_stock),
       is_active: Number(item.is_active ?? 1),
     });
   };

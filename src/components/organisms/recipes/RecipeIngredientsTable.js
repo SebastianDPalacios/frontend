@@ -4,7 +4,7 @@ import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import AppButton from "@core/components/ui/AppButton";
-import { getDisplayName } from "views/modules/flow-utils";
+import { formatEditableNumber, getDisplayName } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getUnitLabel = (material) => (material?.unit === "ml" ? "Mililitros" : "Gramos");
@@ -74,6 +74,7 @@ const RecipeIngredientsTable = ({
                     label={getUnitLabel(material)}
                     value={row.quantity}
                     onChange={(event) => onChange(index, "quantity", event.target.value)}
+                    onBlur={(event) => onChange(index, "quantity", formatEditableNumber(event.target.value))}
                     inputProps={{ min: 0.001, step: "0.001" }}
                   />
                 </TableCell>

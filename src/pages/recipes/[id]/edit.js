@@ -10,7 +10,7 @@ import FlowPageLayout from "views/modules/FlowPageLayout";
 import AppButton from "@core/components/ui/AppButton";
 import ColombianCurrencyField from "components/atoms/ColombianCurrencyField";
 import RecipeIngredientsTable from "components/organisms/recipes/RecipeIngredientsTable";
-import { normalizeRows } from "views/modules/flow-utils";
+import { formatEditableNumber, normalizeRows } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const moneyFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
@@ -73,22 +73,22 @@ const RecipeEditPage = () => {
             rowKey: `base-${item.raw_material_id}`,
             concept: item.concept || "MOJE",
             rawMaterialId: String(item.raw_material_id || ""),
-            quantity: item.quantity ?? "",
-            wastagePercent: item.wastage_percent ?? "0",
+            quantity: formatEditableNumber(item.quantity),
+            wastagePercent: formatEditableNumber(item.wastage_percent, "0"),
           }));
         const loadedOutputs = normalizeRows(detail.outputs).map((output) => ({
             productId: String(output.product_id || ""),
             productName: output.product_name || "",
-            expectedQuantity: output.expected_quantity ?? "",
-            unitWeightGrams: output.unit_weight_grams ?? "",
-            salePrice: output.sale_price ?? "",
+            expectedQuantity: formatEditableNumber(output.expected_quantity),
+            unitWeightGrams: formatEditableNumber(output.unit_weight_grams),
+            salePrice: formatEditableNumber(output.sale_price),
             packingNote: output.packing_note || "",
             items: normalizeRows(output.items).map((item) => ({
               rowKey: `output-${output.id}-${item.raw_material_id}-${item.concept}`,
               concept: item.concept || "RELLENO",
               rawMaterialId: String(item.raw_material_id || ""),
-              quantity: item.quantity ?? "",
-              wastagePercent: item.wastage_percent ?? "0",
+              quantity: formatEditableNumber(item.quantity),
+              wastagePercent: formatEditableNumber(item.wastage_percent, "0"),
             })),
           }));
         setBaseRows(loadedBaseRows.length ? loadedBaseRows : [emptyBaseRow()]);
@@ -283,10 +283,10 @@ const RecipeEditPage = () => {
                       </SearchableSelect>
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>
-                      <TextField fullWidth type="number" label="Cantidad" value={output.expectedQuantity} onChange={(event) => updateOutput(index, "expectedQuantity", event.target.value)} inputProps={{ min: 0.01, step: "0.01" }} />
+                      <TextField fullWidth type="number" label="Cantidad" value={output.expectedQuantity} onChange={(event) => updateOutput(index, "expectedQuantity", event.target.value)} onBlur={(event) => updateOutput(index, "expectedQuantity", formatEditableNumber(event.target.value))} inputProps={{ min: 0.01, step: "0.01" }} />
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>
-                      <TextField fullWidth type="number" label="Peso unidad" value={output.unitWeightGrams} onChange={(event) => updateOutput(index, "unitWeightGrams", event.target.value)} inputProps={{ min: 0, step: "0.01" }} />
+                      <TextField fullWidth type="number" label="Peso unidad" value={output.unitWeightGrams} onChange={(event) => updateOutput(index, "unitWeightGrams", event.target.value)} onBlur={(event) => updateOutput(index, "unitWeightGrams", formatEditableNumber(event.target.value))} inputProps={{ min: 0, step: "0.01" }} />
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>
                       <ColombianCurrencyField

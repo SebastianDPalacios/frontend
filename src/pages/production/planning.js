@@ -18,7 +18,7 @@ import { normalizeRows } from "views/modules/flow-utils";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 3 });
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-const arrobaFormatter = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const arrobaFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 const formatArrobas = (value) => arrobaFormatter.format(Number(value || 0));
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
