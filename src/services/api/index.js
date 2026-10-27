@@ -31,6 +31,7 @@
     productYield: (id) => `/catalog/products/${id}/yield`,
     rawMaterials: "/catalog/raw-materials",
     rawMaterialById: (id) => `/catalog/raw-materials/${id}`,
+    rawMaterialDelete: (id) => `/catalog/raw-materials/${id}`,
     rawMaterialStatus: (id) => `/catalog/raw-materials/${id}/status`,
     taxRates: "/catalog/tax-rates",
     productCategories: "/catalog/product-categories",
@@ -141,6 +142,7 @@
   },
   settings: {
     posTicket: "/settings/pos-ticket",
+    systemVersion: "/settings/system-version",
   },
   wholesale: {
     configuration: "/wholesale/configuration",

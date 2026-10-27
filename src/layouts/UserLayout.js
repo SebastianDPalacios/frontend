@@ -41,10 +41,12 @@ import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import CircleRoundedIcon from "@mui/icons-material/CircleRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useRouter } from "next/router";
 import authService from "services/auth/auth-service";
 import productionService from "services/production/production-service";
 import systemAnnouncementsService from "services/system/system-announcements-service";
+import settingsService from "services/settings/settings-service";
 import navigationItems from "configs/navigation";
 import {
   bakerOnlyPaths,
@@ -189,6 +191,17 @@ const UserLayout = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [systemAnnouncement, setSystemAnnouncement] = useState(null);
   const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [systemVersion, setSystemVersion] = useState(null);
+  const [versionOpen, setVersionOpen] = useState(false);
+
+  const loadSystemVersion = useCallback(async () => {
+    try {
+      const response = await settingsService.getSystemVersion();
+      if (response?.code === 1) setSystemVersion(response.data || null);
+    } catch (error) {
+      setSystemVersion(null);
+    }
+  }, []);
 
   const loadSystemAnnouncement = useCallback(async () => {
     try {
@@ -266,7 +279,8 @@ const UserLayout = ({ children }) => {
 
   useEffect(() => {
     setCurrentUser(authService.getCurrentUser());
-  }, []);
+    loadSystemVersion();
+  }, [loadSystemVersion]);
 
   useEffect(() => {
     loadNotifications();
@@ -559,11 +573,61 @@ const UserLayout = ({ children }) => {
           <Divider sx={{ mt: 1.5 }} />
         </Box>
       ))}
+      {systemVersion ? (
+        <Box sx={{ px: 0.75, pt: 0.25 }}>
+          <Button
+            fullWidth
+            variant="text"
+            color="inherit"
+            startIcon={<InfoOutlinedIcon fontSize="small" />}
+            onClick={() => {
+              setMobileOpen(false);
+              setDesktopOpen(false);
+              setVersionOpen(true);
+            }}
+            sx={{ justifyContent: "flex-start", color: "text.secondary", textTransform: "none", borderRadius: 2 }}
+          >
+            Versión {systemVersion.version}
+          </Button>
+        </Box>
+      ) : null}
     </Box>
   );
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <Dialog open={versionOpen} onClose={() => setVersionOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900 }}>Acerca del sistema</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 900 }}>Panadería</Typography>
+              <Typography color="primary.main" sx={{ fontWeight: 800 }}>Versión {systemVersion?.version}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">Última actualización</Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {systemVersion?.released_at
+                  ? new Date(systemVersion.released_at).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                  : "Sin fecha registrada"}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">Actualización</Typography>
+              <Typography sx={{ fontWeight: 800 }}>{systemVersion?.title}</Typography>
+            </Box>
+            {systemVersion?.release_notes ? (
+              <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Novedades</Typography>
+                <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{systemVersion.release_notes}</Typography>
+              </Box>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="contained" color="secondary" onClick={() => setVersionOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
       <Dialog open={announcementOpen} onClose={dismissSystemAnnouncement} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontWeight: 900 }}>Aviso importante del sistema</DialogTitle>
         <DialogContent>

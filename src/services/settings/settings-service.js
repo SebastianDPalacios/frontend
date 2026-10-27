@@ -6,6 +6,10 @@ class SettingsService {
     return GetEndpoint(endpoints.settings.posTicket);
   }
 
+  getSystemVersion() {
+    return GetEndpoint(endpoints.settings.systemVersion);
+  }
+
   updatePosTicketSettings(payload) {
     return PutEndpoint(endpoints.settings.posTicket, payload);
   }

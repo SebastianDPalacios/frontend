@@ -38,6 +38,10 @@ class CatalogService {
     return PatchEndpoint(endpoints.catalog.rawMaterialStatus(id), payload);
   }
 
+  async deleteRawMaterial(id, reason = null) {
+    return DeleteEndpoint(endpoints.catalog.rawMaterialDelete(id), { data: { p_reason: reason } });
+  }
+
   async getTaxRates(params = {}) {
     return GetEndpoint(endpoints.catalog.taxRates, { params });
   }

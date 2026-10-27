@@ -51,7 +51,7 @@ const RecipeEditPage = () => {
       try {
         const [detailResponse, baseDataResponse] = await Promise.all([
           recipesService.getDetail(recipeId),
-          recipesService.getBaseData({ onlyActive: 1 }),
+          recipesService.getBaseData({ onlyActive: 0 }),
         ]);
 
         if (detailResponse?.code !== 1) {
@@ -64,9 +64,28 @@ const RecipeEditPage = () => {
         }
 
         const detail = detailResponse.data;
+        const availableRawMaterials = normalizeRows(baseDataResponse.data?.raw_materials);
+        const referencedRawMaterials = [
+          ...normalizeRows(detail.base_items),
+          ...normalizeRows(detail.outputs).flatMap((output) => normalizeRows(output.items)),
+        ];
+        referencedRawMaterials.forEach((item) => {
+          if (!availableRawMaterials.some((material) => Number(material.id) === Number(item.raw_material_id))) {
+            availableRawMaterials.push({
+              id: item.raw_material_id,
+              sku: item.raw_material_sku,
+              name: item.raw_material_name,
+              description: item.raw_material_name,
+              unit: item.unit,
+              unit_cost: item.unit_cost,
+              is_active: Number(item.raw_material_is_active || 0),
+              deleted_at: item.raw_material_deleted_at || "historical",
+            });
+          }
+        });
         setRecipe(detail);
         setProducts(normalizeRows(baseDataResponse.data?.products));
-        setRawMaterials(normalizeRows(baseDataResponse.data?.raw_materials));
+        setRawMaterials(availableRawMaterials);
         setRecipeName(detail.recipe_name || "");
         setRecipeDescription(detail.recipe_description || "");
         const loadedBaseRows = normalizeRows(detail.base_items).map((item) => ({
@@ -279,7 +298,15 @@ const RecipeEditPage = () => {
                         updateOutput(index, "productName", selected ? getProductName(selected) : "");
                       }}>
                         <MenuItem value="">Seleccionar</MenuItem>
-                        {products.map((product) => <MenuItem key={product.id} value={String(product.id)}>{getProductName(product)}</MenuItem>)}
+                        {products.map((product) => (
+                          <MenuItem
+                            key={product.id}
+                            value={String(product.id)}
+                            disabled={Number(product.is_active) !== 1 && String(product.id) !== String(output.productId)}
+                          >
+                            {getProductName(product)}{Number(product.is_active) !== 1 ? " (Inactivo)" : ""}
+                          </MenuItem>
+                        ))}
                       </SearchableSelect>
                     </Grid>
                     <Grid item xs={12} sm={4} md={2}>

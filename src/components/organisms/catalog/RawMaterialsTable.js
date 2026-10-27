@@ -34,6 +34,7 @@ const RawMaterialsTable = ({
   onSearchChange,
   onEdit,
   onToggleStatus,
+  onDelete,
   getOptionName,
   formatPackageSummary,
   currentPage,
@@ -182,7 +183,10 @@ const RawMaterialsTable = ({
                         Editar
                       </AppButton>
                       <AppButton variant="outlined" color={isActive ? "error" : "secondary"} onClick={() => onToggleStatus(item)} disabled={isPending}>
-                        {isActive ? "Eliminar" : "Activar"}
+                        {isActive ? "Desactivar" : "Activar"}
+                      </AppButton>
+                      <AppButton variant="outlined" color="error" onClick={() => onDelete(item)} disabled={isPending}>
+                        Eliminar
                       </AppButton>
                     </Stack>
                   </TableCell>

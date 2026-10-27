@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from "@mui/material";
+import AppButton from "@core/components/ui/AppButton";
 import RawMaterialEditDialog from "components/organisms/catalog/RawMaterialEditDialog";
 import RawMaterialsTable from "components/organisms/catalog/RawMaterialsTable";
 import catalogService from "services/catalog/catalog-service";
@@ -166,6 +168,7 @@ const RawMaterialsPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [pendingStatusId, setPendingStatusId] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null, reason: "", error: null, saving: false });
 
   const loadRawMaterials = useCallback(async () => {
     setLoading(true);
@@ -345,6 +348,29 @@ const RawMaterialsPage = () => {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (deleteDialog.saving) return;
+    setDeleteDialog({ open: false, item: null, reason: "", error: null, saving: false });
+  };
+
+  const deleteRawMaterial = async () => {
+    const item = deleteDialog.item;
+    if (!item) return;
+    setDeleteDialog((current) => ({ ...current, saving: true, error: null }));
+    try {
+      const response = await catalogService.deleteRawMaterial(item.id, deleteDialog.reason.trim() || null);
+      if (response?.code !== 1) {
+        setDeleteDialog((current) => ({ ...current, saving: false, error: response?.message || "No se pudo eliminar la materia prima" }));
+        return;
+      }
+      toast.success(response?.message || "Materia prima eliminada");
+      setDeleteDialog({ open: false, item: null, reason: "", error: null, saving: false });
+      await loadRawMaterials();
+    } catch (requestError) {
+      setDeleteDialog((current) => ({ ...current, saving: false, error: getApiErrorMessage(requestError, "Error de red al eliminar la materia prima") }));
+    }
+  };
+
   return (
     <FlowPageLayout title="Materias primas" subtitle="Crea, edita y depura los insumos usados en recetas e inventario.">
       <RawMaterialsTable
@@ -362,6 +388,7 @@ const RawMaterialsPage = () => {
         onSearchChange={setSearch}
         onEdit={openEditDialog}
         onToggleStatus={toggleRawMaterialStatus}
+        onDelete={(item) => setDeleteDialog({ open: true, item, reason: "", error: null, saving: false })}
         getOptionName={getOptionName}
         formatPackageSummary={formatPackageSummary}
         currentPage={currentPage}
@@ -385,6 +412,32 @@ const RawMaterialsPage = () => {
         getDefaultPackageName={getDefaultPackageName}
         getUnitCostLabel={getUnitCostLabel}
       />
+
+      <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Eliminar materia prima</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="warning">
+              {deleteDialog.item?.name || "Esta materia prima"} dejará de aparecer en operaciones nuevas. Las recetas y movimientos históricos se conservarán.
+            </Alert>
+            <Alert severity="info">Para eliminarla, su existencia debe estar en cero en todas las sucursales.</Alert>
+            {deleteDialog.error ? <Alert severity="error">{deleteDialog.error}</Alert> : null}
+            <TextField
+              label="Justificación (opcional)"
+              value={deleteDialog.reason}
+              onChange={(event) => setDeleteDialog((current) => ({ ...current, reason: event.target.value }))}
+              multiline
+              minRows={3}
+              fullWidth
+              disabled={deleteDialog.saving}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <AppButton variant="outlined" color="secondary" onClick={closeDeleteDialog} disabled={deleteDialog.saving}>Cancelar</AppButton>
+          <AppButton color="error" onClick={deleteRawMaterial} loading={deleteDialog.saving} disabled={deleteDialog.saving}>Eliminar</AppButton>
+        </DialogActions>
+      </Dialog>
     </FlowPageLayout>
   );
 };

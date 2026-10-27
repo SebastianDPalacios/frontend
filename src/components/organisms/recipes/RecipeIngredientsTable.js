@@ -60,8 +60,13 @@ const RecipeIngredientsTable = ({
                   >
                     <MenuItem value="">Seleccionar</MenuItem>
                     {rawMaterials.map((item) => (
-                      <MenuItem key={item.id} value={String(item.id)}>
+                      <MenuItem
+                        key={item.id}
+                        value={String(item.id)}
+                        disabled={Number(item.is_active) !== 1 && String(item.id) !== String(row.rawMaterialId)}
+                      >
                         {getDisplayName(item)}
+                        {item.deleted_at ? " (Eliminada)" : Number(item.is_active) !== 1 ? " (Inactiva)" : ""}
                       </MenuItem>
                     ))}
                   </SearchableSelect>
