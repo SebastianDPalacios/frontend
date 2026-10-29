@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { Alert, Box, Chip, Grid, IconButton, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Chip, Grid, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import toast from "react-hot-toast";
@@ -25,7 +25,9 @@ const emptyBaseRow = () => ({ rowKey: `base-${Date.now()}-${Math.random()}`, con
 const emptyOutputItem = () => ({ rowKey: `output-item-${Date.now()}-${Math.random()}`, concept: "RELLENO", rawMaterialId: "", quantity: "", wastagePercent: "0" });
 const emptyOutput = () => ({ productId: "", productName: "", expectedQuantity: "", unitWeightGrams: "", salePrice: "", packingNote: "", items: [] });
 const getProductName = (product) => product?.name || product?.product_name || product?.description || "Sin nombre";
-const getMaterialCost = (material) => toNumber(material?.unit_cost);
+const getMaterialCost = (material) => (
+  Number(material?.is_inventory_valued ?? 1) === 1 ? toNumber(material?.unit_cost) : 0
+);
 
 const RecipeEditPage = () => {
   const router = useRouter();
@@ -133,6 +135,22 @@ const RecipeEditPage = () => {
       };
     }, { cost: 0, weight: 0 });
   }, [baseRows, rawMaterials]);
+
+  const outputSummaries = useMemo(() => outputs.map((output) => {
+    const additionalCost = output.items.reduce((total, item) => {
+      const material = rawMaterials.find((row) => String(row.id) === String(item.rawMaterialId));
+      const quantity = toNumber(item.quantity);
+      const wastage = toNumber(item.wastagePercent);
+      return total + quantity * (1 + wastage / 100) * getMaterialCost(material);
+    }, 0);
+    const totalCost = baseSummary.cost + additionalCost;
+    const quantity = toNumber(output.expectedQuantity);
+    return {
+      additionalCost,
+      totalCost,
+      unitCost: quantity > 0 ? totalCost / quantity : 0,
+    };
+  }), [baseSummary.cost, outputs, rawMaterials]);
 
   const updateBaseRow = (index, key, value) => setBaseRows((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
   const updateOutput = (index, key, value) => setOutputs((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
@@ -284,7 +302,42 @@ const RecipeEditPage = () => {
                   <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", mb: 2 }}>
                     <Box>
                       <Typography sx={{ fontWeight: 900 }}>Producto {index + 1}</Typography>
-                      <Chip label={`Costo unitario ${moneyFormatter.format(toNumber(output.expectedQuantity) > 0 ? baseSummary.cost / toNumber(output.expectedQuantity) : 0)}`} variant="outlined" size="small" />
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        <Tooltip
+                          arrow
+                          title="Costo de los ingredientes que pertenecen únicamente a este producto, como rellenos, aderezos o coberturas."
+                        >
+                          <Chip
+                            label={`Adicionales ${moneyFormatter.format(outputSummaries[index]?.additionalCost || 0)}`}
+                            variant="outlined"
+                            size="small"
+                            tabIndex={0}
+                          />
+                        </Tooltip>
+                        <Tooltip
+                          arrow
+                          title="Costo del moje base más los ingredientes adicionales de este producto. Corresponde al costo completo del lote."
+                        >
+                          <Chip
+                            label={`Costo total ${moneyFormatter.format(outputSummaries[index]?.totalCost || 0)}`}
+                            variant="outlined"
+                            size="small"
+                            tabIndex={0}
+                          />
+                        </Tooltip>
+                        <Tooltip
+                          arrow
+                          title="Costo del lote dividido entre la cantidad esperada de unidades de este producto."
+                        >
+                          <Chip
+                            label={`Costo unitario ${moneyFormatter.format(outputSummaries[index]?.unitCost || 0)}`}
+                            color="secondary"
+                            variant="outlined"
+                            size="small"
+                            tabIndex={0}
+                          />
+                        </Tooltip>
+                      </Stack>
                     </Box>
                     <IconButton onClick={() => setOutputs((prev) => prev.filter((_, rowIndex) => rowIndex !== index))} disabled={outputs.length === 1} size="small">
                       <RemoveCircleOutlineIcon />

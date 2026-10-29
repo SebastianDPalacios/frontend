@@ -8,6 +8,14 @@ import { formatEditableNumber, getDisplayName } from "views/modules/flow-utils";
 import SearchableSelect from "@core/components/ui/SearchableSelect";
 
 const getUnitLabel = (material) => (material?.unit === "ml" ? "Mililitros" : "Gramos");
+const moneyFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+
+const getRowCost = (material, row) => {
+  if (Number(material?.is_inventory_valued ?? 1) !== 1) return 0;
+  const quantity = Number(row.quantity || 0);
+  const wastage = Number(row.wastagePercent || 0);
+  return quantity * (1 + wastage / 100) * Number(material?.unit_cost || 0);
+};
 
 const RecipeIngredientsTable = ({
   rows,
@@ -28,6 +36,7 @@ const RecipeIngredientsTable = ({
             <TableCell width={180}>Concepto</TableCell>
             <TableCell>Materia prima</TableCell>
             <TableCell width={180}>Cantidad</TableCell>
+            <TableCell width={150} align="right">Costo</TableCell>
             <TableCell width={150} align="right">Acciones</TableCell>
           </TableRow>
         </TableHead>
@@ -82,6 +91,12 @@ const RecipeIngredientsTable = ({
                     onBlur={(event) => onChange(index, "quantity", formatEditableNumber(event.target.value))}
                     inputProps={{ min: 0.001, step: "0.001" }}
                   />
+                </TableCell>
+                <TableCell align="right">
+                  <Typography sx={{ fontWeight: 800 }}>{moneyFormatter.format(getRowCost(material, row))}</Typography>
+                  {Number(material?.is_inventory_valued ?? 1) !== 1 ? (
+                    <Typography variant="caption" color="text.secondary">No valorizada</Typography>
+                  ) : null}
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Subir">

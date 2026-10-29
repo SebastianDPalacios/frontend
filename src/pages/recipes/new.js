@@ -75,6 +75,7 @@ const buildSkuFromName = (name) => {
 };
 
 const getMaterialCostPerGram = (material) => {
+  if (Number(material?.is_inventory_valued ?? 1) !== 1) return 0;
   return toNumber(material?.unit_cost);
 };
 
