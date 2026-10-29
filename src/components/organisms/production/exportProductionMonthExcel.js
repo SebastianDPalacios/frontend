@@ -123,6 +123,14 @@ const addBlankRows = (worksheet, count = 1) => {
 
 const sumBy = (rows, field) => rows.reduce((total, row) => total + Number(row?.[field] || 0), 0);
 
+const returnReasonLabels = {
+  expired: "Vencido",
+  mold: "Moho",
+  malformed: "Mal moldeado",
+  other: "Otro",
+  wet: "Mojado (histórico)",
+};
+
 const inventoryQuantityFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
@@ -512,6 +520,23 @@ const exportProductionMonthExcel = async ({
     valueReturns.headers,
     valueReturns.rows,
     { currencyColumns: Array.from({ length: valueReturns.headers.length - 2 }, (_, index) => index + 3), headerFill: colors.softOrange }
+  );
+
+  addBlankRows(returnsWorksheet, 2);
+
+  const returnsByReason = Array.isArray(report.returns_by_reason) ? report.returns_by_reason : [];
+  addSection(
+    returnsWorksheet,
+    "TOTALES POR MOTIVO",
+    ["Motivo", "Cantidad", "Registros"],
+    returnsByReason.length
+      ? returnsByReason.map((item) => [
+          returnReasonLabels[item.reason] || item.reason || "Sin motivo registrado",
+          Number(item.returned_quantity || 0),
+          `${Number(item.return_records || 0)} registro(s)`,
+        ])
+      : [["Sin devoluciones", 0, "0 registro(s)"]],
+    { decimalColumns: [2], headerFill: colors.softOrange }
   );
 
   const inventorySnapshot = report.inventory_snapshot || {};

@@ -85,6 +85,7 @@ const ProductionMonthPage = () => {
     recipe_materials_usage: [],
     flour_daily_usage: [],
     returns_summary: [],
+    returns_by_reason: [],
     inventory_snapshot: {
       raw_materials: [],
       finished_products: [],
@@ -227,6 +228,7 @@ const ProductionMonthPage = () => {
           recipe_materials_usage: normalizeRows(response.data?.recipe_materials_usage),
           flour_daily_usage: normalizeRows(response.data?.flour_daily_usage),
           returns_summary: normalizeRows(response.data?.returns_summary),
+          returns_by_reason: normalizeRows(response.data?.returns_by_reason),
           inventory_snapshot: {
             raw_materials: normalizeRows(response.data?.inventory_snapshot?.raw_materials),
             finished_products: normalizeRows(response.data?.inventory_snapshot?.finished_products),
